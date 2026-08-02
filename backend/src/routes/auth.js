@@ -194,6 +194,30 @@ router.post('/setup-password', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/auth/validate-token - Validate account setup token
+router.get('/validate-token', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    const { rows } = await pool.query(
+      `SELECT at.*, u.email 
+       FROM auth_tokens at 
+       JOIN users u ON u.id = at.user_id
+       WHERE at.token=$1 AND at.type='account_setup' AND at.used=FALSE AND at.expires_at>NOW()`,
+      [token]
+    );
+    
+    if (!rows[0]) {
+      return res.json({ valid: false, error: 'Invalid or expired token' });
+    }
+    
+    res.json({ valid: true, email: rows[0].email });
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   try {

@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS members (
   city              VARCHAR(100),
   membership_status VARCHAR(30) DEFAULT 'visitor'
                     CHECK (membership_status IN ('visitor','new_convert','member','choir_member',
-                                                  'leader','pastor','elder','deacon')),
+                                                  'leader','pastor','elder','deacon','admin')),
   baptism_status    BOOLEAN DEFAULT FALSE,
   baptism_date      DATE,
   date_joined       DATE DEFAULT CURRENT_DATE,
@@ -687,3 +687,29 @@ VALUES (
   'Ghana',
   TRUE
 ) ON CONFLICT (id) DO NOTHING;
+
+-- =============================================================
+-- PERMISSIONS SYSTEM (for Sub-Admins)
+-- =============================================================
+CREATE TABLE IF NOT EXISTS permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code VARCHAR(100) UNIQUE NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  description TEXT,
+  category VARCHAR(50) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+  granted_by UUID REFERENCES users(id),
+  granted_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, permission_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user ON user_permissions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_permissions_permission ON user_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_category ON permissions(category);
+
