@@ -5,7 +5,7 @@ import { get, CHURCH_NAME } from '@/lib/api';
 import {
   Church, LayoutDashboard, Users, Music2, Megaphone, Activity,
   Images, DollarSign, Bell, LogOut, Menu, X, Cake, BarChart2,
-  Settings, Send,
+  Settings, Send, UserCog, Mail, Presentation, Shield,
 } from 'lucide-react';
 import AdminOverview      from './admin/AdminOverview';
 import AdminMembers       from './admin/AdminMembers';
@@ -24,7 +24,10 @@ const NAV = [
   { to: '/admin/activities',    label: 'Activities',     icon: Activity },
   { to: '/admin/gallery',       label: 'Gallery',        icon: Images },
   { to: '/admin/donations',     label: 'Donations',      icon: DollarSign },
-  { to: '/admin/notifications', label: 'Notifications',  icon: Bell },
+  { to: '/admin/hero-slider',   label: 'Hero Slider',    icon: Presentation },
+  { to: '/admin/contacts',      label: 'Contact Messages', icon: Mail },
+  { to: '/admin/subadmins',     label: 'Sub-Admins',     icon: UserCog },
+  { to: '/admin/profile',       label: 'Profile Settings', icon: Settings },
 ];
 
 const AdminDashboard: React.FC = () => {
