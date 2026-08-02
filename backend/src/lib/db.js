@@ -21,32 +21,23 @@ const isPooler = host.includes('pooler.supabase.com');
 const isDirect = host.startsWith('db.') && host.includes('.supabase.co');
 const connType = isPooler ? 'POOLER' : isDirect ? 'DIRECT' : 'CUSTOM';
 
+console.log(`[DB] Initializing connection pool`);
+console.log(`[DB] Type: ${connType} | Host: ${host}:${port} | DB: ${dbName}`);
+
 const pool = new Pool({
   connectionString: rawUrl,
   ssl: { rejectUnauthorized: false },
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 8000,
+  connectionTimeoutMillis: 10000,
 });
 
-pool.on('error', (err) => console.error('[DB] Pool error:', err.message));
+pool.on('error', (err) => {
+  console.error('[DB] Pool error:', err.message);
+});
 
-async function connect() {
-  console.log('[DB] Connecting...');
-  console.log(`[DB] Type: ${connType} | Host: ${host}:${port} | DB: ${dbName}`);
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      await pool.query('SELECT 1');
-      console.log(`[DB] Connected (${connType})`);
-      return;
-    } catch (err) {
-      console.error(`[DB] Attempt ${attempt} failed: ${err.message}`);
-      if (attempt === 1) { await new Promise(r => setTimeout(r, 3000)); continue; }
-      console.error('[DB] FATAL: Cannot connect to PostgreSQL.');
-      process.exit(1);
-    }
-  }
-}
+pool.on('connect', () => {
+  console.log('[DB] Client connected to pool');
+});
 
 module.exports = pool;
-module.exports.connect = connect;

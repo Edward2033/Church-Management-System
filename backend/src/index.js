@@ -72,18 +72,19 @@ const PORT = process.env.PORT || 5000;
 async function boot() {
   try {
     // Test database connection
-    const client = await pool.connect();
-    console.log('[DB] Database connection successful');
-    client.release();
+    console.log('[SYSTEM] Testing database connection...');
+    const result = await pool.query('SELECT NOW() as now');
+    console.log('[SYSTEM] Database connection successful! Server time:', result.rows[0].now);
     
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`[SYSTEM] LUS4G Church Platform running on port ${PORT}`);
+      console.log(`[SYSTEM] ✓ LUS4G Church Platform running on port ${PORT}`);
+      console.log(`[SYSTEM] ✓ Health check: http://localhost:${PORT}/health`);
       registerBirthdayJob();
     });
   } catch (err) {
-    console.error('[SYSTEM] Boot failed:', err.message);
-    console.error('[SYSTEM] Error details:', err);
+    console.error('[SYSTEM] ✗ Boot failed:', err.message);
+    console.error('[SYSTEM] ✗ Stack trace:', err.stack);
     process.exit(1);
   }
 }
