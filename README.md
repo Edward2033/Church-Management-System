@@ -273,23 +273,101 @@ database/sample-data.sql
 
 ## 🚀 Deployment
 
-### Backend (Render.com)
-1. Create Web Service
-2. Connect GitHub repo
-3. Build command: `cd backend && npm install`
-4. Start command: `cd backend && npm start`
-5. Add environment variables from `backend/.env`
+### Backend on Render.com
 
-### Frontend (Vercel/Render)
-1. Create Static Site
-2. Build command: `cd frontend && npm run build`
-3. Publish directory: `frontend/dist`
-4. Add environment variables from `frontend/.env`
+1. **Create New Web Service**
+   - Go to https://render.com/dashboard
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository: `Edward2033/Church-Management-System`
+
+2. **Configure Service**
+   - **Name**: `lus4g-church-backend` (or your choice)
+   - **Region**: Choose closest to your users
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free or Starter (recommended)
+
+3. **Environment Variables**
+   Add these in Render dashboard:
+   ```
+   NODE_ENV=production
+   PORT=5000
+   DATABASE_URL=your_supabase_pooler_url_with_port_6543
+   JWT_SECRET=your_secure_jwt_secret
+   JWT_EXPIRES_IN=15m
+   JWT_REFRESH_SECRET=your_secure_refresh_secret
+   JWT_REFRESH_EXPIRES_IN=7d
+   DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
+   SMTP_HOST=smtp-relay.brevo.com
+   SMTP_PORT=587
+   SMTP_USER=your_brevo_email
+   SMTP_PASS=your_brevo_password
+   EMAIL_FROM=LUS4G Church <no-reply@lus4g.org>
+   BREVO_API_KEY=your_brevo_api_key
+   TWILIO_SID=your_twilio_sid
+   TWILIO_AUTH_TOKEN=your_twilio_token
+   TWILIO_PHONE=your_twilio_phone
+   TWILIO_WHATSAPP_NUMBER=your_twilio_whatsapp
+   FRONTEND_URL=https://your-app.vercel.app
+   BASE_URL=https://your-backend.onrender.com
+   TZ=Africa/Accra
+   ```
+
+4. **Deploy**
+   - Click "Create Web Service"
+   - Render will automatically build and deploy
+   - Note your backend URL: `https://your-backend.onrender.com`
+
+### Frontend on Vercel
+
+1. **Import Project**
+   - Go to https://vercel.com/dashboard
+   - Click "Add New" → "Project"
+   - Import `Edward2033/Church-Management-System`
+
+2. **Configure Project**
+   - **Framework Preset**: Vite
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+   - **Install Command**: `npm install`
+
+3. **Environment Variables**
+   Add these in Vercel dashboard:
+   ```
+   VITE_API_URL=https://your-backend.onrender.com/api
+   VITE_CHURCH_NAME=LUS4G Church
+   VITE_DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
+   ```
+
+4. **Deploy**
+   - Click "Deploy"
+   - Vercel will build and deploy automatically
+   - Your app will be live at: `https://your-app.vercel.app`
+
+5. **Update Backend CORS**
+   - Go back to Render dashboard
+   - Update `FRONTEND_URL` environment variable with your Vercel URL
+   - Redeploy backend
 
 ### Database (Supabase)
-- Already hosted on Supabase
-- Use connection pooler URL (port 6543) for production
-- Ensure schema is deployed via SQL Editor
+- ✅ Already hosted on Supabase
+- ✅ Use connection pooler URL (port 6543) for production
+- ✅ Run `database/schema.sql` in Supabase SQL Editor before deployment
+- ✅ Ensure your DATABASE_URL uses the pooler connection string
+
+### Post-Deployment Checklist
+- [ ] Backend health check works: `https://your-backend.onrender.com/health`
+- [ ] Frontend loads correctly: `https://your-app.vercel.app`
+- [ ] Login/Register works
+- [ ] Admin dashboard accessible
+- [ ] API calls working (check browser console)
+- [ ] Environment variables set correctly on both platforms
+- [ ] Database schema deployed to Supabase
+- [ ] CORS configured with correct frontend URL
 
 ---
 
@@ -361,9 +439,9 @@ database/sample-data.sql
 ## 📞 Support & Contributing
 
 ### Get Help
-- 📧 Email: support@lus4g.org
+- 📧 Email: edwardcole203@gmail.com
 - 📖 Docs: Read `SETUP_INSTRUCTIONS.md`
-- 🐛 Issues: Report on GitHub Issues
+- 🐛 Issues: Report on [GitHub Issues](https://github.com/Edward2033/Church-Management-System/issues)
 
 ### Contributing
 1. Fork the repository
