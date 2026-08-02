@@ -30,33 +30,33 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-700 mb-4">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/20 mb-4">
             <Church size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 font-serif">Welcome Back</h1>
-          <p className="mt-2 text-gray-500">Sign in to your {CHURCH_NAME} account</p>
+          <h1 className="text-3xl font-bold text-white font-serif">Welcome Back</h1>
+          <p className="mt-2 text-slate-400">Sign in to your {CHURCH_NAME} account</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8">
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Email Address</label>
               <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 placeholder="john@example.com" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
-                <Link to="/forgot-password" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+                <label className="block text-sm font-medium text-slate-300">Password</label>
+                <Link to="/forgot-password" className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors">
                   Forgot password?
                 </Link>
               </div>
               <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 placeholder="••••••••" />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
@@ -64,14 +64,14 @@ const LoginPage: React.FC = () => {
               Sign In
             </button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-slate-400">
             Don't have an account?{' '}
-            <Link to="/register" className="text-purple-700 font-semibold hover:underline">Register here</Link>
+            <Link to="/register" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">Register here</Link>
           </p>
         </div>
 
-        <div className="mt-4 bg-white border border-gray-200 rounded-2xl shadow-sm p-4 text-sm text-gray-500 text-center">
-          <strong className="text-gray-700">Note:</strong> After registering, an admin must approve your account before you can log in.
+        <div className="mt-4 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl p-4 text-sm text-slate-400 text-center">
+          <strong className="text-slate-300">Note:</strong> After registering, an admin must approve your account before you can log in.
         </div>
       </div>
     </div>

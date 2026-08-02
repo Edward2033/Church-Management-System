@@ -35,7 +35,7 @@ const INITIAL: FormData = {
 
 const Field: React.FC<{ label: string; required?: boolean; children: React.ReactNode }> = ({ label, required, children }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && ' *'}</label>
+    <label className="block text-sm font-medium text-slate-300 mb-1">{label}{required && ' *'}</label>
     {children}
   </div>
 );
@@ -144,11 +144,11 @@ const RegisterPage: React.FC = () => {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm max-w-md w-full p-10 text-center">
-          <CheckCircle size={64} className="text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900">Registration Submitted!</h2>
-          <p className="mt-3 text-gray-600">Your registration is under review. An admin will approve your account and send a setup email.</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-10 text-center">
+          <CheckCircle size={64} className="text-green-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white">Registration Submitted!</h2>
+          <p className="mt-3 text-slate-400">Your registration is under review. An admin will approve your account and send a setup email.</p>
           <button onClick={() => navigate('/login')} className="mt-6 btn-primary w-full justify-center">Go to Login</button>
         </div>
       </div>
@@ -156,14 +156,14 @@ const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-slate-950 py-12 px-4">
       <div className="mx-auto max-w-2xl">
         <div className="text-center mb-8">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-700 mb-4">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/20 mb-4">
             <UserPlus size={28} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 font-serif">Member Registration</h1>
-          <p className="mt-2 text-gray-500">Fill out the form below to register with our church</p>
+          <h1 className="text-3xl font-bold text-white font-serif">Member Registration</h1>
+          <p className="mt-2 text-slate-400">Fill out the form below to register with our church</p>
         </div>
 
         {/* Steps */}
@@ -171,28 +171,28 @@ const RegisterPage: React.FC = () => {
           {STEPS.map((s, i) => (
             <React.Fragment key={i}>
               <div className="flex flex-col items-center">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${i < step ? 'bg-green-500 text-white' : i === step ? 'bg-purple-700 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${i < step ? 'bg-green-500 text-white' : i === step ? 'bg-brand-600 text-white' : 'bg-slate-700 text-slate-400'}`}>
                   {i < step ? '✓' : s.icon}
                 </div>
-                <span className="text-xs mt-1 text-gray-500 whitespace-nowrap hidden sm:block">{s.title}</span>
+                <span className="text-xs mt-1 text-slate-400 whitespace-nowrap hidden sm:block">{s.title}</span>
               </div>
-              {i < STEPS.length - 1 && <div className={`h-0.5 w-8 shrink-0 ${i < step ? 'bg-green-500' : 'bg-gray-200'}`} />}
+              {i < STEPS.length - 1 && <div className={`h-0.5 w-8 shrink-0 ${i < step ? 'bg-green-500' : 'bg-slate-700'}`} />}
             </React.Fragment>
           ))}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">{STEPS[step].title}</h2>
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8">
+          <h2 className="text-lg font-bold text-white mb-6">{STEPS[step].title}</h2>
 
           {/* Step 0 – Registration Type */}
           {step === 0 && (
             <div className="grid grid-cols-2 gap-4">
               {(['member', 'choir'] as const).map((t) => (
                 <button key={t} onClick={() => upd('reg_type', t)}
-                  className={`rounded-xl border-2 p-6 text-left transition-all ${form.reg_type === t ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  className={`rounded-xl border-2 p-6 text-left transition-all ${form.reg_type === t ? 'border-brand-500 bg-brand-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
                   <div className="text-2xl mb-2">{t === 'member' ? '👤' : '🎵'}</div>
-                  <div className="font-bold text-gray-900 capitalize">{t === 'member' ? 'Regular Member' : 'Choir Member'}</div>
-                  <div className="text-sm text-gray-500 mt-1">{t === 'member' ? 'Join as a regular church member' : 'Join the music and worship team'}</div>
+                  <div className="font-bold text-white capitalize">{t === 'member' ? 'Regular Member' : 'Choir Member'}</div>
+                  <div className="text-sm text-slate-400 mt-1">{t === 'member' ? 'Join as a regular church member' : 'Join the music and worship team'}</div>
                 </button>
               ))}
             </div>
@@ -202,31 +202,31 @@ const RegisterPage: React.FC = () => {
           {step === 1 && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Field label="First Name" required><input required value={form.first_name} onChange={(e) => upd('first_name', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="John" /></Field>
-                <Field label="Last Name" required><input required value={form.last_name} onChange={(e) => upd('last_name', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="Mensah" /></Field>
+                <Field label="First Name" required><input required value={form.first_name} onChange={(e) => upd('first_name', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="John" /></Field>
+                <Field label="Last Name" required><input required value={form.last_name} onChange={(e) => upd('last_name', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="Mensah" /></Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Gender" required>
-                  <select value={form.gender} onChange={(e) => upd('gender', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                  <select value={form.gender} onChange={(e) => upd('gender', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                     <option value="">Select gender</option>
                     {['Male', 'Female', 'Other'].map((g) => <option key={g}>{g}</option>)}
                   </select>
                 </Field>
-                <Field label="Date of Birth"><input type="date" value={form.date_of_birth} onChange={(e) => upd('date_of_birth', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" /></Field>
+                <Field label="Date of Birth"><input type="date" value={form.date_of_birth} onChange={(e) => upd('date_of_birth', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" /></Field>
               </div>
               <Field label="Profile Photo">
                 <div className="flex items-center gap-4">
                   {form.profile_photo_url ? (
-                    <img src={form.profile_photo_url} className="h-20 w-20 rounded-xl object-cover border-2 border-purple-300" alt="Preview" />
+                    <img src={form.profile_photo_url} className="h-20 w-20 rounded-xl object-cover border-2 border-brand-400" alt="Preview" />
                   ) : (
-                    <div className="h-20 w-20 rounded-xl bg-gray-100 flex items-center justify-center"><Upload size={22} className="text-gray-400" /></div>
+                    <div className="h-20 w-20 rounded-xl bg-slate-800 flex items-center justify-center"><Upload size={22} className="text-slate-500" /></div>
                   )}
                   <div>
                     <label className="cursor-pointer btn-outline py-2 text-sm">
                       {uploading ? 'Processing...' : 'Choose Photo'}
                       <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
                     </label>
-                    <p className="text-xs text-gray-400 mt-1">Max 5MB · JPG, PNG, WEBP</p>
+                    <p className="text-xs text-slate-500 mt-1">Max 5MB · JPG, PNG, WEBP</p>
                   </div>
                 </div>
               </Field>
@@ -237,11 +237,11 @@ const RegisterPage: React.FC = () => {
           {step === 2 && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Email Address" required><input required type="email" value={form.email} onChange={(e) => upd('email', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="john@example.com" /></Field>
-                <Field label="Phone Number" required><input required type="tel" value={form.phone} onChange={(e) => upd('phone', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="+234..." /></Field>
+                <Field label="Email Address" required><input required type="email" value={form.email} onChange={(e) => upd('email', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="john@example.com" /></Field>
+                <Field label="Phone Number" required><input required type="tel" value={form.phone} onChange={(e) => upd('phone', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="+234..." /></Field>
               </div>
-              <Field label="WhatsApp Number"><input type="tel" value={form.whatsapp_number} onChange={(e) => upd('whatsapp_number', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="+234... (if different)" /></Field>
-              <Field label="Home Address"><textarea rows={3} value={form.address} onChange={(e) => upd('address', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100 resize-none" placeholder="123 Faith Street, Lagos" /></Field>
+              <Field label="WhatsApp Number"><input type="tel" value={form.whatsapp_number} onChange={(e) => upd('whatsapp_number', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="+234... (if different)" /></Field>
+              <Field label="Home Address"><textarea rows={3} value={form.address} onChange={(e) => upd('address', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none" placeholder="123 Faith Street, Lagos" /></Field>
             </div>
           )}
 
@@ -250,20 +250,20 @@ const RegisterPage: React.FC = () => {
             <div className="space-y-4">
               {form.reg_type === 'choir' && (
                 <Field label="Voice Type" required>
-                  <select value={form.voice_type} onChange={(e) => upd('voice_type', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                  <select value={form.voice_type} onChange={(e) => upd('voice_type', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                     <option value="">Select voice type</option>
                     {VOICE_TYPES.map((v) => <option key={v}>{v}</option>)}
                   </select>
                 </Field>
               )}
               <Field label="Department">
-                <select value={form.department} onChange={(e) => upd('department', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                <select value={form.department} onChange={(e) => upd('department', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                   <option value="">Select department</option>
                   {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
                 </select>
               </Field>
               <Field label="Baptized?">
-                <select value={form.baptized} onChange={(e) => upd('baptized', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                <select value={form.baptized} onChange={(e) => upd('baptized', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                   <option value="">Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -277,13 +277,13 @@ const RegisterPage: React.FC = () => {
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Main Role" required>
-                  <select value={form.main_role} onChange={(e) => upd('main_role', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                  <select value={form.main_role} onChange={(e) => upd('main_role', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                     <option value="">Select role</option>
                     {['Vocalist', 'Instrumentalist', 'Choir Director', 'Worship Leader', 'Backup Singer'].map((r) => <option key={r}>{r}</option>)}
                   </select>
                 </Field>
                 <Field label="Experience Level">
-                  <select value={form.experience_level} onChange={(e) => upd('experience_level', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100">
+                  <select value={form.experience_level} onChange={(e) => upd('experience_level', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                     <option value="">Select level</option>
                     {['Beginner', 'Intermediate', 'Advanced', 'Professional'].map((l) => <option key={l}>{l}</option>)}
                   </select>
@@ -292,9 +292,9 @@ const RegisterPage: React.FC = () => {
               <Field label="Instruments (select all that apply)">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
                   {INSTRUMENTS.map((inst) => (
-                    <label key={inst} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form.instruments.includes(inst) ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input type="checkbox" checked={form.instruments.includes(inst)} onChange={() => toggleArr('instruments', inst)} className="accent-purple-700" />
-                      <span className="text-sm font-medium">{inst}</span>
+                    <label key={inst} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form.instruments.includes(inst) ? 'border-brand-500 bg-brand-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
+                      <input type="checkbox" checked={form.instruments.includes(inst)} onChange={() => toggleArr('instruments', inst)} className="accent-brand-600" />
+                      <span className="text-sm font-medium text-white">{inst}</span>
                     </label>
                   ))}
                 </div>
@@ -302,9 +302,9 @@ const RegisterPage: React.FC = () => {
               <Field label="Choir Activities (select all that apply)">
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   {CHOIR_ACTIVITIES.map((act) => (
-                    <label key={act} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form.choir_activities.includes(act) ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input type="checkbox" checked={form.choir_activities.includes(act)} onChange={() => toggleArr('choir_activities', act)} className="accent-purple-700" />
-                      <span className="text-sm font-medium">{act}</span>
+                    <label key={act} className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-colors ${form.choir_activities.includes(act) ? 'border-brand-500 bg-brand-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
+                      <input type="checkbox" checked={form.choir_activities.includes(act)} onChange={() => toggleArr('choir_activities', act)} className="accent-brand-600" />
+                      <span className="text-sm font-medium text-white">{act}</span>
                     </label>
                   ))}
                 </div>
@@ -316,11 +316,11 @@ const RegisterPage: React.FC = () => {
           {((step === 4 && form.reg_type === 'member') || (step === 5 && form.reg_type === 'choir')) && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Emergency Contact Name"><input value={form.emergency_contact_name} onChange={(e) => upd('emergency_contact_name', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="Jane Mensah" /></Field>
-                <Field label="Emergency Contact Phone"><input type="tel" value={form.emergency_contact_phone} onChange={(e) => upd('emergency_contact_phone', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100" placeholder="+234..." /></Field>
+                <Field label="Emergency Contact Name"><input value={form.emergency_contact_name} onChange={(e) => upd('emergency_contact_name', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="Jane Mensah" /></Field>
+                <Field label="Emergency Contact Phone"><input type="tel" value={form.emergency_contact_phone} onChange={(e) => upd('emergency_contact_phone', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" placeholder="+234..." /></Field>
               </div>
               <Field label="Bio / Motivation">
-                <textarea rows={4} value={form.bio} onChange={(e) => upd('bio', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100 resize-none" placeholder="Tell us a little about yourself and why you want to join..." />
+                <textarea rows={4} value={form.bio} onChange={(e) => upd('bio', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none" placeholder="Tell us a little about yourself and why you want to join..." />
               </Field>
             </div>
           )}
@@ -328,8 +328,8 @@ const RegisterPage: React.FC = () => {
           {/* Review & Submit */}
           {isLast && (
             <div className="space-y-4">
-              <div className="rounded-xl bg-gray-50 p-5 text-sm space-y-2">
-                <h3 className="font-bold text-gray-800 mb-3">Review Your Information</h3>
+              <div className="rounded-xl bg-slate-800/50 p-5 text-sm space-y-2">
+                <h3 className="font-bold text-white mb-3">Review Your Information</h3>
                 {[
                   ['Type', form.reg_type === 'choir' ? 'Choir Member' : 'Regular Member'],
                   ['Name', `${form.first_name} ${form.last_name}`],
@@ -348,16 +348,16 @@ const RegisterPage: React.FC = () => {
                   form.reg_type === 'choir' ? ['Activities', form.choir_activities.join(', ')] : null,
                   ['Emergency Contact', `${form.emergency_contact_name} · ${form.emergency_contact_phone}`],
                 ].filter((x): x is [string, string] => x !== null && !!x[1]).map(([k, v]) => (
-                  <div key={k} className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-500">{k}</span>
-                    <span className="font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+                  <div key={k} className="flex justify-between border-b border-slate-700 pb-2">
+                    <span className="text-slate-400">{k}</span>
+                    <span className="font-medium text-white text-right max-w-[60%]">{v}</span>
                   </div>
                 ))}
               </div>
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.terms} onChange={(e) => upd('terms', e.target.checked)} className="mt-1 accent-purple-700" />
-                <span className="text-sm text-gray-600">
-                  I agree to the <a href="#" className="text-purple-700 font-semibold hover:underline">Terms & Conditions</a> and consent to the church storing my information for membership purposes.
+                <input type="checkbox" checked={form.terms} onChange={(e) => upd('terms', e.target.checked)} className="mt-1 accent-brand-600" />
+                <span className="text-sm text-slate-400">
+                  I agree to the <a href="#" className="text-brand-400 font-semibold hover:text-brand-300">Terms & Conditions</a> and consent to the church storing my information for membership purposes.
                 </span>
               </label>
             </div>
@@ -376,8 +376,8 @@ const RegisterPage: React.FC = () => {
           </div>
         </div>
 
-        <p className="text-center mt-4 text-sm text-gray-600">
-          Already registered? <Link to="/login" className="text-purple-700 font-semibold hover:underline">Login here</Link>
+        <p className="text-center mt-4 text-sm text-slate-400">
+          Already registered? <Link to="/login" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">Login here</Link>
         </p>
       </div>
     </div>
@@ -385,3 +385,4 @@ const RegisterPage: React.FC = () => {
 };
 
 export default RegisterPage;
+
