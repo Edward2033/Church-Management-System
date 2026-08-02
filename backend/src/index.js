@@ -71,13 +71,19 @@ const PORT = process.env.PORT || 5000;
 
 async function boot() {
   try {
-    await pool.connect();
+    // Test database connection
+    const client = await pool.connect();
+    console.log('[DB] Database connection successful');
+    client.release();
+    
+    // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`[SYSTEM] LUS4G Church Platform running on port ${PORT}`);
       registerBirthdayJob();
     });
   } catch (err) {
     console.error('[SYSTEM] Boot failed:', err.message);
+    console.error('[SYSTEM] Error details:', err);
     process.exit(1);
   }
 }
