@@ -11,6 +11,8 @@ import ContactPage from '@/pages/ContactPage';
 import RegisterPage from '@/pages/RegisterPage';
 import LoginPage from '@/pages/LoginPage';
 import SetupPasswordPage from '@/pages/SetupPasswordPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import AdminDashboard from '@/pages/AdminDashboard';
 import MemberDashboard from '@/pages/MemberDashboard';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -29,6 +31,8 @@ const App: React.FC = () => (
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/setup-password" element={<SetupPasswordPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
       </Route>
 
       {/* Protected dashboards */}

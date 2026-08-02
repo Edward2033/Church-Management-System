@@ -49,7 +49,12 @@ const LoginPage: React.FC = () => {
                 placeholder="john@example.com" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <Link to="/forgot-password" className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+                  Forgot password?
+                </Link>
+              </div>
               <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
                 placeholder="••••••••" />
