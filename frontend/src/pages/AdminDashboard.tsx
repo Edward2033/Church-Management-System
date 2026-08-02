@@ -15,6 +15,10 @@ import AdminActivities    from './admin/AdminActivities';
 import AdminGallery       from './admin/AdminGallery';
 import AdminDonations     from './admin/AdminDonations';
 import AdminNotifications from './admin/AdminNotifications';
+import AdminHeroSlider    from './admin/AdminHeroSlider';
+import AdminContacts      from './admin/AdminContacts';
+import AdminSubAdmins     from './admin/AdminSubAdmins';
+import AdminProfile       from './admin/AdminProfile';
 
 const NAV = [
   { to: '/admin',               label: 'Overview',       icon: LayoutDashboard, end: true },
@@ -113,6 +117,10 @@ const AdminDashboard: React.FC = () => {
             <Route path="activities" element={<AdminActivities />} />
             <Route path="gallery" element={<AdminGallery />} />
             <Route path="donations" element={<AdminDonations />} />
+            <Route path="hero-slider" element={<AdminHeroSlider />} />
+            <Route path="contacts" element={<AdminContacts />} />
+            <Route path="subadmins" element={<AdminSubAdmins />} />
+            <Route path="profile" element={<AdminProfile />} />
             <Route path="notifications" element={<AdminNotifications />} />
           </Routes>
         </main>
