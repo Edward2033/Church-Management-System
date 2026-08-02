@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Lock, Loader2, Church, CheckCircle2 } from 'lucide-react';
-import { API_BASE_URL, CHURCH_NAME } from '@/lib/api';
+import { CHURCH_NAME } from '@/lib/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const SetupPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
