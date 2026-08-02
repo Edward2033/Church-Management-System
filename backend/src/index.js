@@ -20,6 +20,8 @@ const broadcastsRouter = require('./routes/broadcasts');
 const permissionsRouter = require('./routes/permissions');
 const subadminRouter   = require('./routes/subadmin');
 const heroRouter       = require('./routes/hero');
+const profileRouter    = require('./routes/profile');
+const contactRouter    = require('./routes/contact');
 
 const app = express();
 
@@ -55,6 +57,8 @@ app.use('/api/broadcasts',  broadcastsRouter);
 app.use('/api/permissions', permissionsRouter);
 app.use('/api/subadmin',    subadminRouter);
 app.use('/api/hero',        heroRouter);
+app.use('/api/profile',     profileRouter);
+app.use('/api/contact',     contactRouter);
 app.use('/api',             contentRouter);  // catch-all content routes last
 
 // Health check

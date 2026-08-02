@@ -46,7 +46,7 @@ router.post('/', authenticate, requireAdmin, upload.single('image'), async (req,
     const { title, subtitle, ctaLabel, ctaUrl, sortOrder = 0, isActive = true } = req.body;
     
     if (!req.file) {
-      return res.status(400).json({ error: 'Image is required' });
+      return res.status(400).json({ error: 'Image file is required' });
     }
     
     // Upload to Cloudinary

@@ -1,7 +1,10 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
+const multer = require('multer');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../lib/cloudinary');
 const { authenticate, requireAdmin, requireLeader, requireSameChurch } = require('../middleware/auth');
 
+const upload = multer({ storage: multer.memoryStorage() });
 const CID = (req) => req.churchId || req.user?.church_id || process.env.DEFAULT_CHURCH_ID;
 
 // ══════════════════════════════════════════════════════════════
@@ -74,26 +77,45 @@ router.get('/announcements', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/announcements', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/announcements', authenticate, requireAdmin, requireSameChurch, upload.single('image'), async (req, res) => {
   try {
-    const { title, content, category='general', image_url, pinned=false, audience='all', expires_at } = req.body;
+    const { title, content, category='general', pinned=false, audience='all', expires_at } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content required' });
+    
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadToCloudinary(req.file.buffer, 'announcements');
+    }
+    
     const { rows: [a] } = await pool.query(
       `INSERT INTO announcements (church_id,title,content,category,image_url,pinned,audience,author_id,expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [CID(req), title, content, category, image_url, pinned, audience, req.user.id, expires_at||null]
+      [CID(req), title, content, category, imageUrl, pinned, audience, req.user.id, expires_at||null]
     );
     res.status(201).json({ announcement: a });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/announcements/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/announcements/:id', authenticate, requireAdmin, upload.single('image'), async (req, res) => {
   try {
-    const { title, content, category, image_url, pinned, is_active, audience, expires_at } = req.body;
+    const { title, content, category, pinned, is_active, audience, expires_at } = req.body;
+    
+    // Get existing announcement
+    const { rows: [existing] } = await pool.query('SELECT image_url FROM announcements WHERE id = $1', [req.params.id]);
+    let imageUrl = existing?.image_url;
+    
+    // Handle new image upload
+    if (req.file) {
+      if (existing?.image_url) {
+        await deleteFromCloudinary(existing.image_url);
+      }
+      imageUrl = await uploadToCloudinary(req.file.buffer, 'announcements');
+    }
+    
     const { rows: [a] } = await pool.query(
       `UPDATE announcements SET title=$1,content=$2,category=$3,image_url=$4,pinned=$5,
        is_active=$6,audience=$7,expires_at=$8,updated_at=NOW() WHERE id=$9 RETURNING *`,
-      [title, content, category, image_url, pinned, is_active, audience, expires_at||null, req.params.id]
+      [title, content, category, imageUrl, pinned, is_active, audience, expires_at||null, req.params.id]
     );
     res.json({ announcement: a });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -122,16 +144,22 @@ router.get('/activities', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/activities', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/activities', authenticate, requireAdmin, requireSameChurch, upload.single('image'), async (req, res) => {
   try {
-    const { title, description, category='church', image_url, event_date, start_time,
+    const { title, description, category='church', event_date, start_time,
       end_time, location, audience='all' } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
+    
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadToCloudinary(req.file.buffer, 'activities');
+    }
+    
     const { rows: [e] } = await pool.query(
       `INSERT INTO events (church_id,title,description,category,image_url,event_date,
        start_time,end_time,location,audience,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [CID(req), title, description, category, image_url, event_date||null,
+      [CID(req), title, description, category, imageUrl, event_date||null,
        start_time||null, end_time||null, location, audience, req.user.id]
     );
     res.status(201).json({ activity: e, event: e });
@@ -310,14 +338,20 @@ router.get('/gallery', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/gallery', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/gallery', authenticate, requireAdmin, requireSameChurch, upload.single('image'), async (req, res) => {
   try {
-    const { title, image_url, category='general', caption, sort_order=0 } = req.body;
-    if (!image_url) return res.status(400).json({ error: 'image_url required' });
+    const { title, category='general', caption, sort_order=0 } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Image file is required' });
+    }
+    
+    const imageUrl = await uploadToCloudinary(req.file.buffer, 'gallery');
+    
     const { rows: [g] } = await pool.query(
       `INSERT INTO gallery (church_id,title,image_url,category,caption,sort_order,uploaded_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [CID(req), title, image_url, category, caption, sort_order, req.user.id]
+      [CID(req), title, imageUrl, category, caption, sort_order, req.user.id]
     );
     res.status(201).json({ item: g });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -325,6 +359,12 @@ router.post('/gallery', authenticate, requireAdmin, requireSameChurch, async (re
 
 router.delete('/gallery/:id', authenticate, requireAdmin, async (req, res) => {
   try {
+    // Get image URL to delete from Cloudinary
+    const { rows: [item] } = await pool.query('SELECT image_url FROM gallery WHERE id=$1', [req.params.id]);
+    if (item?.image_url) {
+      await deleteFromCloudinary(item.image_url);
+    }
+    
     await pool.query('DELETE FROM gallery WHERE id=$1', [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }

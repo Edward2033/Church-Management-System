@@ -16,79 +16,120 @@ const signRefresh = (id) =>
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const {
-      first_name, middle_name, last_name, gender, date_of_birth,
-      email, phone, whatsapp_number, address, city, occupation, marital_status,
-      baptism_status, baptized,
-      emergency_name, emergency_contact_name,
-      emergency_phone, emergency_contact_phone,
-      emergency_relation, bio,
-      membership_type = 'member',
-      church_id = process.env.DEFAULT_CHURCH_ID,
-    } = req.body;
+  const multer = require('multer');
+  const { uploadToCloudinary } = require('../lib/cloudinary');
+  const upload = multer({ storage: multer.memoryStorage() });
+  
+  // Use multer middleware inline
+  upload.single('profilePhoto')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: 'File upload error' });
+    
+    const client = await pool.connect();
+    try {
+      const {
+        first_name, middle_name, last_name, gender, date_of_birth,
+        email, phone, whatsapp_number, address, city, occupation, marital_status,
+        baptism_status, baptized,
+        emergency_name, emergency_contact_name,
+        emergency_phone, emergency_contact_phone,
+        emergency_relation, bio,
+        membership_type = 'member',
+        church_id = process.env.DEFAULT_CHURCH_ID,
+      } = req.body;
 
-    const resolvedBaptism    = baptism_status !== undefined ? (baptism_status === true || baptism_status === 'true') : (baptized === 'yes' || baptized === true);
-    const resolvedEmergName  = emergency_name  || emergency_contact_name  || null;
-    const resolvedEmergPhone = emergency_phone || emergency_contact_phone || null;
+      // REQUIRED FIELDS VALIDATION
+      if (!first_name || !last_name || !email) {
+        return res.status(400).json({ error: 'First name, last name and email are required' });
+      }
+      if (!phone) {
+        return res.status(400).json({ error: 'Phone number is required' });
+      }
+      if (!gender) {
+        return res.status(400).json({ error: 'Gender is required' });
+      }
+      if (!date_of_birth) {
+        return res.status(400).json({ error: 'Date of birth is required' });
+      }
+      if (!address) {
+        return res.status(400).json({ error: 'Address is required' });
+      }
+      if (!req.file) {
+        return res.status(400).json({ error: 'Profile photo is required' });
+      }
+      
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
 
-    if (!first_name || !last_name || !email)
-      return res.status(400).json({ error: 'first_name, last_name and email are required' });
-    if (!phone)
-      return res.status(400).json({ error: 'phone is required' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      return res.status(400).json({ error: 'Invalid email format' });
+      const resolvedBaptism = baptism_status !== undefined 
+        ? (baptism_status === true || baptism_status === 'true') 
+        : (baptized === 'yes' || baptized === true);
+      const resolvedEmergName = emergency_name || emergency_contact_name || null;
+      const resolvedEmergPhone = emergency_phone || emergency_contact_phone || null;
 
-    const resolvedVoiceGroup = req.body.voice_group || req.body.voice_type || null;
-    if (membership_type === 'choir' && !resolvedVoiceGroup)
-      return res.status(400).json({ error: 'voice_group is required for choir members' });
+      const resolvedVoiceGroup = req.body.voice_group || req.body.voice_type || null;
+      if (membership_type === 'choir' && !resolvedVoiceGroup) {
+        return res.status(400).json({ error: 'Voice group is required for choir members' });
+      }
 
-    const exists = await client.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rows[0]) return res.status(409).json({ error: 'Email already registered' });
+      const exists = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (exists.rows[0]) {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
 
-    await client.query('BEGIN');
+      await client.query('BEGIN');
 
-    const userRole = membership_type === 'choir' ? 'choir_member' : 'member';
-    const { rows: [user] } = await client.query(
-      `INSERT INTO users (church_id, email, role) VALUES ($1,$2,$3) RETURNING id, role`,
-      [church_id, email, userRole]
-    );
+      // Upload profile photo to Cloudinary
+      const profilePhotoUrl = await uploadToCloudinary(req.file.buffer, 'profiles');
 
-    const { rows: [member] } = await client.query(
-      `INSERT INTO members
-        (user_id, church_id, first_name, middle_name, last_name, gender, date_of_birth,
-         phone, whatsapp_number, email, address, city, occupation, marital_status,
-         baptism_status, emergency_name, emergency_phone, emergency_relation, bio,
-         membership_status, approval_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'pending')
-       RETURNING id, first_name, last_name, email, membership_status, approval_status`,
-      [user.id, church_id, first_name, middle_name || null, last_name, gender,
-       date_of_birth || null, phone, whatsapp_number, email, address, city,
-       occupation, marital_status, resolvedBaptism,
-       resolvedEmergName, resolvedEmergPhone, emergency_relation, bio,
-       membership_type === 'choir' ? 'choir_member' : 'visitor']
-    );
-
-    // If choir registration, also create choir_members record
-    if (membership_type === 'choir' && resolvedVoiceGroup) {
-      await client.query(
-        `INSERT INTO choir_members (member_id, church_id, voice_group, choir_role)
-         VALUES ($1,$2,$3,'choir_member')`,
-        [member.id, church_id, resolvedVoiceGroup]
+      const userRole = membership_type === 'choir' ? 'choir_member' : 'member';
+      const { rows: [user] } = await client.query(
+        `INSERT INTO users (church_id, email, role) VALUES ($1,$2,$3) RETURNING id, role`,
+        [church_id, email, userRole]
       );
-    }
 
-    await client.query('COMMIT');
-    res.status(201).json({
-      message: 'Registration submitted. Awaiting admin approval.',
-      member: { id: member.id, email: member.email, approval_status: member.approval_status },
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Register error:', err.message);
-    res.status(500).json({ error: err.message });
-  } finally { client.release(); }
+      const { rows: [member] } = await client.query(
+        `INSERT INTO members
+          (user_id, church_id, first_name, middle_name, last_name, gender, date_of_birth,
+           phone, whatsapp_number, email, address, city, occupation, marital_status,
+           baptism_status, emergency_name, emergency_phone, emergency_relation, bio,
+           membership_status, approval_status, profile_photo_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'pending',$21)
+         RETURNING id, first_name, last_name, email, membership_status, approval_status, profile_photo_url`,
+        [user.id, church_id, first_name, middle_name || null, last_name, gender,
+         date_of_birth, phone, whatsapp_number, email, address, city,
+         occupation, marital_status, resolvedBaptism,
+         resolvedEmergName, resolvedEmergPhone, emergency_relation, bio,
+         membership_type === 'choir' ? 'choir_member' : 'visitor', profilePhotoUrl]
+      );
+
+      // If choir registration, also create choir_members record
+      if (membership_type === 'choir' && resolvedVoiceGroup) {
+        await client.query(
+          `INSERT INTO choir_members (member_id, church_id, voice_group, choir_role)
+           VALUES ($1,$2,$3,'choir_member')`,
+          [member.id, church_id, resolvedVoiceGroup]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json({
+        message: 'Registration submitted successfully! Awaiting admin approval.',
+        member: { 
+          id: member.id, 
+          email: member.email, 
+          approval_status: member.approval_status,
+          profile_photo_url: member.profile_photo_url
+        },
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Register error:', err.message);
+      res.status(500).json({ error: err.message });
+    } finally { 
+      client.release(); 
+    }
+  });
 });
 
 // POST /api/auth/login
