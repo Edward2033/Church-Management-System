@@ -119,8 +119,16 @@ CREATE TABLE IF NOT EXISTS departments (
 );
 CREATE INDEX IF NOT EXISTS idx_depts_church ON departments(church_id);
 
-ALTER TABLE members ADD CONSTRAINT IF NOT EXISTS fk_members_dept
-  FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL;
+-- Add foreign key constraint (only if it doesn't exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_members_dept'
+  ) THEN
+    ALTER TABLE members ADD CONSTRAINT fk_members_dept
+      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- =============================================================
 -- CHOIR MEMBERS (extends members)
