@@ -6,33 +6,24 @@ import SectionWrapper, { fadeUp, stagger } from '@/components/SectionWrapper';
 import { get, Announcement, Activity, CHURCH_NAME, DEFAULT_CHURCH_ID } from '@/lib/api';
 import {
   Users, Music2, Bell, Heart, Cake, ShieldCheck,
-  Calendar, MapPin, ArrowRight, Sparkles,
+  Calendar, MapPin, ArrowRight, Sparkles, Loader2,
 } from 'lucide-react';
 
-const SLIDES = [
+interface HeroSlide {
+  id: string;
+  title: string;
+  subtitle: string;
+  image_url: string;
+  cta_label?: string;
+  cta_url?: string;
+}
+
+const DEFAULT_SLIDES = [
   {
     img: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1600&q=85',
     tag: '✦ Welcome to Our Family',
     title: 'Where Faith Meets Community',
     subtitle: 'A place to worship, grow, and belong — together in God\'s love and purpose.',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1526308182012-7b28b74f67e9?w=1600&q=85',
-    tag: '✦ Worship in Spirit & Truth',
-    title: 'Lift Your Voice to Heaven',
-    subtitle: 'Experience powerful worship that transforms hearts and draws you closer to God.',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=1600&q=85',
-    tag: '✦ Grow in Purpose',
-    title: 'Your Gifts Matter Here',
-    subtitle: 'Discover and deploy your God-given gifts to serve and transform lives.',
-  },
-  {
-    img: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1600&q=85',
-    tag: '✦ One Family',
-    title: 'Built on Love & Grace',
-    subtitle: 'Join thousands of believers walking together in faith, hope, and community.',
   },
 ];
 
@@ -61,47 +52,67 @@ const catBadge = (cat: string) => {
   return map[cat] || map.general;
 };
 
-const DEMO_ANNOUNCEMENTS: Announcement[] = [
-  { id: 'd1', church_id: DEFAULT_CHURCH_ID, title: 'Sunday Service — All Are Welcome!', content: 'Join us this Sunday for powerful worship, prayer, and the Word. Services at 8AM, 10AM, and 5PM.', category: 'church', pinned: true, is_active: true, audience: 'all', published_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'd2', church_id: DEFAULT_CHURCH_ID, title: 'Choir Rehearsal — Friday 6:00 PM', content: 'All choir members are reminded of the weekly rehearsal this Friday at 6PM in the main hall.', category: 'choir', pinned: false, is_active: true, audience: 'all', published_at: new Date(Date.now() - 86400000).toISOString(), created_at: new Date(Date.now() - 86400000).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'd3', church_id: DEFAULT_CHURCH_ID, title: 'Annual Thanksgiving Service', content: 'Our Annual Thanksgiving Service is coming up! Mark your calendars for a special day of praise and celebration.', category: 'events', pinned: false, is_active: true, audience: 'all', published_at: new Date(Date.now() - 2 * 86400000).toISOString(), created_at: new Date(Date.now() - 2 * 86400000).toISOString(), updated_at: new Date(Date.now() - 2 * 86400000).toISOString() },
-];
-
-const today = new Date();
-const fmtDate = (d: Date) => d.toISOString().split('T')[0];
-
-const DEMO_ACTIVITIES: Activity[] = [
-  { id: 'a1', church_id: DEFAULT_CHURCH_ID, title: 'Sunday Worship Service', description: 'A powerful Sunday worship experience with praise, prayer, and the Word.', category: 'worship', image_url: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=600&q=80', event_date: fmtDate(new Date(today.getTime() + 2 * 86400000)), start_time: '8:00 AM', location: 'Main Sanctuary', audience: 'all', is_active: true, requires_registration: false, created_at: new Date().toISOString() },
-  { id: 'a2', church_id: DEFAULT_CHURCH_ID, title: 'Choir Rehearsal', description: 'Weekly choir rehearsal for all voice groups. New members welcome.', category: 'choir', image_url: 'https://images.unsplash.com/photo-1526308182012-7b28b74f67e9?w=600&q=80', event_date: fmtDate(new Date(today.getTime() + 4 * 86400000)), start_time: '6:00 PM', location: 'Choir Hall', audience: 'choir', is_active: true, requires_registration: false, created_at: new Date().toISOString() },
-  { id: 'a3', church_id: DEFAULT_CHURCH_ID, title: 'Community Outreach', description: 'Serving our community with food, clothing, and the love of Christ.', category: 'outreach', image_url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=600&q=80', event_date: fmtDate(new Date(today.getTime() + 7 * 86400000)), start_time: '9:00 AM', location: 'Community Centre', audience: 'all', is_active: true, requires_registration: false, created_at: new Date().toISOString() },
-];
-
 const HomePage: React.FC = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>(DEMO_ANNOUNCEMENTS);
-  const [activities, setActivities] = useState<Activity[]>(DEMO_ACTIVITIES);
+  const [slides, setSlides] = useState(DEFAULT_SLIDES);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    get<{ announcements: Announcement[] }>(`/announcements?church_id=${DEFAULT_CHURCH_ID}`)
-      .then((r) => setAnnouncements(r.announcements?.length ? r.announcements.slice(0, 3) : DEMO_ANNOUNCEMENTS))
-      .catch(() => setAnnouncements(DEMO_ANNOUNCEMENTS));
-    get<{ activities: Activity[] }>(`/activities?church_id=${DEFAULT_CHURCH_ID}`)
-      .then((r) => setActivities(r.activities?.length ? r.activities.slice(0, 3) : DEMO_ACTIVITIES))
-      .catch(() => setActivities(DEMO_ACTIVITIES));
+    const loadData = async () => {
+      try {
+        // Fetch hero slides
+        const heroRes = await get<{ slides: HeroSlide[] }>(`/hero?church_id=${DEFAULT_CHURCH_ID}`);
+        if (heroRes.slides && heroRes.slides.length > 0) {
+          const formattedSlides = heroRes.slides.map(s => ({
+            img: s.image_url,
+            title: s.title || 'Welcome',
+            subtitle: s.subtitle || '',
+            tag: s.cta_label || undefined,
+          }));
+          setSlides(formattedSlides);
+        }
+
+        // Fetch announcements
+        const annRes = await get<{ announcements: Announcement[] }>(`/announcements?church_id=${DEFAULT_CHURCH_ID}`);
+        if (annRes.announcements && annRes.announcements.length > 0) {
+          setAnnouncements(annRes.announcements.slice(0, 3));
+        }
+
+        // Fetch activities
+        const actRes = await get<{ activities: Activity[] }>(`/activities?church_id=${DEFAULT_CHURCH_ID}`);
+        if (actRes.activities && actRes.activities.length > 0) {
+          setActivities(actRes.activities.slice(0, 3));
+        }
+      } catch (err) {
+        console.error('Error loading homepage data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   return (
     <div className="bg-slate-950">
       {/* ── HERO ── */}
-      <HeroSlider slides={SLIDES} interval={5000}>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/register" className="btn-gold text-base px-8 py-3.5">
-            <Heart size={18} /> Become a Member
-          </Link>
-          <Link to="/login" className="btn-outline text-base px-8 py-3.5">
-            Member Login <ArrowRight size={18} />
-          </Link>
+      {loading ? (
+        <div className="h-screen min-h-[600px] flex items-center justify-center bg-slate-950">
+          <Loader2 size={48} className="animate-spin text-brand-400" />
         </div>
-      </HeroSlider>
+      ) : (
+        <HeroSlider slides={slides} interval={5000}>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/register" className="btn-gold text-base px-8 py-3.5">
+              <Heart size={18} /> Become a Member
+            </Link>
+            <Link to="/login" className="btn-outline text-base px-8 py-3.5">
+              Member Login <ArrowRight size={18} />
+            </Link>
+          </div>
+        </HeroSlider>
+      )}
 
       {/* ── STATS STRIP ── */}
       <div className="relative -mt-1 bg-gradient-to-r from-brand-900/80 via-brand-800/80 to-brand-900/80 border-y border-brand-700/40 backdrop-blur-sm">
@@ -171,7 +182,8 @@ const HomePage: React.FC = () => {
       </SectionWrapper>
 
       {/* ── ANNOUNCEMENTS ── */}
-      <SectionWrapper className="section-py">
+      {announcements.length > 0 && (
+        <SectionWrapper className="section-py">
           <div className="container-pad">
             <motion.div variants={fadeUp} className="flex items-end justify-between mb-12 flex-wrap gap-4">
               <div>
@@ -208,9 +220,11 @@ const HomePage: React.FC = () => {
             </div>
           </div>
         </SectionWrapper>
+      )}
 
       {/* ── ACTIVITIES ── */}
-      <SectionWrapper className="section-py">
+      {activities.length > 0 && (
+        <SectionWrapper className="section-py">
           <div className="container-pad">
             <motion.div variants={fadeUp} className="flex items-end justify-between mb-12 flex-wrap gap-4">
               <div>
