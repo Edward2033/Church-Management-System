@@ -6,6 +6,7 @@ const BASE = import.meta.env.VITE_API_URL || '/api';
 
 export const CHURCH_NAME       = import.meta.env.VITE_CHURCH_NAME       || 'LUS4G Church';
 export const DEFAULT_CHURCH_ID = import.meta.env.VITE_DEFAULT_CHURCH_ID || '00000000-0000-0000-0000-000000000001';
+export const API_BASE_URL      = import.meta.env.VITE_API_URL            || '/api';
 
 function getToken() { return localStorage.getItem('cms_token'); }
 
@@ -46,6 +47,7 @@ export interface User {
   is_active: boolean;
   password_set: boolean;
   last_login?: string;
+  approved_at?: string;
   created_at: string;
   // joined from members
   member_id?: string;

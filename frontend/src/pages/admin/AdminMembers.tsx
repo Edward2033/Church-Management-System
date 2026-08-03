@@ -194,7 +194,7 @@ const CreateUserModal: React.FC<{ onClose: () => void; onSuccess: () => void }> 
 const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void; onDelete: (id: string) => void }> = ({ member: m, onClose, onApprove, onReject, onDelete }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    contentRef: printRef,
     documentTitle: `Registration_${m.member_code}_${m.first_name}_${m.last_name}`,
   });
 
@@ -258,6 +258,8 @@ const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id
       </div>
     </>
   );
+};
+
 const AdminMembers: React.FC = () => {
   const [members, setMembers] = useState<User[]>([]);
   const [search, setSearch] = useState('');

@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import { User } from '@/lib/api';
 
 interface PrintableRegistrationFormProps {
@@ -159,7 +159,7 @@ const PrintableRegistrationForm = forwardRef<HTMLDivElement, PrintableRegistrati
               Scan this code to verify member information online
             </p>
             <div className="border-4 border-purple-200 p-4 inline-block rounded-lg bg-white">
-              <QRCode 
+              <QRCodeSVG 
                 value={verificationUrl} 
                 size={140} 
                 level="H"
