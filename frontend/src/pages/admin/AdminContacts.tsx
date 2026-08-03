@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Mail, Search, Loader2, Eye, Trash2, CheckCircle, X, Filter } from 'lucide-react';
+import { Mail, Loader2, Check, Trash2, Eye, Search, Filter } from 'lucide-react';
 
 interface ContactMessage {
   id: string;
@@ -16,11 +16,11 @@ interface ContactMessage {
 
 const AdminContacts: React.FC = () => {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [stats, setStats] = useState({ total: 0, unread: 0, pending: 0, replied: 0 });
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'pending' | 'replied'>('all');
+  const [search, setSearch] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || '/api';
   const token = localStorage.getItem('cms_token');
@@ -28,8 +28,8 @@ const AdminContacts: React.FC = () => {
   const fetchMessages = async () => {
     try {
       const params = new URLSearchParams();
+      if (filter !== 'all') params.append('status', filter);
       if (search) params.append('search', search);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
 
       const res = await fetch(`${API_URL}/contact?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -60,9 +60,9 @@ const AdminContacts: React.FC = () => {
   useEffect(() => {
     fetchMessages();
     fetchStats();
-  }, [search, statusFilter]);
+  }, [filter, search]);
 
-  const handleMarkRead = async (id: string) => {
+  const markAsRead = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/contact/${id}/read`, {
         method: 'PATCH',
@@ -78,7 +78,7 @@ const AdminContacts: React.FC = () => {
     }
   };
 
-  const handleMarkReplied = async (id: string) => {
+  const markAsReplied = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/contact/${id}/reply`, {
         method: 'PATCH',
@@ -94,7 +94,7 @@ const AdminContacts: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const deleteMessage = async (id: string) => {
     if (!confirm('Delete this message?')) return;
     try {
       const res = await fetch(`${API_URL}/contact/${id}`, {
@@ -112,16 +112,6 @@ const AdminContacts: React.FC = () => {
     }
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -134,90 +124,98 @@ const AdminContacts: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Contact Messages</h1>
-        <p className="text-sm text-gray-600">Manage messages from the contact form</p>
+        <p className="text-sm text-gray-600">Manage contact form submissions</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Total</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-sm text-gray-600">Total Messages</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-orange-600">{stats.unread}</div>
           <div className="text-sm text-gray-600">Unread</div>
+          <div className="text-2xl font-bold text-orange-600">{stats.unread}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Pending</div>
           <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          <div className="text-sm text-gray-600">Pending Reply</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-green-600">{stats.replied}</div>
           <div className="text-sm text-gray-600">Replied</div>
+          <div className="text-2xl font-bold text-green-600">{stats.replied}</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search messages..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-            />
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search messages..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2"
-          >
-            <option value="all">All Messages</option>
-            <option value="unread">Unread</option>
-            <option value="pending">Pending Reply</option>
-            <option value="replied">Replied</option>
-          </select>
+          <div className="flex gap-2">
+            {(['all', 'unread', 'pending', 'replied'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-lg capitalize ${
+                  filter === f
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Messages Grid */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* List */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Messages List */}
         <div className="space-y-3">
           {messages.map((msg) => (
             <div
               key={msg.id}
               onClick={() => setSelectedMessage(msg)}
-              className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow ${
-                selectedMessage?.id === msg.id ? 'ring-2 ring-purple-500' : ''
-              } ${!msg.is_read ? 'border-l-4 border-purple-500' : ''}`}
+              className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition ${
+                selectedMessage?.id === msg.id ? 'ring-2 ring-purple-600' : ''
+              } ${!msg.is_read ? 'border-l-4 border-l-orange-500' : ''}`}
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{msg.name}</h3>
-                  <p className="text-sm text-gray-600 truncate">{msg.email}</p>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{msg.name}</h3>
+                  <p className="text-sm text-gray-600">{msg.email}</p>
                 </div>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-1">
                   {!msg.is_read && (
-                    <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">
-                      New
-                    </span>
+                    <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">New</span>
                   )}
                   {msg.is_replied && (
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
-                      Replied
-                    </span>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Replied</span>
                   )}
                 </div>
               </div>
-              {msg.subject && (
-                <p className="text-sm font-medium text-gray-700 mb-1">{msg.subject}</p>
-              )}
+              {msg.subject && <p className="text-sm font-medium text-gray-700 mb-1">{msg.subject}</p>}
               <p className="text-sm text-gray-600 line-clamp-2">{msg.message}</p>
-              <p className="text-xs text-gray-500 mt-2">{formatDate(msg.created_at)}</p>
+              <p className="text-xs text-gray-400 mt-2">
+                {new Date(msg.created_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
             </div>
           ))}
 
@@ -229,10 +227,10 @@ const AdminContacts: React.FC = () => {
           )}
         </div>
 
-        {/* Detail View */}
-        <div className="lg:sticky lg:top-6">
+        {/* Message Detail */}
+        <div>
           {selectedMessage ? (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-6 sticky top-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{selectedMessage.name}</h2>
@@ -242,72 +240,66 @@ const AdminContacts: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => setSelectedMessage(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  onClick={() => deleteMessage(selectedMessage.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                 >
-                  <X size={18} />
+                  <Trash2 size={18} />
                 </button>
               </div>
 
               {selectedMessage.subject && (
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-1">Subject</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-1">Subject</h3>
                   <p className="text-gray-900">{selectedMessage.subject}</p>
                 </div>
               )}
 
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-1">Message</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-1">Message</h3>
                 <p className="text-gray-900 whitespace-pre-wrap">{selectedMessage.message}</p>
               </div>
 
-              <div className="mb-6">
+              <div className="mb-4">
                 <p className="text-xs text-gray-500">
-                  Received on {formatDate(selectedMessage.created_at)}
+                  Received on{' '}
+                  {new Date(selectedMessage.created_at).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-4 border-t">
                 {!selectedMessage.is_read && (
                   <button
-                    onClick={() => handleMarkRead(selectedMessage.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                    onClick={() => markAsRead(selectedMessage.id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    <Eye size={16} /> Mark Read
+                    <Eye size={18} /> Mark as Read
                   </button>
                 )}
                 {!selectedMessage.is_replied && (
                   <button
-                    onClick={() => handleMarkReplied(selectedMessage.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                    onClick={() => markAsReplied(selectedMessage.id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
-                    <CheckCircle size={16} /> Mark Replied
+                    <Check size={18} /> Mark as Replied
                   </button>
                 )}
-                <button
-                  onClick={() => handleDelete(selectedMessage.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 ml-auto"
+                <a
+                  href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject || 'Your Message'}`}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
-                  <Trash2 size={16} /> Delete
-                </button>
-              </div>
-
-              {/* Reply Hint */}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>To reply:</strong> Send an email to{' '}
-                  <a
-                    href={`mailto:${selectedMessage.email}?subject=Re: ${selectedMessage.subject || 'Your Message'}`}
-                    className="underline"
-                  >
-                    {selectedMessage.email}
-                  </a>
-                </p>
+                  <Mail size={18} /> Reply via Email
+                </a>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
+            <div className="bg-gray-50 rounded-lg p-12 text-center text-gray-500">
               <Mail size={48} className="mx-auto mb-3 opacity-50" />
               <p>Select a message to view details</p>
             </div>

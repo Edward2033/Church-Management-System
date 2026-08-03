@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Plus, Upload, Trash2, Eye, EyeOff, GripVertical, Loader2, Edit2 } from 'lucide-react';
+import { Plus, Upload, Trash2, Eye, EyeOff, GripVertical, Loader2, Edit2, Presentation } from 'lucide-react';
 
 interface HeroSlide {
   id: string;

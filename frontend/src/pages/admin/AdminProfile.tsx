@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { User, Mail, Phone, MapPin, Briefcase, Calendar, Heart, Shield, Upload, Loader2, Save, Lock } from 'lucide-react';
+import { User, Camera, Save, Loader2, Lock, Mail, Phone, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const AdminProfile: React.FC = () => {
   const { member, setMember } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   
-  const [formData, setFormData] = useState({
+  const [profileData, setProfileData] = useState({
     firstName: '',
     middleName: '',
     lastName: '',
@@ -42,47 +41,29 @@ const AdminProfile: React.FC = () => {
   const token = localStorage.getItem('cms_token');
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      const res = await fetch(`${API_URL}/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+    if (member) {
+      setProfileData({
+        firstName: member.first_name || '',
+        middleName: member.middle_name || '',
+        lastName: member.last_name || '',
+        gender: member.gender || '',
+        dateOfBirth: member.date_of_birth || '',
+        phone: member.phone || '',
+        whatsappNumber: member.whatsapp_number || '',
+        address: member.address || '',
+        city: member.city || '',
+        occupation: member.occupation || '',
+        maritalStatus: member.marital_status || '',
+        baptismStatus: member.baptism_status || false,
+        baptismDate: member.baptism_date || '',
+        emergencyName: member.emergency_name || '',
+        emergencyPhone: member.emergency_phone || '',
+        emergencyRelation: member.emergency_relation || '',
+        bio: member.bio || '',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      
-      const profile = data.profile;
-      setFormData({
-        firstName: profile.first_name || '',
-        middleName: profile.middle_name || '',
-        lastName: profile.last_name || '',
-        gender: profile.gender || '',
-        dateOfBirth: profile.date_of_birth || '',
-        phone: profile.phone || '',
-        whatsappNumber: profile.whatsapp_number || '',
-        address: profile.address || '',
-        city: profile.city || '',
-        occupation: profile.occupation || '',
-        maritalStatus: profile.marital_status || '',
-        baptismStatus: profile.baptism_status || false,
-        baptismDate: profile.baptism_date || '',
-        emergencyName: profile.emergency_name || '',
-        emergencyPhone: profile.emergency_phone || '',
-        emergencyRelation: profile.emergency_relation || '',
-        bio: profile.bio || '',
-      });
-      
-      if (profile.profile_photo_url) {
-        setPhotoPreview(profile.profile_photo_url);
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
+      setPhotoPreview(member.profile_photo_url || '');
     }
-  };
+  }, [member]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,18 +79,15 @@ const AdminProfile: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setLoading(true);
 
     try {
       const form = new FormData();
       if (profilePhoto) form.append('profilePhoto', profilePhoto);
-      
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          form.append(key, String(value));
-        }
+      Object.entries(profileData).forEach(([key, value]) => {
+        form.append(key, String(value));
       });
 
       const res = await fetch(`${API_URL}/profile`, {
@@ -124,24 +102,21 @@ const AdminProfile: React.FC = () => {
       toast.success('Profile updated successfully!');
       
       // Update auth context
-      if (member) {
-        setMember({
-          ...member,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          profile_photo_url: data.profile.profile_photo_url,
-        });
+      if (setMember) {
+        setMember((prev: any) => ({
+          ...prev,
+          ...profileData,
+          profile_photo_url: data.profile?.profile_photo_url || prev?.profile_photo_url,
+        }));
       }
-      
-      fetchProfile();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -154,7 +129,7 @@ const AdminProfile: React.FC = () => {
       return;
     }
 
-    setChangingPassword(true);
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/profile/password`, {
         method: 'PUT',
@@ -176,276 +151,294 @@ const AdminProfile: React.FC = () => {
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setChangingPassword(false);
+      setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin text-purple-600" size={32} />
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
-        <p className="text-sm text-gray-600">Update your personal information</p>
+        <p className="text-sm text-gray-600">Manage your account information</p>
       </div>
 
-      {/* Profile Photo */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Profile Photo</h2>
-        <div className="flex items-center gap-6">
-          <div className="relative">
-            <img
-              src={photoPreview || 'https://placehold.co/120'}
-              alt="Profile"
-              className="h-32 w-32 rounded-full object-cover"
-            />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer">
-              <Upload size={18} /> Upload Photo
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-            </label>
-            <p className="text-xs text-gray-500 mt-2">Max 5MB. JPG, PNG or WEBP.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Personal Information */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
-        
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-            <input
-              type="text"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-            <input
-              type="text"
-              value={formData.middleName}
-              onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-            <input
-              type="text"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-            <select
-              value={formData.gender}
-              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option value="">Select...</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-            <input
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
-            <input
-              type="tel"
-              value={formData.whatsappNumber}
-              onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-            <input
-              type="text"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
-            <input
-              type="text"
-              value={formData.occupation}
-              onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
-            <select
-              value={formData.maritalStatus}
-              onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            >
-              <option value="">Select...</option>
-              <option value="Single">Single</option>
-              <option value="Married">Married</option>
-              <option value="Divorced">Divorced</option>
-              <option value="Widowed">Widowed</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-          <textarea
-            value={formData.bio}
-            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-            rows={3}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            placeholder="Tell us about yourself..."
-          />
-        </div>
-
-        <h3 className="text-md font-semibold text-gray-900 mb-3 mt-6">Emergency Contact</h3>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              value={formData.emergencyName}
-              onChange={(e) => setFormData({ ...formData, emergencyName: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-            <input
-              type="tel"
-              value={formData.emergencyPhone}
-              onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Relation</label>
-            <input
-              type="text"
-              value={formData.emergencyRelation}
-              onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="e.g., Spouse, Parent"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-        >
-          {submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-          {submitting ? 'Saving...' : 'Save Changes'}
-        </button>
-      </form>
-
-      {/* Change Password */}
-      <form onSubmit={handlePasswordChange} className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Change Password</h2>
-        
-        <div className="space-y-4 max-w-md">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-            <input
-              type="password"
-              value={passwordData.currentPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-            <input
-              type="password"
-              value={passwordData.newPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              required
-              minLength={8}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-            <input
-              type="password"
-              value={passwordData.confirmPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              required
-            />
-          </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-md mb-6">
+        <div className="flex border-b">
           <button
-            type="submit"
-            disabled={changingPassword}
-            className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium ${
+              activeTab === 'profile'
+                ? 'border-b-2 border-purple-600 text-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
-            {changingPassword ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
-            {changingPassword ? 'Updating...' : 'Update Password'}
+            <User size={18} /> Profile Information
+          </button>
+          <button
+            onClick={() => setActiveTab('password')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium ${
+              activeTab === 'password'
+                ? 'border-b-2 border-purple-600 text-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Lock size={18} /> Change Password
           </button>
         </div>
-      </form>
+
+        {/* Profile Tab */}
+        {activeTab === 'profile' && (
+          <form onSubmit={handleProfileSubmit} className="p-6 space-y-6">
+            {/* Profile Photo */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <img
+                  src={photoPreview || 'https://placehold.co/100'}
+                  alt="Profile"
+                  className="h-24 w-24 rounded-full object-cover"
+                />
+                <label className="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full cursor-pointer hover:bg-purple-700">
+                  <Camera size={16} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Profile Photo</h3>
+                <p className="text-sm text-gray-600">Upload a new photo (max 5MB)</p>
+              </div>
+            </div>
+
+            {/* Personal Information */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Personal Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                  <input
+                    type="text"
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                  <input
+                    type="text"
+                    value={profileData.middleName}
+                    onChange={(e) => setProfileData({ ...profileData, middleName: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select
+                    value={profileData.gender}
+                    onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={profileData.dateOfBirth}
+                    onChange={(e) => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                  <select
+                    value={profileData.maritalStatus}
+                    onChange={(e) => setProfileData({ ...profileData, maritalStatus: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  >
+                    <option value="">Select</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Contact Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={profileData.phone}
+                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={profileData.whatsappNumber}
+                    onChange={(e) => setProfileData({ ...profileData, whatsappNumber: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    value={profileData.address}
+                    onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={profileData.city}
+                    onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    value={profileData.occupation}
+                    onChange={(e) => setProfileData({ ...profileData, occupation: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Emergency Contact</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={profileData.emergencyName}
+                    onChange={(e) => setProfileData({ ...profileData, emergencyName: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={profileData.emergencyPhone}
+                    onChange={(e) => setProfileData({ ...profileData, emergencyPhone: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                  <input
+                    type="text"
+                    value={profileData.emergencyRelation}
+                    onChange={(e) => setProfileData({ ...profileData, emergencyRelation: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+              <textarea
+                value={profileData.bio}
+                onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                rows={4}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
+        )}
+
+        {/* Password Tab */}
+        {activeTab === 'password' && (
+          <form onSubmit={handlePasswordSubmit} className="p-6 space-y-6">
+            <div className="max-w-md">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
+                {loading ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 };
