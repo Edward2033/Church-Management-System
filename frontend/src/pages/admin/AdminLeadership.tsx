@@ -29,7 +29,7 @@ const AdminLeadership: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || '/api';
-  const token = localStorage.getItem('cms_token');
+  const getToken = () => localStorage.getItem('cms_token');
 
   const load = () => {
     setLoading(true);
@@ -78,7 +78,7 @@ const AdminLeadership: React.FC = () => {
       const url    = editing ? `${API_URL}/leadership/${editing.id}` : `${API_URL}/leadership`;
       const method = editing ? 'PUT' : 'POST';
 
-      const res  = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const res  = await fetch(url, { method, headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 

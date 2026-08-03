@@ -25,11 +25,17 @@ router.get('/', async (req, res) => {
 // POST /api/leadership — admin (multipart/form-data with optional photo upload)
 router.post('/', authenticate, requireAdmin, upload.single('photo'), async (req, res) => {
   try {
+    console.log('[leadership POST] body:', req.body, '| file:', req.file?.originalname);
     const { name, title, bio, email, phone, sort_order = 0 } = req.body;
     const trimmedName  = (name  || '').trim();
     const trimmedTitle = (title || '').trim();
     if (!trimmedName || !trimmedTitle)
-      return res.status(400).json({ error: 'name and title required', received: { name, title } });
+      return res.status(400).json({
+        error: 'name and title required',
+        received: { name, title },
+        bodyKeys: Object.keys(req.body),
+        contentType: req.headers['content-type'],
+      });
 
     const churchId = req.user.church_id || req.churchId || process.env.DEFAULT_CHURCH_ID;
 
