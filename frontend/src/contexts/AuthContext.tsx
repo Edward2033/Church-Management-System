@@ -25,24 +25,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api<{ user: User }>('/auth/me');
       setUserState(res.user);
-    } catch (err: any) {
-      // Token expired — try to refresh it
-      if (err.message?.includes('401') || err.message?.includes('expired') || err.message?.includes('Invalid')) {
-        const refreshToken = localStorage.getItem('cms_refresh');
-        if (refreshToken) {
-          try {
-            const refreshRes = await post<{ accessToken: string; refreshToken: string }>(
-              '/auth/refresh', { refreshToken }
-            );
-            localStorage.setItem('cms_token', refreshRes.accessToken);
-            localStorage.setItem('cms_refresh', refreshRes.refreshToken);
-            const meRes = await api<{ user: User }>('/auth/me');
-            setUserState(meRes.user);
-            setLoading(false);
-            return;
-          } catch {
-            // refresh also failed — clear everything
-          }
+    } catch {
+      // Access token expired — try silent refresh
+      const refreshToken = localStorage.getItem('cms_refresh');
+      if (refreshToken) {
+        try {
+          const refreshRes = await post<{ accessToken: string; refreshToken: string }>(
+            '/auth/refresh', { refreshToken }
+          );
+          localStorage.setItem('cms_token', refreshRes.accessToken);
+          localStorage.setItem('cms_refresh', refreshRes.refreshToken);
+          const meRes = await api<{ user: User }>('/auth/me');
+          setUserState(meRes.user);
+          setLoading(false);
+          return;
+        } catch {
+          // refresh token also expired — force re-login
         }
       }
       localStorage.removeItem('cms_token');

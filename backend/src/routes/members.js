@@ -52,7 +52,14 @@ router.get('/', authenticate, requireSameChurch, async (req, res) => {
     const [data, countRes] = await Promise.all([
       pool.query(`${MEMBER_SELECT} ${where} ORDER BY m.created_at DESC LIMIT $${idx} OFFSET $${idx+1}`,
         [...params, parseInt(limit), offset]),
-      pool.query(`SELECT COUNT(*) AS total FROM members m LEFT JOIN users u ON u.id=m.user_id ${where}`, params),
+      pool.query(
+        `SELECT COUNT(*) AS total FROM members m
+         LEFT JOIN users u ON u.id = m.user_id
+         LEFT JOIN departments d ON d.id = m.department_id
+         LEFT JOIN choir_members cm ON cm.member_id = m.id
+         ${where}`,
+        params
+      ),
     ]);
 
     res.json({
