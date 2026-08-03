@@ -9,17 +9,16 @@ const { authenticate, requireAdmin, requireSelfOrAdmin, requireSameChurch } = re
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const MEMBER_SELECT = `
-  SELECT m.id, m.member_code, m.first_name, m.middle_name, m.last_name, m.gender,
+const MEMBER_SELECT = `SELECT m.id, m.member_code, m.first_name, m.middle_name, m.last_name, m.gender,
     m.date_of_birth, m.profile_photo_url, m.phone, m.whatsapp_number, m.email,
     m.address, m.city, m.occupation, m.marital_status, m.membership_status,
     m.baptism_status, m.baptism_date, m.date_joined, m.department_id,
     m.emergency_name, m.emergency_phone, m.emergency_relation, m.bio,
     m.approval_status, m.approved_at, m.created_at,
-    u.role, u.id AS user_id, u.last_login,
+    u.role, u.id AS user_id, u.last_login, u.password_set, u.is_active,
     d.name AS department_name,
-    cm.voice_group, cm.choir_role, cm.experience_level, cm.instruments,
-    cm.choir_activities, cm.is_active AS choir_active, cm.main_role
+    cm.id AS choir_member_id, cm.voice_group, cm.choir_role, cm.experience_level,
+    cm.instruments, cm.choir_activities, cm.is_active AS choir_active, cm.main_role
   FROM members m
   LEFT JOIN users u ON u.id = m.user_id
   LEFT JOIN departments d ON d.id = m.department_id
@@ -34,27 +33,26 @@ router.get('/', authenticate, requireSameChurch, async (req, res) => {
     const approval_status = qs_approval || qs_status;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    let q     = `${MEMBER_SELECT} WHERE m.church_id = $1 AND m.deleted_at IS NULL`;
+    let where = `WHERE m.church_id = $1 AND m.deleted_at IS NULL`;
     const params = [churchId];
-    let idx   = 2;
+    let idx = 2;
 
-    if (!isAdmin) { q += ` AND m.approval_status = 'approved'`; }
-    else if (approval_status) { q += ` AND m.approval_status = $${idx++}`; params.push(approval_status); }
+    if (!isAdmin) { where += ` AND m.approval_status = 'approved'`; }
+    else if (approval_status) { where += ` AND m.approval_status = $${idx++}`; params.push(approval_status); }
 
-    if (role) { q += ` AND u.role = $${idx++}`; params.push(role); }
+    if (role) { where += ` AND u.role = $${idx++}`; params.push(role); }
 
     if (search) {
-      q += ` AND (m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx}
+      where += ` AND (m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx}
              OR m.email ILIKE $${idx} OR m.member_code ILIKE $${idx}
              OR m.phone ILIKE $${idx})`;
       params.push(`%${search}%`); idx++;
     }
 
-    const countQ  = q.replace(MEMBER_SELECT, 'SELECT COUNT(*) AS total');
     const [data, countRes] = await Promise.all([
-      pool.query(q + ` ORDER BY m.created_at DESC LIMIT $${idx} OFFSET $${idx+1}`,
+      pool.query(`${MEMBER_SELECT} ${where} ORDER BY m.created_at DESC LIMIT $${idx} OFFSET $${idx+1}`,
         [...params, parseInt(limit), offset]),
-      pool.query(countQ, params),
+      pool.query(`SELECT COUNT(*) AS total FROM members m LEFT JOIN users u ON u.id=m.user_id ${where}`, params),
     ]);
 
     res.json({
@@ -63,12 +61,13 @@ router.get('/', authenticate, requireSameChurch, async (req, res) => {
       page:    parseInt(page),
       limit:   parseInt(limit),
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error('[GET /members]', err.message); res.status(500).json({ error: err.message }); }
 });
 
 // GET /api/members/stats
-router.get('/stats', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.get('/stats', authenticate, requireAdmin, async (req, res) => {
   try {
+    const churchId = req.churchId || req.user?.church_id || req.user?.member_church_id || process.env.DEFAULT_CHURCH_ID;
     const { rows } = await pool.query(`
       SELECT
         COUNT(*)                                                                                      AS total_all,
@@ -81,11 +80,11 @@ router.get('/stats', authenticate, requireAdmin, requireSameChurch, async (req, 
         COUNT(DISTINCT m.department_id) FILTER (WHERE m.department_id IS NOT NULL)                  AS departments_active
       FROM members m LEFT JOIN users u ON u.id=m.user_id
       WHERE m.church_id=$1 AND m.deleted_at IS NULL`,
-      [req.churchId]
+      [churchId]
     );
     const { rows: uRows } = await pool.query(
       `SELECT COUNT(*) AS total_users FROM users WHERE church_id=$1 AND is_active=TRUE`,
-      [req.churchId]
+      [churchId]
     );
     const s = rows[0];
     res.json({
@@ -96,11 +95,10 @@ router.get('/stats', authenticate, requireAdmin, requireSameChurch, async (req, 
       birthdaysToday:    parseInt(s.birthdays_today),
       departmentsActive: parseInt(s.departments_active),
       totalUsers:        parseInt(uRows[0].total_users),
-      // aliases
       total:  parseInt(s.total_members),
       choir:  parseInt(s.choir_members),
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error('[GET /members/stats]', err.message); res.status(500).json({ error: err.message }); }
 });
 
 // GET /api/members/birthdays

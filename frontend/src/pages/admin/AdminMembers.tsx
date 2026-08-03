@@ -454,8 +454,9 @@ const AdminMembers: React.FC = () => {
       if (statusFilter) params.set('status', statusFilter);
       const { members: data } = await get<{ members: User[] }>(`/members?${params}`);
       setMembers(data || []);
-    } catch {}
-    finally { setLoading(false); }
+    } catch (err: any) {
+      toast.error(`Failed to load members: ${err.message}`);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [search, roleFilter, statusFilter]);

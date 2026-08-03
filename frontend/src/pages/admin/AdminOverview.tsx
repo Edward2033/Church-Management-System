@@ -31,21 +31,22 @@ const AdminOverview: React.FC = () => {
     try {
       const [s, m, b] = await Promise.all([
         get<Stats>('/members/stats'),
-        get<{ members: Member[] }>('/members?status=pending'),
+        get<{ members: Member[] }>('/members?approval_status=pending'),
         get<{ birthdays: { first_name: string; last_name: string; member_code: string; profile_photo_url?: string }[] }>('/members/birthdays'),
       ]);
       setStats({
-        total:         s.total         ?? s.totalMembers  ?? 0,
-        choir:         s.choir         ?? s.choirMembers  ?? 0,
-        pending:       s.pending       ?? 0,
-        birthdaysToday:s.birthdaysToday ?? 0,
-        totalAll:      s.totalAll      ?? 0,
-        totalUsers:    s.totalUsers    ?? 0,
+        total:          s.total          ?? s.totalMembers  ?? 0,
+        choir:          s.choir          ?? s.choirMembers  ?? 0,
+        pending:        s.pending        ?? 0,
+        birthdaysToday: s.birthdaysToday ?? 0,
+        totalAll:       s.totalAll       ?? 0,
+        totalUsers:     s.totalUsers     ?? 0,
       });
       setPending(m.members || []);
       setBirthdays(b.birthdays || []);
-    } catch {}
-    finally { setLoading(false); }
+    } catch (err: any) {
+      console.error('Overview load error:', err.message);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
