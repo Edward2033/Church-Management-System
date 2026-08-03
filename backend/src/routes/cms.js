@@ -1,7 +1,10 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
+const multer = require('multer');
+const { uploadToCloudinary, deleteImage } = require('../lib/cloudinary');
 const { authenticate, requireAdmin, requireSameChurch } = require('../middleware/auth');
 
+const upload = multer({ storage: multer.memoryStorage() });
 const DEFAULT_CID = () => process.env.DEFAULT_CHURCH_ID;
 
 // ══════════════════════════════════════════════════════════════
@@ -18,7 +21,6 @@ router.get('/settings', async (req, res) => {
     if (group) { q += ` AND group_name=$${idx++}`; params.push(group); }
     q += ' ORDER BY group_name, key';
     const { rows } = await pool.query(q, params);
-    // Return as flat object for easy consumption
     const settings = {};
     rows.forEach((r) => {
       settings[r.key] = r.type === 'boolean' ? r.value === 'true'
@@ -30,10 +32,10 @@ router.get('/settings', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /api/cms/settings  — admin bulk upsert
+// PUT /api/cms/settings  — admin bulk upsert (JSON body)
 router.put('/settings', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
   try {
-    const { settings } = req.body; // { key: value, ... }
+    const { settings } = req.body;
     if (!settings || typeof settings !== 'object')
       return res.status(400).json({ error: 'settings object required' });
     const entries = Object.entries(settings);
@@ -51,8 +53,98 @@ router.put('/settings', authenticate, requireAdmin, requireSameChurch, async (re
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/cms/settings/upload  — admin upload image, saves URL to a settings key
+router.post('/settings/upload', authenticate, requireAdmin, requireSameChurch,
+  upload.single('image'), async (req, res) => {
+    try {
+      const { key, folder = 'cms' } = req.body;
+      if (!key) return res.status(400).json({ error: 'key required' });
+      if (!req.file) return res.status(400).json({ error: 'image file required' });
+
+      // Delete old image if exists
+      const { rows: [existing] } = await pool.query(
+        `SELECT value FROM cms_settings WHERE church_id=$1 AND key=$2`,
+        [req.churchId, key]
+      );
+      if (existing?.value) await deleteImage(existing.value).catch(() => {});
+
+      const imageUrl = await uploadToCloudinary(req.file.buffer, folder);
+
+      await pool.query(
+        `INSERT INTO cms_settings (church_id, key, value, type, group_name, updated_by, updated_at)
+         VALUES ($1,$2,$3,'url',$4,$5,NOW())
+         ON CONFLICT (church_id, key)
+         DO UPDATE SET value=EXCLUDED.value, updated_by=EXCLUDED.updated_by, updated_at=NOW()`,
+        [req.churchId, key, imageUrl, req.body.group || 'about', req.user.id]
+      );
+      res.json({ url: imageUrl });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  }
+);
+
 // ══════════════════════════════════════════════════════════════
-// HERO SLIDES
+// ABOUT VALUES (Core Values rows)
+// ══════════════════════════════════════════════════════════════
+
+router.get('/about-values', async (req, res) => {
+  try {
+    const cid = req.query.church_id || DEFAULT_CID();
+    const { rows } = await pool.query(
+      `SELECT * FROM about_values WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC, created_at ASC`,
+      [cid]
+    );
+    res.json({ values: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/about-values/all', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM about_values WHERE church_id=$1 ORDER BY sort_order ASC`,
+      [req.churchId]
+    );
+    res.json({ values: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/about-values', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { title, description, color_class, sort_order = 0 } = req.body;
+    if (!title || !description) return res.status(400).json({ error: 'title and description required' });
+    const { rows: [v] } = await pool.query(
+      `INSERT INTO about_values (church_id, title, description, color_class, sort_order)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.churchId, title, description, color_class || 'from-brand-600/30 to-brand-500/10 border-brand-500/30 text-brand-400', parseInt(sort_order)]
+    );
+    res.status(201).json({ value: v });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/about-values/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { title, description, color_class, sort_order, is_active } = req.body;
+    const { rows: [v] } = await pool.query(
+      `UPDATE about_values SET
+         title=COALESCE($1,title), description=COALESCE($2,description),
+         color_class=COALESCE($3,color_class), sort_order=COALESCE($4,sort_order),
+         is_active=COALESCE($5,is_active), updated_at=NOW()
+       WHERE id=$6 RETURNING *`,
+      [title, description, color_class, sort_order != null ? parseInt(sort_order) : null, is_active, req.params.id]
+    );
+    if (!v) return res.status(404).json({ error: 'Not found' });
+    res.json({ value: v });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/about-values/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM about_values WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// HERO SLIDES (legacy cms.js routes kept for compatibility)
 // ══════════════════════════════════════════════════════════════
 
 router.get('/hero-slides', async (req, res) => {
@@ -76,44 +168,10 @@ router.get('/hero-slides/all', authenticate, requireAdmin, requireSameChurch, as
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/hero-slides', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
-  try {
-    const { title, subtitle, image_url, cta_label, cta_url, sort_order = 0, is_active = true } = req.body;
-    if (!image_url) return res.status(400).json({ error: 'image_url required' });
-    const { rows: [s] } = await pool.query(
-      `INSERT INTO cms_hero_slides (church_id,title,subtitle,image_url,cta_label,cta_url,sort_order,is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.churchId, title, subtitle, image_url, cta_label, cta_url, sort_order, is_active]
-    );
-    res.status(201).json({ slide: s });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.put('/hero-slides/:id', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { title, subtitle, image_url, cta_label, cta_url, sort_order, is_active } = req.body;
-    const { rows: [s] } = await pool.query(
-      `UPDATE cms_hero_slides SET title=$1,subtitle=$2,image_url=$3,cta_label=$4,cta_url=$5,
-       sort_order=$6,is_active=$7,updated_at=NOW() WHERE id=$8 RETURNING *`,
-      [title, subtitle, image_url, cta_label, cta_url, sort_order, is_active, req.params.id]
-    );
-    if (!s) return res.status(404).json({ error: 'Slide not found' });
-    res.json({ slide: s });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.delete('/hero-slides/:id', authenticate, requireAdmin, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM cms_hero_slides WHERE id=$1', [req.params.id]);
-    res.json({ message: 'Slide deleted' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // ══════════════════════════════════════════════════════════════
 // CMS PAGES
 // ══════════════════════════════════════════════════════════════
 
-// GET /api/cms/pages/:slug  — public
 router.get('/pages/:slug', async (req, res) => {
   try {
     const cid = req.query.church_id || DEFAULT_CID();
@@ -126,7 +184,6 @@ router.get('/pages/:slug', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/cms/pages  — admin: list all pages
 router.get('/pages', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -137,7 +194,6 @@ router.get('/pages', authenticate, requireAdmin, requireSameChurch, async (req, 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /api/cms/pages/:slug  — admin upsert page content
 router.put('/pages/:slug', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
   try {
     const { title, content, is_published = true } = req.body;
