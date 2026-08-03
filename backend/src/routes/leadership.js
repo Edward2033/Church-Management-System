@@ -26,7 +26,12 @@ router.get('/', async (req, res) => {
 router.post('/', authenticate, requireAdmin, upload.single('photo'), async (req, res) => {
   try {
     const { name, title, bio, email, phone, sort_order = 0 } = req.body;
-    if (!name || !title) return res.status(400).json({ error: 'name and title required' });
+    const trimmedName  = (name  || '').trim();
+    const trimmedTitle = (title || '').trim();
+    if (!trimmedName || !trimmedTitle)
+      return res.status(400).json({ error: 'name and title required', received: { name, title } });
+
+    const churchId = req.user.church_id || req.churchId || process.env.DEFAULT_CHURCH_ID;
 
     let photoUrl = req.body.photo_url || null;
     if (req.file) {
@@ -36,7 +41,7 @@ router.post('/', authenticate, requireAdmin, upload.single('photo'), async (req,
     const { rows: [l] } = await pool.query(
       `INSERT INTO leadership (church_id,name,title,bio,photo_url,email,phone,sort_order)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.user.church_id, name, title, bio || null, photoUrl, email || null, phone || null, parseInt(sort_order)]
+      [churchId, trimmedName, trimmedTitle, bio || null, photoUrl, email || null, phone || null, parseInt(sort_order)]
     );
     res.status(201).json({ leader: l });
   } catch (err) { res.status(500).json({ error: err.message }); }

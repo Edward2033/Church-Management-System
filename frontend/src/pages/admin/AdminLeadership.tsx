@@ -62,27 +62,25 @@ const AdminLeadership: React.FC = () => {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.name.trim()) { toast.error('Name is required'); return; }
+    if (!form.title.trim()) { toast.error('Title / Role is required'); return; }
     setSaving(true);
     try {
-      const formData = new FormData();
-      if (photoFile) formData.append('photo', photoFile);
-      formData.append('name', form.name);
-      formData.append('title', form.title);
-      formData.append('bio', form.bio);
-      formData.append('email', form.email);
-      formData.append('phone', form.phone);
-      formData.append('sort_order', String(form.sort_order));
+      const fd = new FormData();
+      if (photoFile) fd.append('photo', photoFile);
+      fd.append('name',       form.name.trim());
+      fd.append('title',      form.title.trim());
+      fd.append('bio',        form.bio);
+      fd.append('email',      form.email);
+      fd.append('phone',      form.phone);
+      fd.append('sort_order', String(form.sort_order));
 
-      const url = editing ? `${API_URL}/leadership/${editing.id}` : `${API_URL}/leadership`;
+      const url    = editing ? `${API_URL}/leadership/${editing.id}` : `${API_URL}/leadership`;
       const method = editing ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const res  = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       toast.success(editing ? 'Updated' : 'Added');
       setShowForm(false);
@@ -190,12 +188,17 @@ const AdminLeadership: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title / Role <span className="text-red-500">*</span></label>
-                <select required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-base">
-                  <option value="">Select role</option>
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
-                </select>
+                <input
+                  list="role-suggestions"
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="input-base"
+                  placeholder="e.g. Senior Pastor, Choir Director…"
+                />
+                <datalist id="role-suggestions">
+                  {ROLE_OPTIONS.map((r) => <option key={r} value={r} />)}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
