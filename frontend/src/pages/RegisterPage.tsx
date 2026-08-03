@@ -45,6 +45,8 @@ const RegisterPage: React.FC = () => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [done, setDone] = useState(false);
   const navigate = useNavigate();
 
@@ -62,9 +64,14 @@ const RegisterPage: React.FC = () => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error('Photo must be under 5MB'); return; }
     setUploading(true);
-    // Convert to base64 data URL for display; in production send to server/cloud storage
+    
+    // Store the actual File object, not base64
     const reader = new FileReader();
-    reader.onload = () => { upd('profile_photo_url', reader.result as string); setUploading(false); };
+    reader.onload = () => { 
+      setPhotoPreview(reader.result as string); // For display only
+      setPhotoFile(file); // Store the actual file
+      setUploading(false); 
+    };
     reader.readAsDataURL(file);
   };
 
@@ -104,36 +111,59 @@ const RegisterPage: React.FC = () => {
 
   const submit = async () => {
     if (!validate()) return;
+    if (!photoFile) {
+      toast.error('Profile photo is required');
+      return;
+    }
+    
     setLoading(true);
     try {
-      await post('/auth/register', {
-        church_id: DEFAULT_CHURCH_ID,
-        first_name: form.first_name, last_name: form.last_name,
-        gender: form.gender, date_of_birth: form.date_of_birth || undefined,
-        profile_photo_url: form.profile_photo_url || undefined,
-        email: form.email, phone: form.phone,
-        whatsapp_number: form.whatsapp_number || undefined,
-        address: form.address || undefined,
-        membership_type: form.reg_type,
-        // voice — send both names for backend compatibility
-        voice_group: form.voice_type || undefined,
-        voice_type: form.voice_type || undefined,
-        // department
-        department: form.department || undefined,
-        // baptism — send both names
-        baptism_status: form.baptized === 'yes',
-        baptized: form.baptized === 'yes',
-        main_role: form.main_role || undefined,
-        experience_level: form.experience_level || undefined,
-        instruments: form.instruments,
-        choir_activities: form.choir_activities,
-        // emergency — send both names
-        emergency_name: form.emergency_contact_name || undefined,
-        emergency_contact_name: form.emergency_contact_name || undefined,
-        emergency_phone: form.emergency_contact_phone || undefined,
-        emergency_contact_phone: form.emergency_contact_phone || undefined,
-        bio: form.bio || undefined,
+      // Create FormData for multipart/form-data upload
+      const formData = new FormData();
+      formData.append('profilePhoto', photoFile);
+      formData.append('church_id', DEFAULT_CHURCH_ID);
+      formData.append('first_name', form.first_name);
+      formData.append('last_name', form.last_name);
+      formData.append('gender', form.gender);
+      if (form.date_of_birth) formData.append('date_of_birth', form.date_of_birth);
+      formData.append('email', form.email);
+      formData.append('phone', form.phone);
+      if (form.whatsapp_number) formData.append('whatsapp_number', form.whatsapp_number);
+      if (form.address) formData.append('address', form.address);
+      formData.append('membership_type', form.reg_type);
+      
+      if (form.voice_type) {
+        formData.append('voice_group', form.voice_type);
+        formData.append('voice_type', form.voice_type);
+      }
+      if (form.department) formData.append('department', form.department);
+      formData.append('baptized', form.baptized);
+      formData.append('baptism_status', String(form.baptized === 'yes'));
+      
+      if (form.main_role) formData.append('main_role', form.main_role);
+      if (form.experience_level) formData.append('experience_level', form.experience_level);
+      formData.append('instruments', JSON.stringify(form.instruments));
+      formData.append('choir_activities', JSON.stringify(form.choir_activities));
+      
+      if (form.emergency_contact_name) {
+        formData.append('emergency_name', form.emergency_contact_name);
+        formData.append('emergency_contact_name', form.emergency_contact_name);
+      }
+      if (form.emergency_contact_phone) {
+        formData.append('emergency_phone', form.emergency_contact_phone);
+        formData.append('emergency_contact_phone', form.emergency_contact_phone);
+      }
+      if (form.bio) formData.append('bio', form.bio);
+
+      const API_URL = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        body: formData, // Send as multipart/form-data
       });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
       setDone(true);
     } catch (err: any) {
       toast.error(err.message);
@@ -216,8 +246,8 @@ const RegisterPage: React.FC = () => {
               </div>
               <Field label="Profile Photo">
                 <div className="flex items-center gap-4">
-                  {form.profile_photo_url ? (
-                    <img src={form.profile_photo_url} className="h-20 w-20 rounded-xl object-cover border-2 border-brand-400" alt="Preview" />
+                  {photoPreview ? (
+                    <img src={photoPreview} className="h-20 w-20 rounded-xl object-cover border-2 border-brand-400" alt="Preview" />
                   ) : (
                     <div className="h-20 w-20 rounded-xl bg-slate-800 flex items-center justify-center"><Upload size={22} className="text-slate-500" /></div>
                   )}

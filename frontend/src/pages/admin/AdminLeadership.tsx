@@ -4,6 +4,19 @@ import { Plus, Trash2, Loader2, X, Upload, Edit, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BLANK = { name: '', title: '', bio: '', email: '', phone: '', sort_order: 0 };
+const ROLE_OPTIONS = [
+  'Senior Pastor',
+  'Pastor',
+  'Assistant Pastor',
+  'Choir Director',
+  'Youth Leader',
+  'Ministry Leader',
+  'Department Leader',
+  'Elder',
+  'Deacon',
+  'Other',
+];
+const SORT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 const AdminLeadership: React.FC = () => {
   const [items, setItems] = useState<Leader[]>([]);
@@ -177,7 +190,12 @@ const AdminLeadership: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title / Role <span className="text-red-500">*</span></label>
-                <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-base" placeholder="e.g. Senior Pastor" />
+                <select required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-base">
+                  <option value="">Select role</option>
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
@@ -195,7 +213,12 @@ const AdminLeadership: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-                <input type="number" min={0} value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} className="input-base" />
+                <select value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} className="input-base">
+                  <option value="0">Default (0)</option>
+                  {SORT_OPTIONS.map((num) => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <button type="submit" disabled={saving} className="btn-primary w-full justify-center mt-5">

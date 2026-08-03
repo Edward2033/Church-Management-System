@@ -164,22 +164,116 @@ router.patch('/:id/read', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/contact/:id/reply - Mark as replied
+// PATCH /api/contact/:id/reply - Send email reply to visitor
 router.patch('/:id/reply', authenticate, requireAdmin, async (req, res) => {
+  const { sendEmail } = require('../lib/email');
+  
   try {
-    const { rows: [message] } = await pool.query(`
-      UPDATE contact_messages
-      SET is_replied = true, is_read = true, replied_by = $1, replied_at = NOW()
-      WHERE id = $2 AND church_id = $3
-      RETURNING *
-    `, [req.user.id, req.params.id, req.churchId]);
+    const { replyMessage } = req.body;
     
-    if (!message) {
+    if (!replyMessage || !replyMessage.trim()) {
+      return res.status(400).json({ error: 'Reply message is required' });
+    }
+    
+    // Get the contact message
+    const { rows } = await pool.query(`
+      SELECT cm.*, m.first_name as admin_first_name, m.last_name as admin_last_name
+      FROM contact_messages cm
+      CROSS JOIN members m
+      WHERE cm.id = $1 AND cm.church_id = $2 
+        AND m.user_id = $3
+    `, [req.params.id, req.churchId, req.user.id]);
+    
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Message not found' });
     }
     
-    res.json({ success: true, message });
+    const message = rows[0];
+    const adminName = `${message.admin_first_name} ${message.admin_last_name}`;
+    
+    // Get church info for email template
+    const { rows: churchRows } = await pool.query(`
+      SELECT value FROM cms_settings 
+      WHERE church_id = $1 AND key IN ('footer_church_name', 'footer_email', 'footer_phone')
+    `, [req.churchId]);
+    
+    const churchSettings = {};
+    churchRows.forEach(row => {
+      const key = row.key.replace('footer_', '');
+      churchSettings[key] = row.value;
+    });
+    
+    const churchName = churchSettings.church_name || 'LUS4G Church';
+    const churchEmail = churchSettings.email || process.env.SMTP_USER;
+    const churchPhone = churchSettings.phone || '';
+    
+    // Send email reply
+    await sendEmail({
+      to: message.email,
+      subject: `Re: ${message.subject || 'Your inquiry'}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .message-box { background: white; border-left: 4px solid #7c3aed; padding: 20px; margin: 20px 0; border-radius: 5px; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
+            .button { display: inline-block; background: #7c3aed; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>${churchName}</h1>
+              <p>Thank you for reaching out to us</p>
+            </div>
+            <div class="content">
+              <p>Dear ${message.name},</p>
+              <p>Thank you for contacting us. We received your message and ${adminName} has responded:</p>
+              
+              <div class="message-box">
+                <strong>Your Message:</strong>
+                <p>${message.message}</p>
+              </div>
+              
+              <div class="message-box">
+                <strong>Our Response:</strong>
+                <p>${replyMessage}</p>
+              </div>
+              
+              <p>If you have any further questions, please don't hesitate to contact us.</p>
+              
+              <p>Blessings,<br>${adminName}<br>${churchName}</p>
+            </div>
+            <div class="footer">
+              <p><strong>${churchName}</strong></p>
+              ${churchEmail ? `<p>Email: ${churchEmail}</p>` : ''}
+              ${churchPhone ? `<p>Phone: ${churchPhone}</p>` : ''}
+              <p style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                This email was sent in response to your inquiry. Please do not reply directly to this email.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    
+    // Mark as replied
+    const { rows: [updated] } = await pool.query(`
+      UPDATE contact_messages
+      SET is_replied = true, is_read = true, replied_by = $1, replied_at = NOW(), reply_message = $2
+      WHERE id = $3 AND church_id = $4
+      RETURNING *
+    `, [req.user.id, replyMessage, req.params.id, req.churchId]);
+    
+    res.json({ success: true, message: 'Reply sent successfully', contact: updated });
   } catch (err) {
+    console.error('Reply email error:', err);
     res.status(500).json({ error: err.message });
   }
 });
