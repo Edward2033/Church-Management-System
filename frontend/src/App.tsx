@@ -13,6 +13,7 @@ import LoginPage from '@/pages/LoginPage';
 import SetupPasswordPage from '@/pages/SetupPasswordPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import VerifyMemberPage from '@/pages/VerifyMemberPage';
 import AdminDashboard from '@/pages/AdminDashboard';
 import MemberDashboard from '@/pages/MemberDashboard';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -33,6 +34,7 @@ const App: React.FC = () => (
         <Route path="/setup-password" element={<SetupPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify/:memberCode" element={<VerifyMemberPage />} />
       </Route>
 
       {/* Protected dashboards */}

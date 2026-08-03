@@ -22,6 +22,7 @@ const subadminRouter   = require('./routes/subadmin');
 const heroRouter       = require('./routes/hero');
 const profileRouter    = require('./routes/profile');
 const contactRouter    = require('./routes/contact');
+const verifyRouter     = require('./routes/verify');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/subadmin',    subadminRouter);
 app.use('/api/hero',        heroRouter);
 app.use('/api/profile',     profileRouter);
 app.use('/api/contact',     contactRouter);
+app.use('/api/verify',      verifyRouter);
 app.use('/api',             contentRouter);  // catch-all content routes last
 
 // Health check
