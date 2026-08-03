@@ -6,6 +6,7 @@ const { uploadToCloudinary } = require('../lib/cloudinary');
 const { sendEmail } = require('../lib/email');
 const { FRONTEND_URL } = require('../config');
 const { authenticate, requireAdmin, requireSelfOrAdmin, requireSameChurch } = require('../middleware/auth');
+// v4 — fixed count query JOINs
 
 const upload = multer({ storage: multer.memoryStorage() });
 
