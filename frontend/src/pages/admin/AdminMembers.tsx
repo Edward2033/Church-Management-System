@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { get, del, post, User } from '@/lib/api';
+import React, { useEffect, useState, useRef } from 'react';
+import { get, del, post, User, API_BASE_URL } from '@/lib/api';
 import { printMember, printMemberList, exportCSV } from '@/lib/print';
-import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2 } from 'lucide-react';
+import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReactToPrint } from 'react-to-print';
+import PrintableRegistrationForm from '@/components/PrintableRegistrationForm';
 
 const STATUS_COLOR: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
@@ -11,63 +13,258 @@ const STATUS_COLOR: Record<string, string> = {
   inactive: 'bg-gray-100 text-gray-700',
 };
 
-const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void; onDelete: (id: string) => void }> = ({ member: m, onClose, onApprove, onReject, onDelete }) => (
-  <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-      <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 pb-14 pt-6 text-center text-white relative">
-        <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
-        <p className="text-xs uppercase tracking-widest text-purple-200">Member Profile</p>
-      </div>
-      <div className="-mt-10 flex flex-col items-center px-6">
-        <img src={m.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo'} className="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg" alt="" />
-        <h3 className="mt-3 text-xl font-bold text-gray-900">{m.first_name} {m.last_name}</h3>
-        <span className="text-sm font-bold text-purple-700">{m.member_code || 'Pending ID'}</span>
-        <div className="mt-2 flex gap-2 flex-wrap justify-center">
-          <span className="rounded-full bg-purple-100 px-3 py-0.5 text-xs font-semibold uppercase text-purple-700">{m.role}</span>
-          <span className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase ${STATUS_COLOR[m.approval_status || m.status || '']}`}>{m.approval_status || m.status}</span>
+const CreateUserModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    first_name: '', middle_name: '', last_name: '', gender: '', date_of_birth: '',
+    email: '', phone: '', whatsapp_number: '', address: '', city: '', occupation: '',
+    marital_status: '', baptism_status: false, emergency_name: '', emergency_phone: '',
+    emergency_relation: '', bio: '', role: 'member', voice_group: '', is_director: false,
+  });
+  const [photo, setPhoto] = useState<File | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== '' && value !== null) data.append(key, String(value));
+      });
+      if (photo) data.append('profilePhoto', photo);
+
+      const response = await fetch(`${API_BASE_URL}/members/create`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: data,
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create user');
+      }
+      toast.success('User created successfully! Password setup email sent.');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isChoir = formData.role === 'choir_member';
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 py-4 text-white relative sticky top-0 z-10">
+          <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+          <h3 className="text-xl font-bold flex items-center gap-2"><UserPlus size={22} /> Create New User</h3>
         </div>
-      </div>
-      <div className="px-6 py-4 space-y-0">
-        {[
-          ['Gender', m.gender], ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
-          ['Phone', m.phone], ['WhatsApp', m.whatsapp_number], ['Email', m.email], ['Address', m.address],
-          m.role === 'choir_member' || m.role === 'choir' ? ['Voice Group', m.voice_group || m.voice_type] : null,
-          m.role === 'choir_member' || m.role === 'choir' ? ['Main Role', m.main_role] : null,
-          m.role === 'choir_member' || m.role === 'choir' ? ['Experience', m.experience_level] : null,
-          m.role === 'choir_member' || m.role === 'choir' ? ['Instruments', (m.instruments || []).join(', ')] : null,
-          m.role === 'choir_member' || m.role === 'choir' ? ['Activities', (m.choir_activities || []).join(', ')] : null,
-          ['Department', m.department_name || m.department],
-          ['Baptized', (m.baptism_status ?? m.baptized) === true ? 'Yes' : (m.baptism_status ?? m.baptized) === false ? 'No' : undefined],
-          ['Emergency', (m.emergency_name || m.emergency_contact_name) ? `${m.emergency_name || m.emergency_contact_name} · ${m.emergency_phone || m.emergency_contact_phone}` : undefined],
-          ['Registered', new Date(m.created_at).toLocaleDateString()],
-        ].filter((x): x is [string, string | undefined] => x !== null).map(([k, v]) => v ? (
-          <div key={k as string} className="flex justify-between border-b border-gray-100 py-2.5">
-            <span className="text-sm text-gray-500">{k}</span>
-            <span className="text-sm font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Profile Photo */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Profile Photo *</label>
+            <input type="file" accept="image/*" required onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+              className="input-base" />
           </div>
-        ) : null)}
-        {m.bio && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Bio</p><p className="text-sm text-gray-700">{m.bio}</p></div>}
-      </div>
-      <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
-        <button onClick={() => printMember(m)} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print / PDF</button>
-        {(m.status === 'pending' || m.approval_status === 'pending') ? (
-          <>
-            <button onClick={() => onApprove(m.id)} className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"><Check size={15} /> Approve</button>
-            <button onClick={() => onReject(m.id)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600"><Ban size={15} /> Reject</button>
-          </>
-        ) : null}
-        <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 size={15} /></button>
+
+          {/* Role Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
+            <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="input-base" required>
+              <option value="member">Member</option>
+              <option value="choir_member">Choir Member</option>
+              <option value="admin">Admin</option>
+              <option value="pastor">Pastor</option>
+              <option value="elder">Elder</option>
+              <option value="deacon">Deacon</option>
+              <option value="leader">Leader</option>
+            </select>
+          </div>
+
+          {/* Basic Information */}
+          <div className="grid grid-cols-3 gap-4">
+            <input placeholder="First Name *" value={formData.first_name} required
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} className="input-base" />
+            <input placeholder="Middle Name" value={formData.middle_name}
+              onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })} className="input-base" />
+            <input placeholder="Last Name *" value={formData.last_name} required
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} className="input-base" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <select value={formData.gender} required onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+              className="input-base">
+              <option value="">Select Gender *</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="date" placeholder="Date of Birth *" value={formData.date_of_birth} required
+              onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })} className="input-base" />
+          </div>
+
+          {/* Contact Information */}
+          <div className="grid grid-cols-2 gap-4">
+            <input type="email" placeholder="Email *" value={formData.email} required
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input-base" />
+            <input type="tel" placeholder="Phone *" value={formData.phone} required
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="input-base" />
+            <input type="tel" placeholder="WhatsApp" value={formData.whatsapp_number}
+              onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })} className="input-base" />
+            <input placeholder="City" value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="input-base" />
+          </div>
+
+          <input placeholder="Address *" value={formData.address} required
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="input-base" />
+
+          {/* Additional Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <input placeholder="Occupation" value={formData.occupation}
+              onChange={(e) => setFormData({ ...formData, occupation: e.target.value })} className="input-base" />
+            <select value={formData.marital_status} onChange={(e) => setFormData({ ...formData, marital_status: e.target.value })}
+              className="input-base">
+              <option value="">Marital Status</option>
+              <option value="Single">Single</option>
+              <option value="Married">Married</option>
+              <option value="Divorced">Divorced</option>
+              <option value="Widowed">Widowed</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={formData.baptism_status}
+              onChange={(e) => setFormData({ ...formData, baptism_status: e.target.checked })} />
+            <span className="text-sm font-medium text-gray-700">Baptized</span>
+          </label>
+
+          {/* Choir Fields */}
+          {isChoir && (
+            <div className="border-t pt-4 space-y-4">
+              <h4 className="font-semibold text-gray-800 flex items-center gap-2"><Music2 size={18} /> Choir Information</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <select value={formData.voice_group} required={isChoir}
+                  onChange={(e) => setFormData({ ...formData, voice_group: e.target.value })} className="input-base">
+                  <option value="">Select Voice Group *</option>
+                  <option value="Soprano">Soprano</option>
+                  <option value="Alto">Alto</option>
+                  <option value="Tenor">Tenor</option>
+                  <option value="Bass">Bass</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={formData.is_director}
+                  onChange={(e) => setFormData({ ...formData, is_director: e.target.checked })} />
+                <span className="text-sm font-medium text-gray-700">This person is the Choir Director</span>
+              </label>
+            </div>
+          )}
+
+          {/* Emergency Contact */}
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="font-semibold text-gray-800">Emergency Contact</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <input placeholder="Name" value={formData.emergency_name}
+                onChange={(e) => setFormData({ ...formData, emergency_name: e.target.value })} className="input-base" />
+              <input placeholder="Phone" value={formData.emergency_phone}
+                onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })} className="input-base" />
+              <input placeholder="Relationship" value={formData.emergency_relation}
+                onChange={(e) => setFormData({ ...formData, emergency_relation: e.target.value })} className="input-base" />
+            </div>
+          </div>
+
+          <textarea placeholder="Bio / Additional Information" value={formData.bio} rows={3}
+            onChange={(e) => setFormData({ ...formData, bio: e.target.value })} className="input-base"></textarea>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <button type="button" onClick={onClose} className="btn-outline flex-1">Cancel</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Creating...</> : <><UserPlus size={16} /> Create User</>}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
+const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void; onDelete: (id: string) => void }> = ({ member: m, onClose, onApprove, onReject, onDelete }) => {
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: `Registration_${m.member_code}_${m.first_name}_${m.last_name}`,
+  });
+
+  const verificationUrl = `${window.location.origin}/verify/${m.member_code}`;
+
+  return (
+    <>
+      {/* Hidden Print Component */}
+      <div style={{ display: 'none' }}>
+        <PrintableRegistrationForm ref={printRef} member={m} verificationUrl={verificationUrl} />
+      </div>
+
+      {/* Modal Display */}
+      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 pb-14 pt-6 text-center text-white relative">
+            <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+            <p className="text-xs uppercase tracking-widest text-purple-200">Member Profile</p>
+          </div>
+          <div className="-mt-10 flex flex-col items-center px-6">
+            <img src={m.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo'} className="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg" alt="" />
+            <h3 className="mt-3 text-xl font-bold text-gray-900">{m.first_name} {m.last_name}</h3>
+            <span className="text-sm font-bold text-purple-700">{m.member_code || 'Pending ID'}</span>
+            <div className="mt-2 flex gap-2 flex-wrap justify-center">
+              <span className="rounded-full bg-purple-100 px-3 py-0.5 text-xs font-semibold uppercase text-purple-700">{m.role}</span>
+              <span className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase ${STATUS_COLOR[m.approval_status || m.status || '']}`}>{m.approval_status || m.status}</span>
+            </div>
+          </div>
+          <div className="px-6 py-4 space-y-0">
+            {[
+              ['Gender', m.gender], ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+              ['Phone', m.phone], ['WhatsApp', m.whatsapp_number], ['Email', m.email], ['Address', m.address],
+              m.role === 'choir_member' || m.role === 'choir' ? ['Voice Group', m.voice_group || m.voice_type] : null,
+              m.role === 'choir_member' || m.role === 'choir' ? ['Main Role', m.main_role] : null,
+              m.role === 'choir_member' || m.role === 'choir' ? ['Experience', m.experience_level] : null,
+              m.role === 'choir_member' || m.role === 'choir' ? ['Instruments', (m.instruments || []).join(', ')] : null,
+              m.role === 'choir_member' || m.role === 'choir' ? ['Activities', (m.choir_activities || []).join(', ')] : null,
+              ['Department', m.department_name || m.department],
+              ['Baptized', (m.baptism_status ?? m.baptized) === true ? 'Yes' : (m.baptism_status ?? m.baptized) === false ? 'No' : undefined],
+              ['Emergency', (m.emergency_name || m.emergency_contact_name) ? `${m.emergency_name || m.emergency_contact_name} · ${m.emergency_phone || m.emergency_contact_phone}` : undefined],
+              ['Registered', new Date(m.created_at).toLocaleDateString()],
+            ].filter((x): x is [string, string | undefined] => x !== null).map(([k, v]) => v ? (
+              <div key={k as string} className="flex justify-between border-b border-gray-100 py-2.5">
+                <span className="text-sm text-gray-500">{k}</span>
+                <span className="text-sm font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+              </div>
+            ) : null)}
+            {m.bio && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Bio</p><p className="text-sm text-gray-700">{m.bio}</p></div>}
+          </div>
+          <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
+            <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print Registration</button>
+            {(m.status === 'pending' || m.approval_status === 'pending') ? (
+              <>
+                <button onClick={() => onApprove(m.id)} className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"><Check size={15} /> Approve</button>
+                <button onClick={() => onReject(m.id)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600"><Ban size={15} /> Reject</button>
+              </>
+            ) : null}
+            <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 size={15} /></button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 const AdminMembers: React.FC = () => {
   const [members, setMembers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -107,6 +304,7 @@ const AdminMembers: React.FC = () => {
           <p className="text-sm text-gray-500">{members.length} records</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button onClick={() => setShowCreateModal(true)} className="btn-primary py-2 text-sm"><UserPlus size={15} /> Create User</button>
           <button onClick={() => exportCSV(members)} className="btn-outline py-2 text-sm"><FileSpreadsheet size={15} /> Export CSV</button>
           <button onClick={() => printMemberList(members)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print List</button>
         </div>
@@ -181,6 +379,7 @@ const AdminMembers: React.FC = () => {
       )}
 
       {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onDelete={remove} />}
+      {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} onSuccess={load} />}
     </div>
   );
 };

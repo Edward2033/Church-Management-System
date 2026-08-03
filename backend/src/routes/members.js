@@ -1,6 +1,13 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
+const multer = require('multer');
+const crypto = require('crypto');
+const { uploadToCloudinary } = require('../lib/cloudinary');
+const { sendEmail } = require('../lib/email');
+const { FRONTEND_URL } = require('../config');
 const { authenticate, requireAdmin, requireSelfOrAdmin, requireSameChurch } = require('../middleware/auth');
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const MEMBER_SELECT = `
   SELECT m.id, m.member_code, m.first_name, m.middle_name, m.last_name, m.gender,
@@ -161,6 +168,143 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     await pool.query(`UPDATE users SET is_active=FALSE WHERE id=(SELECT user_id FROM members WHERE id=$1)`, [req.params.id]);
     res.json({ message: 'Member deactivated' });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/members/create - Admin manually creates a user
+router.post('/create', authenticate, requireAdmin, upload.single('profilePhoto'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const {
+      first_name, middle_name, last_name, gender, date_of_birth,
+      email, phone, whatsapp_number, address, city, occupation, marital_status,
+      baptism_status, emergency_name, emergency_phone, emergency_relation, bio,
+      role = 'member', // member, choir_member, or admin
+      voice_group, // Required if role is choir_member
+      is_director, // Boolean - if this choir member is the choir director
+      church_id = process.env.DEFAULT_CHURCH_ID,
+    } = req.body;
+
+    // Validation
+    if (!first_name || !last_name || !email || !phone || !gender || !date_of_birth || !address) {
+      return res.status(400).json({ error: 'Required fields: first_name, last_name, email, phone, gender, date_of_birth, address' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    if (role === 'choir_member' && !voice_group) {
+      return res.status(400).json({ error: 'Voice group is required for choir members' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Profile photo is required' });
+    }
+
+    // Check if email already exists
+    const exists = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (exists.rows[0]) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    await client.query('BEGIN');
+
+    // Upload profile photo to Cloudinary
+    const profilePhotoUrl = await uploadToCloudinary(req.file.buffer, 'profiles');
+
+    // Create user account
+    const { rows: [user] } = await client.query(
+      `INSERT INTO users (church_id, email, role) VALUES ($1, $2, $3) RETURNING id, role`,
+      [church_id, email, role]
+    );
+
+    // Generate member code
+    const { rows: [codeRow] } = await client.query(
+      `SELECT generate_member_code($1, $2) AS code`, [church_id, role]
+    );
+
+    // Determine membership_status based on role
+    let membership_status = 'member';
+    if (role === 'choir_member') membership_status = 'choir_member';
+    else if (role === 'admin') membership_status = 'admin';
+    else if (role === 'pastor') membership_status = 'pastor';
+    else if (role === 'elder') membership_status = 'elder';
+    else if (role === 'deacon') membership_status = 'deacon';
+    else if (role === 'leader') membership_status = 'leader';
+
+    // Create member record
+    const { rows: [member] } = await client.query(
+      `INSERT INTO members
+        (user_id, church_id, first_name, middle_name, last_name, gender, date_of_birth,
+         phone, whatsapp_number, email, address, city, occupation, marital_status,
+         baptism_status, emergency_name, emergency_phone, emergency_relation, bio,
+         membership_status, approval_status, member_code, profile_photo_url, approved_at, approved_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'approved', $21, $22, NOW(), $23)
+       RETURNING id, first_name, last_name, email, member_code, profile_photo_url`,
+      [user.id, church_id, first_name, middle_name || null, last_name, gender, date_of_birth,
+       phone, whatsapp_number || null, email, address, city || null, occupation || null,
+       marital_status || null, baptism_status === 'true' || baptism_status === true,
+       emergency_name || null, emergency_phone || null, emergency_relation || null, bio || null,
+       membership_status, codeRow.code, profilePhotoUrl, req.user.id]
+    );
+
+    // If choir member, create choir_members record
+    if (role === 'choir_member' && voice_group) {
+      const choirRole = (is_director === 'true' || is_director === true) ? 'choir_director' : 'choir_member';
+      await client.query(
+        `INSERT INTO choir_members (member_id, church_id, voice_group, choir_role, is_director, approval_status, approved_at, approved_by)
+         VALUES ($1, $2, $3, $4, $5, 'approved', NOW(), $6)`,
+        [member.id, church_id, voice_group, choirRole, is_director === 'true' || is_director === true, req.user.id]
+      );
+    }
+
+    // Create account setup token (7 days expiry)
+    const token = crypto.randomBytes(32).toString('hex');
+    await client.query(
+      `INSERT INTO auth_tokens (user_id, token, type, expires_at) VALUES ($1, $2, 'account_setup', NOW() + INTERVAL '7 days')`,
+      [user.id, token]
+    );
+
+    await client.query('COMMIT');
+
+    // Send welcome email with password setup link
+    const setupLink = `${FRONTEND_URL}/setup-password?token=${token}`;
+    await sendEmail({
+      to: email,
+      subject: 'Welcome to LUS4G Church - Account Created',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #7c3aed;">Welcome to LUS4G Church!</h2>
+          <p>Hello <strong>${first_name} ${last_name}</strong>,</p>
+          <p>Your church account has been created by an administrator.</p>
+          <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Member Code:</strong> ${member.member_code}</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 5px 0;"><strong>Role:</strong> ${role}</p>
+          </div>
+          <p>To activate your account, please set your password by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${setupLink}" style="background-color: #7c3aed; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block;">Set Password</a>
+          </div>
+          <p style="color: #666; font-size: 14px;">This link will expire in 7 days. If you did not request this account, please contact the church administrator.</p>
+          <p style="color: #666; font-size: 14px;">Or copy this link: <a href="${setupLink}">${setupLink}</a></p>
+        </div>
+      `
+    });
+
+    res.status(201).json({
+      message: 'User created successfully. Password setup email sent.',
+      member: {
+        id: member.id,
+        member_code: member.member_code,
+        email: member.email,
+        profile_photo_url: member.profile_photo_url,
+      },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Create member error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;
