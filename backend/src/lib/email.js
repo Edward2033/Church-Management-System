@@ -51,10 +51,17 @@ module.exports.approvalEmail = (member, setupLink) => ({
   subject: '🎉 Your LUS4G Church Account Has Been Approved!',
   html: wrap(`
     <p style="color:#e2e8f0">Dear <strong>${member.first_name} ${member.last_name}</strong>,</p>
-    <p style="color:#94a3b8">Your registration has been <strong style="color:#4ade80">approved</strong> by our admin team.</p>
-    <p style="color:#94a3b8">Your Member ID: <strong style="color:#a78bfa;font-size:20px">${member.member_code}</strong></p>
+    <p style="color:#94a3b8">We are pleased to inform you that your registration with <strong style="color:#a78bfa">LUS4G Church</strong> has been <strong style="color:#4ade80">approved</strong> by our admin team. Welcome to the family!</p>
+    <div style="background:#0f172a;border-radius:10px;padding:20px;margin:20px 0;border:1px solid rgba(167,139,250,0.3)">
+      <p style="margin:6px 0;color:#94a3b8"><strong style="color:#e2e8f0">Member ID:</strong> <span style="color:#a78bfa;font-size:20px;font-weight:700">${member.member_code}</span></p>
+      <p style="margin:6px 0;color:#94a3b8"><strong style="color:#e2e8f0">Email:</strong> ${member.email}</p>
+      <p style="margin:6px 0;color:#94a3b8"><strong style="color:#e2e8f0">Role:</strong> <span style="text-transform:capitalize">${(member.role || 'member').replace('_',' ')}</span></p>
+    </div>
+    <p style="color:#94a3b8">Click the button below to set your password and activate your account:</p>
     ${btn('Set Up Your Password', setupLink)}
-    <p style="color:#64748b;font-size:13px">This link expires in 24 hours.</p>
+    <p style="color:#94a3b8">After setting your password, log in at: <a href="${process.env.FRONTEND_URL}/login" style="color:#a78bfa">${process.env.FRONTEND_URL}/login</a></p>
+    <p style="color:#64748b;font-size:13px">This setup link expires in 48 hours. If you did not register with LUS4G Church, please ignore this email.</p>
+    <p style="color:#64748b;font-size:13px">Or copy this link: <a href="${setupLink}" style="color:#a78bfa">${setupLink}</a></p>
   `),
 });
 

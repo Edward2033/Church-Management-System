@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, Member } from '@/lib/api';
-import { Users, Music2, Clock, Cake, Loader2, TrendingUp } from 'lucide-react';
+import { Users, Music2, Clock, Cake, Loader2, TrendingUp, Eye, Ban, Check, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Stats { total: number; choir: number; pending: number; birthdaysToday: number;
@@ -23,6 +23,8 @@ const AdminOverview: React.FC = () => {
   const [pending, setPending] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -48,9 +50,21 @@ const AdminOverview: React.FC = () => {
 
   const approve = async (id: string) => {
     setApproving(id);
-    try { await post(`/auth/approve/${id}`, {}); load(); }
+    try { 
+      await post(`/auth/approve/${id}`, {}); 
+      load(); 
+    }
     catch {}
     finally { setApproving(null); }
+  };
+  
+  const reject = async (id: string) => {
+    setRejecting(id);
+    try {
+      await post(`/auth/reject/${id}`, {});
+      load();
+    } catch {}
+    finally { setRejecting(null); }
   };
 
   const CHART_DATA = [
@@ -125,7 +139,7 @@ const AdminOverview: React.FC = () => {
               <thead><tr className="text-left text-gray-500 border-b border-gray-100">
                 <th className="pb-2 pr-4">Name</th><th className="pb-2 pr-4">Email</th>
                 <th className="pb-2 pr-4">Role</th><th className="pb-2 pr-4">Registered</th>
-                <th className="pb-2">Action</th>
+                <th className="pb-2">Actions</th>
               </tr></thead>
               <tbody>
                 {pending.slice(0, 8).map((m) => (
@@ -140,15 +154,95 @@ const AdminOverview: React.FC = () => {
                     <td className="py-2.5 pr-4"><span className="capitalize rounded-full bg-purple-50 text-purple-700 px-2 py-0.5 text-xs font-semibold">{m.role}</span></td>
                     <td className="py-2.5 pr-4 text-gray-400">{new Date(m.created_at).toLocaleDateString()}</td>
                     <td className="py-2.5">
-                      <button onClick={() => approve(m.id)} disabled={approving === m.id}
-                        className="btn-primary py-1.5 text-xs disabled:opacity-60">
-                        {approving === m.id ? <Loader2 size={13} className="animate-spin" /> : null} Approve
-                      </button>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => setSelectedMember(m)} 
+                          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+                          title="View Details"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button 
+                          onClick={() => approve(m.id)} 
+                          disabled={approving === m.id}
+                          className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 disabled:opacity-50"
+                          title="Approve"
+                        >
+                          {approving === m.id ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                        </button>
+                        <button 
+                          onClick={() => reject(m.id)} 
+                          disabled={rejecting === m.id}
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50"
+                          title="Reject"
+                        >
+                          {rejecting === m.id ? <Loader2 size={15} className="animate-spin" /> : <Ban size={15} />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Member Detail Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedMember(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 pb-14 pt-6 text-center text-white relative">
+              <button onClick={() => setSelectedMember(null)} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20">
+                <X size={20} />
+              </button>
+              <p className="text-xs uppercase tracking-widest text-purple-200">Member Profile</p>
+            </div>
+            <div className="-mt-10 flex flex-col items-center px-6">
+              <img src={selectedMember.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo'} 
+                className="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg" alt="" />
+              <h3 className="mt-3 text-xl font-bold text-gray-900">
+                {selectedMember.first_name} {selectedMember.last_name}
+              </h3>
+              <span className="text-sm font-bold text-purple-700">{selectedMember.member_code || 'Pending ID'}</span>
+              <div className="mt-2 flex gap-2 flex-wrap justify-center">
+                <span className="rounded-full bg-purple-100 px-3 py-0.5 text-xs font-semibold uppercase text-purple-700">
+                  {selectedMember.role}
+                </span>
+                <span className="rounded-full bg-amber-100 text-amber-700 px-3 py-0.5 text-xs font-semibold uppercase">
+                  {selectedMember.approval_status || selectedMember.status}
+                </span>
+              </div>
+            </div>
+            <div className="px-6 py-4 space-y-0">
+              {[
+                ['Email', selectedMember.email],
+                ['Phone', selectedMember.phone],
+                ['Gender', selectedMember.gender],
+                ['Date of Birth', selectedMember.date_of_birth ? new Date(selectedMember.date_of_birth).toLocaleDateString() : undefined],
+                ['Address', selectedMember.address],
+                ['Registered', new Date(selectedMember.created_at).toLocaleDateString()],
+              ].filter(([, v]) => v).map(([k, v]) => (
+                <div key={k as string} className="flex justify-between border-b border-gray-100 py-2.5">
+                  <span className="text-sm text-gray-500">{k}</span>
+                  <span className="text-sm font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 border-t bg-gray-50 px-6 py-4">
+              <button 
+                onClick={() => { approve(selectedMember.id); setSelectedMember(null); }} 
+                className="flex-1 btn-primary py-2 text-sm justify-center"
+              >
+                <Check size={15} /> Approve
+              </button>
+              <button 
+                onClick={() => { reject(selectedMember.id); setSelectedMember(null); }} 
+                className="flex-1 flex items-center gap-1 justify-center rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600"
+              >
+                <Ban size={15} /> Reject
+              </button>
+            </div>
           </div>
         </div>
       )}

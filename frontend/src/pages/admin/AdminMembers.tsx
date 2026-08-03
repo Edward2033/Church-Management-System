@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { get, del, post, User, API_BASE_URL } from '@/lib/api';
 import { printMember, printMemberList, exportCSV } from '@/lib/print';
-import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode } from 'lucide-react';
+import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import PrintableRegistrationForm from '@/components/PrintableRegistrationForm';
@@ -35,7 +35,7 @@ const CreateUserModal: React.FC<{ onClose: () => void; onSuccess: () => void }> 
 
       const response = await fetch(`${API_BASE_URL}/members/create`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('cms_token')}` },
         body: data,
       });
       if (!response.ok) {
@@ -191,7 +191,15 @@ const CreateUserModal: React.FC<{ onClose: () => void; onSuccess: () => void }> 
   );
 };
 
-const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id: string) => void; onReject: (id: string) => void; onDelete: (id: string) => void }> = ({ member: m, onClose, onApprove, onReject, onDelete }) => {
+const ProfileModal: React.FC<{ 
+  member: User; 
+  onClose: () => void; 
+  onApprove: (id: string) => void; 
+  onReject: (id: string) => void; 
+  onGrantAccount: (id: string) => void;
+  onDisable: (id: string) => void;
+  onDelete: (id: string) => void;
+}> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onDelete }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -199,6 +207,10 @@ const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id
   });
 
   const verificationUrl = `${window.location.origin}/verify/${m.member_code}`;
+
+  const isPending = m.status === 'pending' || m.approval_status === 'pending';
+  const isApprovedNoPassword = (m.status === 'approved' || m.approval_status === 'approved') && !m.password_set;
+  const isApprovedWithPassword = (m.status === 'approved' || m.approval_status === 'approved') && m.password_set;
 
   return (
     <>
@@ -246,13 +258,36 @@ const ProfileModal: React.FC<{ member: User; onClose: () => void; onApprove: (id
           </div>
           <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
             <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print Registration</button>
-            {(m.status === 'pending' || m.approval_status === 'pending') ? (
+            
+            {/* Pending: Show Approve and Reject */}
+            {isPending && (
               <>
-                <button onClick={() => onApprove(m.id)} className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"><Check size={15} /> Approve</button>
-                <button onClick={() => onReject(m.id)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600"><Ban size={15} /> Reject</button>
+                <button onClick={() => onApprove(m.id)} className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700">
+                  <Check size={15} /> Approve
+                </button>
+                <button onClick={() => onReject(m.id)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600">
+                  <Ban size={15} /> Reject
+                </button>
               </>
-            ) : null}
-            <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 size={15} /></button>
+            )}
+            
+            {/* Approved but no password: Show Grant Account */}
+            {isApprovedNoPassword && (
+              <button onClick={() => onGrantAccount(m.id)} className="flex items-center gap-1 rounded-lg bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-700">
+                <Mail size={15} /> Grant Account
+              </button>
+            )}
+            
+            {/* Approved with password: Show Disable/Enable */}
+            {isApprovedWithPassword && (
+              <button onClick={() => onDisable(m.id)} className="flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600">
+                <Ban size={15} /> {m.is_active ? 'Disable' : 'Enable'}
+              </button>
+            )}
+            
+            <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+              <Trash2 size={15} />
+            </button>
           </div>
         </div>
       </div>
@@ -285,16 +320,56 @@ const AdminMembers: React.FC = () => {
   useEffect(() => { load(); }, [search, roleFilter, statusFilter]);
 
   const approve = async (id: string) => {
-    try { await post(`/auth/approve/${id}`, {}); toast.success('Member approved & email sent'); setSelected(null); load(); }
+    try { 
+      await post(`/auth/approve/${id}`, {}); 
+      toast.success('Member approved'); 
+      setSelected(null); 
+      load(); 
+    }
     catch (err: any) { toast.error(err.message); }
   };
+  
   const reject = async (id: string) => {
-    try { await post(`/auth/reject/${id}`, {}); toast.success('Member rejected'); setSelected(null); load(); }
+    try { 
+      await post(`/auth/reject/${id}`, {}); 
+      toast.success('Member rejected'); 
+      setSelected(null); 
+      load(); 
+    }
     catch (err: any) { toast.error(err.message); }
   };
+  
+  const grantAccount = async (id: string) => {
+    try {
+      await post(`/auth/grant-account/${id}`, {});
+      toast.success('Account setup email sent');
+      setSelected(null);
+      load();
+    } catch (err: any) { toast.error(err.message); }
+  };
+  
+  const disable = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/members/${id}/disable`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${localStorage.getItem('cms_token')}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message);
+      setSelected(null);
+      load();
+    } catch (err: any) { toast.error(err.message); }
+  };
+  
   const remove = async (id: string) => {
     if (!confirm('Delete this member permanently?')) return;
-    try { await del(`/members/${id}`); toast.success('Member deleted'); setSelected(null); load(); }
+    try { 
+      await del(`/members/${id}`); 
+      toast.success('Member deleted'); 
+      setSelected(null); 
+      load(); 
+    }
     catch (err: any) { toast.error(err.message); }
   };
 
@@ -380,7 +455,7 @@ const AdminMembers: React.FC = () => {
         </div>
       )}
 
-      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onDelete={remove} />}
+      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onGrantAccount={grantAccount} onDisable={disable} onDelete={remove} />}
       {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} onSuccess={load} />}
     </div>
   );

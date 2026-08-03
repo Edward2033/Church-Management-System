@@ -158,6 +158,20 @@ router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PATCH /api/members/:id/disable — admin toggle account active state
+router.patch('/:id/disable', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { rows: [m] } = await pool.query(
+      `SELECT u.id AS user_id, u.is_active FROM members m JOIN users u ON u.id=m.user_id WHERE m.id=$1`,
+      [req.params.id]
+    );
+    if (!m) return res.status(404).json({ error: 'Member not found' });
+    const newState = !m.is_active;
+    await pool.query(`UPDATE users SET is_active=$1 WHERE id=$2`, [newState, m.user_id]);
+    res.json({ message: newState ? 'Account enabled' : 'Account disabled', is_active: newState });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DELETE /api/members/:id (soft delete)
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
