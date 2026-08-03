@@ -6,7 +6,7 @@ const API = import.meta.env.VITE_API_URL || '/api';
 const token = () => localStorage.getItem('cms_token');
 const authH = () => ({ Authorization: `Bearer ${token()}` });
 
-type Tab = 'about' | 'values' | 'footer' | 'social';
+type Tab = 'about' | 'values' | 'footer' | 'social' | 'contact';
 
 interface Value {
   id: string;
@@ -49,12 +49,13 @@ function Input({ value, onChange, placeholder }: { value: string; onChange: (v: 
   );
 }
 
-function Textarea({ value, onChange, rows = 3 }: { value: string; onChange: (v: string) => void; rows?: number }) {
+function Textarea({ value, onChange, rows = 3, placeholder }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
   return (
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
       rows={rows}
+      placeholder={placeholder}
       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
     />
   );
@@ -497,13 +498,118 @@ function SocialTab() {
   );
 }
 
+// ── Tab: Contact Page ──────────────────────────────────────────
+
+function ContactTab() {
+  const [s, setS] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/cms/settings?group=contact`)
+      .then((r) => r.json())
+      .then((data) => {
+        const flat: Record<string, string> = {};
+        (data.raw || []).forEach((r: any) => { flat[r.key] = r.value ?? ''; });
+        setS(flat);
+      });
+  }, []);
+
+  const set = (k: string, v: string) => setS((p) => ({ ...p, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/cms/settings`, {
+        method: 'PUT',
+        headers: { ...authH(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: s }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Contact page settings saved');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-gray-800">Page Header</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Page Title"><Input value={s.contact_page_title || ''} onChange={(v) => set('contact_page_title', v)} placeholder="Contact Us" /></Field>
+          <Field label="Page Subtitle"><Input value={s.contact_page_subtitle || ''} onChange={(v) => set('contact_page_subtitle', v)} placeholder="We'd love to hear from you" /></Field>
+        </div>
+        <Field label="Page Description"><Textarea value={s.contact_page_description || ''} onChange={(v) => set('contact_page_description', v)} placeholder="Reach out any time..." /></Field>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-gray-800">Contact Information</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Address"><Input value={s.contact_address || ''} onChange={(v) => set('contact_address', v)} placeholder="12 Grace Avenue, Accra, Ghana" /></Field>
+          <Field label="Phone"><Input value={s.contact_phone || ''} onChange={(v) => set('contact_phone', v)} placeholder="+233 20 000 0001" /></Field>
+          <Field label="Email"><Input value={s.contact_email || ''} onChange={(v) => set('contact_email', v)} placeholder="admin@lus4g.org" /></Field>
+          <Field label="Office Hours"><Input value={s.contact_office_hours || ''} onChange={(v) => set('contact_office_hours', v)} placeholder="Mon – Fri: 9AM – 5PM" /></Field>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-gray-800">Service Times Display</h2>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="First Service Label"><Input value={s.contact_service1_label || ''} onChange={(v) => set('contact_service1_label', v)} placeholder="First Service" /></Field>
+          <Field label="First Service Time"><Input value={s.contact_service1_time || ''} onChange={(v) => set('contact_service1_time', v)} placeholder="8:00 AM" /></Field>
+          <Field label="Second Service Label"><Input value={s.contact_service2_label || ''} onChange={(v) => set('contact_service2_label', v)} placeholder="Second Service" /></Field>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Second Service Time"><Input value={s.contact_service2_time || ''} onChange={(v) => set('contact_service2_time', v)} placeholder="10:00 AM" /></Field>
+          <Field label="Third Service Label"><Input value={s.contact_service3_label || ''} onChange={(v) => set('contact_service3_label', v)} placeholder="Evening Service" /></Field>
+          <Field label="Third Service Time"><Input value={s.contact_service3_time || ''} onChange={(v) => set('contact_service3_time', v)} placeholder="5:00 PM" /></Field>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-gray-800">Midweek Services</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Bible Study Label"><Input value={s.contact_midweek1_label || ''} onChange={(v) => set('contact_midweek1_label', v)} placeholder="Bible Study" /></Field>
+          <Field label="Bible Study Time"><Input value={s.contact_midweek1_time || ''} onChange={(v) => set('contact_midweek1_time', v)} placeholder="Wednesday 6:30 PM" /></Field>
+          <Field label="Prayer Meeting Label"><Input value={s.contact_midweek2_label || ''} onChange={(v) => set('contact_midweek2_label', v)} placeholder="Prayer Meeting" /></Field>
+          <Field label="Prayer Meeting Time"><Input value={s.contact_midweek2_time || ''} onChange={(v) => set('contact_midweek2_time', v)} placeholder="Friday 7:00 PM" /></Field>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <h2 className="font-semibold text-gray-800">Form Settings</h2>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={s.contact_form_enabled !== 'false'} 
+            onChange={(e) => set('contact_form_enabled', e.target.checked ? 'true' : 'false')} />
+          Enable Contact Form
+        </label>
+        <Field label="Success Message"><Textarea value={s.contact_success_message || ''} onChange={(v) => set('contact_success_message', v)} 
+          placeholder="Thank you for reaching out. We'll get back to you within 24 hours." /></Field>
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+      >
+        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+        {saving ? 'Saving…' : 'Save Contact Settings'}
+      </button>
+    </div>
+  );
+}
+
 // ── Main AdminCMS ──────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'about',  label: 'About Page' },
-  { id: 'values', label: 'Core Values' },
-  { id: 'footer', label: 'Footer' },
-  { id: 'social', label: 'Social Media' },
+  { id: 'about',   label: 'About Page' },
+  { id: 'values',  label: 'Core Values' },
+  { id: 'contact', label: 'Contact Page' },
+  { id: 'footer',  label: 'Footer' },
+  { id: 'social',  label: 'Social Media' },
 ];
 
 const AdminCMS: React.FC = () => {
@@ -515,7 +621,7 @@ const AdminCMS: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <FileText size={24} className="text-purple-600" /> CMS Settings
         </h1>
-        <p className="text-sm text-gray-600">Manage About page content, core values, footer, and social links</p>
+        <p className="text-sm text-gray-600">Manage website content, core values, contact info, footer, and social links</p>
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
@@ -532,10 +638,11 @@ const AdminCMS: React.FC = () => {
         ))}
       </div>
 
-      {tab === 'about'  && <AboutTab />}
-      {tab === 'values' && <ValuesTab />}
-      {tab === 'footer' && <FooterTab />}
-      {tab === 'social' && <SocialTab />}
+      {tab === 'about'   && <AboutTab />}
+      {tab === 'values'  && <ValuesTab />}
+      {tab === 'contact' && <ContactTab />}
+      {tab === 'footer'  && <FooterTab />}
+      {tab === 'social'  && <SocialTab />}
     </div>
   );
 };

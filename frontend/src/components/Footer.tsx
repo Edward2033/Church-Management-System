@@ -41,14 +41,14 @@ const Footer: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const churchName  = s.church_name    || CHURCH_NAME;
-  const address     = s.church_address || '12 Grace Avenue, Accra';
-  const email       = s.church_email   || 'admin@lus4g.org';
-  const phone       = s.church_phone   || '+233 20 000 0001';
-  const tagline     = s.church_tagline || 'One Family. One Faith. One Purpose.';
-  const sundayTimes = s.sunday_service_times || '8AM · 10AM · 5PM';
-  const midweek     = s.midweek_service      || 'Wednesday 6:30 PM';
-  const prayer      = s.prayer_meeting       || 'Friday 7:00 PM';
+  const churchName  = s.footer_church_name || s.church_name || CHURCH_NAME;
+  const address     = s.footer_address || s.church_address || '12 Grace Avenue, Accra';
+  const email       = s.footer_email || s.church_email || 'admin@lus4g.org';
+  const phone       = s.footer_phone || s.church_phone || '+233 20 000 0001';
+  const tagline     = s.footer_tagline || s.church_tagline || 'One Family. One Faith. One Purpose.';
+  const sundayTimes = s.footer_sunday_service || s.sunday_service_times || '8AM · 10AM · 5PM';
+  const midweek     = s.footer_wednesday_service || s.midweek_service || 'Wednesday 6:30 PM';
+  const prayer      = s.footer_friday_service || s.prayer_meeting || 'Friday 7:00 PM';
 
   const SOCIALS = [
     { Icon: Facebook,    href: s.social_facebook,  label: 'Facebook'  },
@@ -60,7 +60,7 @@ const Footer: React.FC = () => {
   ].filter((soc) => soc.href && soc.href !== '#' && soc.href.trim() !== '');
 
   const ministries = s.footer_ministries
-    ? s.footer_ministries.split('|')
+    ? s.footer_ministries.split('|').filter(m => m.trim())
     : ['Choir & Worship', 'Youth Fellowship', "Children's Church", 'Outreach', 'Prayer Ministry', 'Evangelism'];
 
   const serviceTimes = [

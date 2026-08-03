@@ -31,6 +31,7 @@ const AboutPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const cid = DEFAULT_CHURCH_ID;
     Promise.all([
       get<{ settings: CmsSettings }>(`/cms/settings?church_id=${cid}&group=about`),
@@ -42,9 +43,11 @@ const AboutPage: React.FC = () => {
         setValues(valuesRes.values || []);
         setLeadership(leadersRes.leadership || []);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Error loading about page:', err);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // Empty dependency - loads once on mount
 
   const t = (key: string, fallback = '') => (s[key] as string) || fallback;
 
