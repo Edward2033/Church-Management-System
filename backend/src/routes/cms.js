@@ -144,6 +144,191 @@ router.delete('/about-values/:id', authenticate, requireAdmin, async (req, res) 
 });
 
 // ══════════════════════════════════════════════════════════════
+// HOMEPAGE STATS
+// ══════════════════════════════════════════════════════════════
+
+router.get('/homepage-stats', async (req, res) => {
+  try {
+    const cid = req.query.church_id || DEFAULT_CID();
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_stats WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
+      [cid]
+    );
+    res.json({ stats: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/homepage-stats/all', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_stats WHERE church_id=$1 ORDER BY sort_order ASC`,
+      [req.churchId]
+    );
+    res.json({ stats: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/homepage-stats', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { value, label, icon = 'users', sort_order = 0 } = req.body;
+    if (!value || !label) return res.status(400).json({ error: 'value and label required' });
+    const { rows: [s] } = await pool.query(
+      `INSERT INTO homepage_stats (church_id, value, label, icon, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.churchId, value, label, icon, parseInt(sort_order)]
+    );
+    res.status(201).json({ stat: s });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/homepage-stats/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { value, label, icon, sort_order, is_active } = req.body;
+    const { rows: [s] } = await pool.query(
+      `UPDATE homepage_stats SET
+         value=COALESCE($1,value), label=COALESCE($2,label), icon=COALESCE($3,icon),
+         sort_order=COALESCE($4,sort_order), is_active=COALESCE($5,is_active), updated_at=NOW()
+       WHERE id=$6 RETURNING *`,
+      [value, label, icon, sort_order != null ? parseInt(sort_order) : null, is_active, req.params.id]
+    );
+    if (!s) return res.status(404).json({ error: 'Not found' });
+    res.json({ stat: s });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/homepage-stats/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM homepage_stats WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// HOMEPAGE FEATURES
+// ══════════════════════════════════════════════════════════════
+
+router.get('/homepage-features', async (req, res) => {
+  try {
+    const cid = req.query.church_id || DEFAULT_CID();
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_features WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
+      [cid]
+    );
+    res.json({ features: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/homepage-features/all', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_features WHERE church_id=$1 ORDER BY sort_order ASC`,
+      [req.churchId]
+    );
+    res.json({ features: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/homepage-features', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { icon = 'heart', title, description, sort_order = 0 } = req.body;
+    if (!title || !description) return res.status(400).json({ error: 'title and description required' });
+    const { rows: [f] } = await pool.query(
+      `INSERT INTO homepage_features (church_id, icon, title, description, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.churchId, icon, title, description, parseInt(sort_order)]
+    );
+    res.status(201).json({ feature: f });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/homepage-features/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { icon, title, description, sort_order, is_active } = req.body;
+    const { rows: [f] } = await pool.query(
+      `UPDATE homepage_features SET
+         icon=COALESCE($1,icon), title=COALESCE($2,title), description=COALESCE($3,description),
+         sort_order=COALESCE($4,sort_order), is_active=COALESCE($5,is_active), updated_at=NOW()
+       WHERE id=$6 RETURNING *`,
+      [icon, title, description, sort_order != null ? parseInt(sort_order) : null, is_active, req.params.id]
+    );
+    if (!f) return res.status(404).json({ error: 'Not found' });
+    res.json({ feature: f });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/homepage-features/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM homepage_features WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// HOMEPAGE SERVICE TIMES
+// ══════════════════════════════════════════════════════════════
+
+router.get('/homepage-services', async (req, res) => {
+  try {
+    const cid = req.query.church_id || DEFAULT_CID();
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_service_times WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
+      [cid]
+    );
+    res.json({ services: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/homepage-services/all', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM homepage_service_times WHERE church_id=$1 ORDER BY sort_order ASC`,
+      [req.churchId]
+    );
+    res.json({ services: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/homepage-services', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+  try {
+    const { day, name, times = [], description, icon = 'calendar', sort_order = 0 } = req.body;
+    if (!day || !name) return res.status(400).json({ error: 'day and name required' });
+    const timesArr = Array.isArray(times) ? times : times.split('\n').map((t) => t.trim()).filter(Boolean);
+    const { rows: [s] } = await pool.query(
+      `INSERT INTO homepage_service_times (church_id, day, name, times, description, icon, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.churchId, day, name, timesArr, description || null, icon, parseInt(sort_order)]
+    );
+    res.status(201).json({ service: s });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/homepage-services/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { day, name, times, description, icon, sort_order, is_active } = req.body;
+    let timesArr = undefined;
+    if (times !== undefined) {
+      timesArr = Array.isArray(times) ? times : times.split('\n').map((t) => t.trim()).filter(Boolean);
+    }
+    const { rows: [s] } = await pool.query(
+      `UPDATE homepage_service_times SET
+         day=COALESCE($1,day), name=COALESCE($2,name),
+         times=COALESCE($3,times), description=COALESCE($4,description),
+         icon=COALESCE($5,icon), sort_order=COALESCE($6,sort_order),
+         is_active=COALESCE($7,is_active), updated_at=NOW()
+       WHERE id=$8 RETURNING *`,
+      [day, name, timesArr, description, icon, sort_order != null ? parseInt(sort_order) : null, is_active, req.params.id]
+    );
+    if (!s) return res.status(404).json({ error: 'Not found' });
+    res.json({ service: s });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/homepage-services/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM homepage_service_times WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
 // HERO SLIDES (legacy cms.js routes kept for compatibility)
 // ══════════════════════════════════════════════════════════════
 
