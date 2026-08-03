@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { get, del, Leader } from '@/lib/api';
+import { get, del, apiFetch, Leader } from '@/lib/api';
 import { Plus, Trash2, Loader2, X, Upload, Edit, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -29,7 +29,6 @@ const AdminLeadership: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || '/api';
-  const getToken = () => localStorage.getItem('cms_token');
 
   const load = () => {
     setLoading(true);
@@ -75,12 +74,12 @@ const AdminLeadership: React.FC = () => {
       fd.append('phone',      form.phone);
       fd.append('sort_order', String(form.sort_order));
 
-      const url    = editing ? `${API_URL}/leadership/${editing.id}` : `${API_URL}/leadership`;
+      const path   = editing ? `/leadership/${editing.id}` : `/leadership`;
       const method = editing ? 'PUT' : 'POST';
 
-      const res  = await fetch(url, { method, headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+      const res  = await apiFetch(path, { method, body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);}
 
       toast.success(editing ? 'Updated' : 'Added');
       setShowForm(false);

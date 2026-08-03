@@ -58,8 +58,17 @@ const ContactPage: React.FC = () => {
 
   if (loadingSettings) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-brand-400" />
+      <div className="min-h-screen bg-slate-950">
+        <div className="relative overflow-hidden pt-24 pb-20">
+          <div className="absolute inset-0 bg-gradient-brand opacity-20" />
+          <div className="container-pad relative text-center">
+            <div className="h-8 w-32 bg-slate-800 rounded-full mx-auto mb-4 animate-pulse" />
+            <div className="h-12 w-64 bg-slate-800 rounded-xl mx-auto animate-pulse" />
+          </div>
+        </div>
+        <div className="container-pad py-20 flex justify-center">
+          <Loader2 size={40} className="animate-spin text-brand-400" />
+        </div>
       </div>
     );
   }
