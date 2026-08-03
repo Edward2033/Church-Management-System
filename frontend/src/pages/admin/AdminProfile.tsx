@@ -103,14 +103,15 @@ const AdminProfile: React.FC = () => {
       
       // Update auth context
       if (setMember && member) {
-        setMember({
+        const updatedMember = {
           ...member,
           ...profileData,
           first_name: profileData.firstName,
           middle_name: profileData.middleName,
           last_name: profileData.lastName,
           profile_photo_url: data.profile?.profile_photo_url || member.profile_photo_url,
-        });
+        };
+        setMember(updatedMember);
       }
     } catch (err: any) {
       toast.error(err.message);
