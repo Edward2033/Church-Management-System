@@ -26,13 +26,14 @@ router.get('/', async (req, res) => {
 // GET /api/hero/all - Get all slides including inactive (admin only)
 router.get('/all', authenticate, requireAdmin, async (req, res) => {
   try {
+    const churchId = req.churchId || process.env.DEFAULT_CHURCH_ID;
     const { rows } = await pool.query(`
       SELECT id, title, subtitle, image_url, cta_label, cta_url, 
              sort_order, is_active, created_at, updated_at
       FROM cms_hero_slides
       WHERE church_id = $1
       ORDER BY sort_order ASC, created_at DESC
-    `, [req.churchId]);
+    `, [churchId]);
     
     res.json({ slides: rows });
   } catch (err) {

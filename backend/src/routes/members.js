@@ -28,7 +28,7 @@ const MEMBER_SELECT = `
 // GET /api/members
 router.get('/', authenticate, requireSameChurch, async (req, res) => {
   try {
-    const churchId = req.churchId;
+    const churchId = req.churchId || process.env.DEFAULT_CHURCH_ID;
     const isAdmin  = ['admin','superadmin','pastor','elder'].includes(req.user.role);
     const { approval_status: qs_approval, status: qs_status, role, search, page = 1, limit = 50 } = req.query;
     const approval_status = qs_approval || qs_status;

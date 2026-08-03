@@ -8,6 +8,7 @@ const { FRONTEND_URL } = require('../config');
 // GET /api/subadmin - List all sub-admins
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
+    const churchId = req.churchId || process.env.DEFAULT_CHURCH_ID;
     const { rows } = await pool.query(`
       SELECT u.id, u.email, u.role, u.is_active, u.last_login, u.created_at,
              m.first_name, m.last_name, m.phone, m.profile_photo_url,
@@ -21,7 +22,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
         AND u.id != $2
       GROUP BY u.id, m.id
       ORDER BY u.created_at DESC
-    `, [req.churchId, req.user.id]);
+    `, [churchId, req.user.id]);
     
     res.json({ subAdmins: rows });
   } catch (err) {

@@ -39,6 +39,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const { status, search, page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    const churchId = req.churchId || process.env.DEFAULT_CHURCH_ID;
     
     let query = `
       SELECT id, name, email, phone, subject, message, 
@@ -46,7 +47,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       FROM contact_messages
       WHERE church_id = $1
     `;
-    const params = [req.churchId];
+    const params = [churchId];
     let paramIndex = 2;
     
     // Filter by status
@@ -95,6 +96,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 // GET /api/contact/stats - Get contact message statistics
 router.get('/stats', authenticate, requireAdmin, async (req, res) => {
   try {
+    const churchId = req.churchId || process.env.DEFAULT_CHURCH_ID;
     const { rows: [stats] } = await pool.query(`
       SELECT
         COUNT(*) as total,
@@ -105,7 +107,7 @@ router.get('/stats', authenticate, requireAdmin, async (req, res) => {
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as this_month
       FROM contact_messages
       WHERE church_id = $1
-    `, [req.churchId]);
+    `, [churchId]);
     
     res.json({
       total: parseInt(stats.total),

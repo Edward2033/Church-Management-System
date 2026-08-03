@@ -21,8 +21,9 @@ async function authenticate(req, res, next) {
       [decoded.id]
     );
     if (!rows[0]) return res.status(401).json({ error: 'User not found or inactive' });
-    req.user   = rows[0];
-    req.member = rows[0];
+    req.user    = rows[0];
+    req.member  = rows[0];
+    req.churchId = rows[0].church_id || rows[0].member_church_id;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -52,7 +53,7 @@ function requireSelfOrAdmin(req, res, next) {
 }
 
 function requireSameChurch(req, res, next) {
-  const churchId = req.user?.church_id || req.user?.member_church_id;
+  const churchId = req.churchId || req.user?.church_id || req.user?.member_church_id || process.env.DEFAULT_CHURCH_ID;
   if (!churchId) return res.status(403).json({ error: 'No church assigned' });
   req.churchId = churchId;
   next();
