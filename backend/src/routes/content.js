@@ -107,7 +107,7 @@ router.put('/announcements/:id', authenticate, requireAdmin, upload.single('imag
     // Handle new image upload
     if (req.file) {
       if (existing?.image_url) {
-        await deleteFromCloudinary(existing.image_url);
+        await deleteImage(existing.image_url);
       }
       imageUrl = await uploadToCloudinary(req.file.buffer, 'announcements');
     }
@@ -362,7 +362,7 @@ router.delete('/gallery/:id', authenticate, requireAdmin, async (req, res) => {
     // Get image URL to delete from Cloudinary
     const { rows: [item] } = await pool.query('SELECT image_url FROM gallery WHERE id=$1', [req.params.id]);
     if (item?.image_url) {
-      await deleteFromCloudinary(item.image_url);
+      await deleteImage(item.image_url);
     }
     
     await pool.query('DELETE FROM gallery WHERE id=$1', [req.params.id]);

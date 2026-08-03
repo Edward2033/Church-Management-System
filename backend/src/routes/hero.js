@@ -98,7 +98,7 @@ router.put('/:id', authenticate, requireAdmin, upload.single('image'), async (re
     if (req.file) {
       // Delete old image from Cloudinary
       if (existing.image_url) {
-        await deleteFromCloudinary(existing.image_url);
+        await deleteImage(existing.image_url);
       }
       // Upload new image
       imageUrl = await uploadToCloudinary(req.file.buffer, 'hero-slides');
@@ -157,7 +157,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     
     // Delete image from Cloudinary
     if (slide.image_url) {
-      await deleteFromCloudinary(slide.image_url);
+      await deleteImage(slide.image_url);
     }
     
     res.json({ success: true, message: 'Hero slide deleted' });

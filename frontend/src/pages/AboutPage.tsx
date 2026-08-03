@@ -1,16 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SectionWrapper, { fadeUp, stagger } from '@/components/SectionWrapper';
-import { CHURCH_NAME } from '@/lib/api';
-import { Heart, Users, BookOpen, Music2, Target, Eye, ArrowRight } from 'lucide-react';
-
-const LEADERSHIP = [
-  { name: 'Pastor John Mensah', title: 'Senior Pastor', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80' },
-  { name: 'Pastor Grace Boateng', title: 'Associate Pastor', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80' },
-  { name: 'Elder Samuel Asante', title: 'Head of Choir', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80' },
-  { name: 'Deaconess Mary Adu', title: "Women's Ministry", img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80' },
-];
+import { CHURCH_NAME, get, Leader, DEFAULT_CHURCH_ID } from '@/lib/api';
+import { Heart, Users, BookOpen, Music2, Target, Eye, ArrowRight, Loader2 } from 'lucide-react';
 
 const VALUES = [
   { icon: Heart, title: 'Love', desc: 'We love God and each other unconditionally.', color: 'from-rose-600/30 to-rose-500/10 border-rose-500/30 text-rose-400' },
@@ -19,7 +12,18 @@ const VALUES = [
   { icon: Music2, title: 'Worship', desc: 'Cultivating authentic praise and presence.', color: 'from-gold/30 to-gold/10 border-gold/30 text-gold' },
 ];
 
-const AboutPage: React.FC = () => (
+const AboutPage: React.FC = () => {
+  const [leadership, setLeadership] = useState<Leader[]>([]);
+  const [loadingLeaders, setLoadingLeaders] = useState(true);
+
+  useEffect(() => {
+    get<{ leadership: Leader[] }>(`/leadership?church_id=${DEFAULT_CHURCH_ID}`)
+      .then((r) => setLeadership(r.leadership || []))
+      .catch(() => {})
+      .finally(() => setLoadingLeaders(false));
+  }, []);
+
+  return (
   <div className="bg-slate-950">
     {/* Hero */}
     <div className="relative overflow-hidden pt-24 pb-20">
@@ -130,26 +134,40 @@ const AboutPage: React.FC = () => (
           <h2 className="heading-md text-white mt-3">Our Leadership</h2>
           <p className="mt-3 text-slate-400">Serving with humility, vision, and a heart for God's people.</p>
         </motion.div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {LEADERSHIP.map((l, i) => (
-            <motion.div key={l.name} variants={fadeUp} custom={i}
-              whileHover={{ y: -8 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="card-solid rounded-2xl overflow-hidden group"
-            >
-              <div className="relative overflow-hidden h-64">
-                <img src={l.img} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" alt={l.name} />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-white">{l.name}</h3>
-                <p className="text-sm text-brand-400 font-medium mt-1">{l.title}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        {loadingLeaders ? (
+          <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-brand-400" /></div>
+        ) : leadership.length === 0 ? (
+          <p className="text-center text-slate-500 py-12">Leadership information coming soon.</p>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {leadership.map((l, i) => (
+              <motion.div key={l.id} variants={fadeUp} custom={i}
+                whileHover={{ y: -8 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="card-solid rounded-2xl overflow-hidden group"
+              >
+                <div className="relative overflow-hidden h-64">
+                  {l.photo_url ? (
+                    <img src={l.photo_url} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" alt={l.name} />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-brand-900/60 to-slate-800 flex items-center justify-center">
+                      <Users size={48} className="text-brand-500/40" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
+                </div>
+                <div className="p-5">
+                  <h3 className="font-bold text-white">{l.name}</h3>
+                  <p className="text-sm text-brand-400 font-medium mt-1">{l.title}</p>
+                  {l.bio && <p className="text-xs text-slate-400 mt-2 line-clamp-2">{l.bio}</p>}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </SectionWrapper>
   </div>
-);
+  );
+};
 
 export default AboutPage;

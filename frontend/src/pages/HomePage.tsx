@@ -18,7 +18,7 @@ interface HeroSlide {
   cta_url?: string;
 }
 
-const DEFAULT_SLIDES = [
+const DEFAULT_SLIDES: { img: string; tag?: string; title: string; subtitle: string }[] = [
   {
     img: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1600&q=85',
     tag: '✦ Welcome to Our Family',
@@ -53,7 +53,7 @@ const catBadge = (cat: string) => {
 };
 
 const HomePage: React.FC = () => {
-  const [slides, setSlides] = useState(DEFAULT_SLIDES);
+  const [slides, setSlides] = useState<{ img: string; tag?: string; title: string; subtitle: string }[]>(DEFAULT_SLIDES);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,6 +267,7 @@ const HomePage: React.FC = () => {
             </div>
           </div>
         </SectionWrapper>
+      )}
 
       {/* ── CTA ── */}
       <SectionWrapper className="section-py relative overflow-hidden">

@@ -19,18 +19,20 @@ import AdminHeroSlider    from './admin/AdminHeroSlider';
 import AdminContacts      from './admin/AdminContacts';
 import AdminSubAdmins     from './admin/AdminSubAdmins';
 import AdminProfile       from './admin/AdminProfile';
+import AdminLeadership    from './admin/AdminLeadership';
 
 const NAV = [
-  { to: '/admin',               label: 'Overview',       icon: LayoutDashboard, end: true },
-  { to: '/admin/members',       label: 'Members',        icon: Users },
-  { to: '/admin/choir',         label: 'Choir',          icon: Music2 },
-  { to: '/admin/announcements', label: 'Announcements',  icon: Megaphone },
-  { to: '/admin/activities',    label: 'Activities',     icon: Activity },
-  { to: '/admin/gallery',       label: 'Gallery',        icon: Images },
-  { to: '/admin/donations',     label: 'Donations',      icon: DollarSign },
-  { to: '/admin/hero-slider',   label: 'Hero Slider',    icon: Presentation },
+  { to: '/admin',               label: 'Overview',         icon: LayoutDashboard, end: true },
+  { to: '/admin/members',       label: 'Members',          icon: Users },
+  { to: '/admin/choir',         label: 'Choir',            icon: Music2 },
+  { to: '/admin/announcements', label: 'Announcements',    icon: Megaphone },
+  { to: '/admin/activities',    label: 'Activities',       icon: Activity },
+  { to: '/admin/gallery',       label: 'Gallery',          icon: Images },
+  { to: '/admin/leadership',    label: 'Leadership',       icon: Shield },
+  { to: '/admin/donations',     label: 'Donations',        icon: DollarSign },
+  { to: '/admin/hero-slider',   label: 'Hero Slider',      icon: Presentation },
   { to: '/admin/contacts',      label: 'Contact Messages', icon: Mail },
-  { to: '/admin/subadmins',     label: 'Sub-Admins',     icon: UserCog },
+  { to: '/admin/subadmins',     label: 'Sub-Admins',       icon: UserCog },
   { to: '/admin/profile',       label: 'Profile Settings', icon: Settings },
 ];
 
@@ -116,6 +118,7 @@ const AdminDashboard: React.FC = () => {
             <Route path="announcements" element={<AdminAnnouncements />} />
             <Route path="activities" element={<AdminActivities />} />
             <Route path="gallery" element={<AdminGallery />} />
+            <Route path="leadership" element={<AdminLeadership />} />
             <Route path="donations" element={<AdminDonations />} />
             <Route path="hero-slider" element={<AdminHeroSlider />} />
             <Route path="contacts" element={<AdminContacts />} />
