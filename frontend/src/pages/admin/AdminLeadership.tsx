@@ -79,7 +79,7 @@ const AdminLeadership: React.FC = () => {
 
       const res  = await apiFetch(path, { method, body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);}
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       toast.success(editing ? 'Updated' : 'Added');
       setShowForm(false);
