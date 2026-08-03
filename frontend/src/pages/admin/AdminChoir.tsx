@@ -1,37 +1,337 @@
-import React, { useEffect, useState } from 'react';
-import { get, post, patch, del } from '@/lib/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { get, post, del, patch, API_BASE_URL } from '@/lib/api';
 import type { ChoirMember } from '@/lib/api';
-import { Music2, Check, Ban, Trash2, Eye, Loader2, X, Plus, Mic, BookOpen, Send } from 'lucide-react';
+import { Music2, Check, Ban, Trash2, Eye, Loader2, X, Plus, Mic, BookOpen, Send, Printer, Mail, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { useReactToPrint } from 'react-to-print';
+import PrintableRegistrationForm from '@/components/PrintableRegistrationForm';
 
 const VOICE_GROUPS = ['Soprano', 'Alto', 'Tenor', 'Bass'];
 const TABS = ['Members', 'Rehearsals', 'Music Library', 'Broadcasts'] as const;
 type Tab = typeof TABS[number];
+
+const STATUS_COLOR: Record<string, string> = {
+  approved: 'bg-green-100 text-green-700',
+  pending:  'bg-amber-100 text-amber-700',
+  rejected: 'bg-red-100 text-red-700',
+};
+
+// ── Edit Choir Member Modal ───────────────────────────────────
+const EditChoirMemberModal: React.FC<{ member: ChoirMember; onClose: () => void; onSuccess: () => void }> = ({ member: m, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [personalForm, setPersonalForm] = useState({
+    first_name: m.first_name || '',
+    middle_name: m.middle_name || '',
+    last_name: m.last_name || '',
+    phone: m.phone || '',
+    whatsapp_number: m.whatsapp_number || '',
+    address: m.address || '',
+    city: m.city || '',
+    occupation: m.occupation || '',
+    marital_status: m.marital_status || '',
+    bio: m.bio || '',
+  });
+  const [choirForm, setChoirForm] = useState({
+    voice_group: m.voice_group || '',
+    choir_role: m.choir_role || '',
+    experience_level: m.experience_level || '',
+    main_role: m.main_role || '',
+    notes: m.notes || '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await Promise.all([
+        patch(`/members/${m.member_id}`, personalForm),
+        patch(`/choir/${m.id}`, choirForm),
+      ]);
+      toast.success('Choir member updated successfully');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-indigo-700 to-purple-800 px-6 py-4 text-white relative sticky top-0 z-10">
+          <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+          <h3 className="text-xl font-bold flex items-center gap-2"><Pencil size={22} /> Edit Choir Member</h3>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Personal Info Section */}
+          <div className="border-b pb-6">
+            <h4 className="font-semibold text-gray-800 mb-4">Personal Information</h4>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <input placeholder="First Name *" value={personalForm.first_name} required
+                  onChange={(e) => setPersonalForm({ ...personalForm, first_name: e.target.value })} className="input-base" />
+                <input placeholder="Middle Name" value={personalForm.middle_name}
+                  onChange={(e) => setPersonalForm({ ...personalForm, middle_name: e.target.value })} className="input-base" />
+                <input placeholder="Last Name *" value={personalForm.last_name} required
+                  onChange={(e) => setPersonalForm({ ...personalForm, last_name: e.target.value })} className="input-base" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="tel" placeholder="Phone *" value={personalForm.phone} required
+                  onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })} className="input-base" />
+                <input type="tel" placeholder="WhatsApp" value={personalForm.whatsapp_number}
+                  onChange={(e) => setPersonalForm({ ...personalForm, whatsapp_number: e.target.value })} className="input-base" />
+              </div>
+              <input placeholder="Address" value={personalForm.address}
+                onChange={(e) => setPersonalForm({ ...personalForm, address: e.target.value })} className="input-base" />
+              <div className="grid grid-cols-2 gap-4">
+                <input placeholder="City" value={personalForm.city}
+                  onChange={(e) => setPersonalForm({ ...personalForm, city: e.target.value })} className="input-base" />
+                <input placeholder="Occupation" value={personalForm.occupation}
+                  onChange={(e) => setPersonalForm({ ...personalForm, occupation: e.target.value })} className="input-base" />
+              </div>
+              <select value={personalForm.marital_status} onChange={(e) => setPersonalForm({ ...personalForm, marital_status: e.target.value })} className="input-base">
+                <option value="">Marital Status</option>
+                <option value="Single">Single</option>
+                <option value="Married">Married</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+              </select>
+              <textarea placeholder="Bio" value={personalForm.bio} rows={2}
+                onChange={(e) => setPersonalForm({ ...personalForm, bio: e.target.value })} className="input-base"></textarea>
+            </div>
+          </div>
+
+          {/* Choir Info Section */}
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Music2 size={18} /> Choir Information</h4>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Voice Group *</label>
+                  <select value={choirForm.voice_group} required onChange={(e) => setChoirForm({ ...choirForm, voice_group: e.target.value })} className="input-base">
+                    <option value="">Select Voice Group</option>
+                    <option value="Soprano">Soprano</option>
+                    <option value="Alto">Alto</option>
+                    <option value="Tenor">Tenor</option>
+                    <option value="Bass">Bass</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Choir Role *</label>
+                  <select value={choirForm.choir_role} required onChange={(e) => setChoirForm({ ...choirForm, choir_role: e.target.value })} className="input-base">
+                    <option value="">Select Role</option>
+                    <option value="choir_member">Choir Member</option>
+                    <option value="worship_leader">Worship Leader</option>
+                    <option value="secretary">Secretary</option>
+                    <option value="treasurer">Treasurer</option>
+                    <option value="organist">Organist</option>
+                    <option value="pianist">Pianist</option>
+                    <option value="drummer">Drummer</option>
+                    <option value="assistant_director">Assistant Director</option>
+                    <option value="choir_director">Choir Director</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+                  <select value={choirForm.experience_level} onChange={(e) => setChoirForm({ ...choirForm, experience_level: e.target.value })} className="input-base">
+                    <option value="">Select Experience</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="Professional">Professional</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Main Role</label>
+                  <input value={choirForm.main_role} onChange={(e) => setChoirForm({ ...choirForm, main_role: e.target.value })} className="input-base" placeholder="e.g. Lead Singer, Instrumentalist" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea value={choirForm.notes} rows={3} onChange={(e) => setChoirForm({ ...choirForm, notes: e.target.value })} className="input-base resize-none" placeholder="Additional notes or special instructions"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <button type="button" onClick={onClose} className="btn-outline flex-1">Cancel</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Check size={16} /> Save Changes</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ── Choir Member Profile Modal ────────────────────────────────
+const ChoirProfileModal: React.FC<{
+  member: ChoirMember;
+  onClose: () => void;
+  onApprove: (id: string) => void;
+  onGrantAccount: (memberId: string) => void;
+  onDisable: (memberId: string) => void;
+  onEdit: (m: ChoirMember) => void;
+  onDelete: (id: string) => void;
+}> = ({ member: m, onClose, onApprove, onGrantAccount, onDisable, onEdit, onDelete }) => {
+  const printRef = useRef<HTMLDivElement>(null);
+  // Build a User-compatible object for the print form
+  const memberAsUser = {
+    ...m,
+    id: m.member_id || m.id,
+    approval_status: m.member_approval_status || m.approval_status,
+    role: m.role || 'choir_member',
+    voice_type: m.voice_group,
+    created_at: m.registered_at || m.created_at || new Date().toISOString(),
+  } as any;
+  const verificationUrl = `${window.location.origin}/verify/${m.member_code}`;
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Choir_${m.member_code}_${m.first_name}_${m.last_name}`,
+  });
+
+  const isPending          = m.approval_status === 'pending';
+  const isApprovedNoPwd    = m.approval_status === 'approved' && !m.password_set;
+  const isApprovedWithPwd  = m.approval_status === 'approved' && m.password_set;
+
+  const rows: [string, string | undefined][] = [
+    ['Full Name',       `${m.first_name}${m.middle_name ? ' ' + m.middle_name : ''} ${m.last_name}`],
+    ['Member Code',     m.member_code],
+    ['Email',           m.email],
+    ['Phone',           m.phone],
+    ['WhatsApp',        m.whatsapp_number],
+    ['Gender',          m.gender],
+    ['Date of Birth',   m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+    ['Address',         m.address],
+    ['City',            m.city],
+    ['Occupation',      m.occupation],
+    ['Marital Status',  m.marital_status],
+    ['Baptized',        m.baptism_status === true ? 'Yes' : m.baptism_status === false ? 'No' : undefined],
+    ['Voice Group',     m.voice_group],
+    ['Choir Role',      m.choir_role],
+    ['Experience',      m.experience_level],
+    ['Main Role',       m.main_role],
+    ['Instruments',     (m.instruments || []).join(', ') || undefined],
+    ['Activities',      (m.choir_activities || []).join(', ') || undefined],
+    ['Join Date',       m.join_date ? new Date(m.join_date).toLocaleDateString() : undefined],
+    ['Emergency',       m.emergency_name ? `${m.emergency_name} · ${m.emergency_phone}` : undefined],
+    ['Registered',      m.registered_at ? new Date(m.registered_at).toLocaleDateString() : undefined],
+    ['Approved',        m.approved_at ? new Date(m.approved_at).toLocaleDateString() : undefined],
+    ['Last Login',      m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never'],
+  ];
+
+  return (
+    <>
+      <div style={{ display: 'none' }}>
+        <PrintableRegistrationForm ref={printRef} member={memberAsUser} verificationUrl={verificationUrl} />
+      </div>
+      <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gradient-to-br from-indigo-700 to-purple-800 px-6 pb-14 pt-6 text-center text-white relative">
+            <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+            <p className="text-xs uppercase tracking-widest text-indigo-200">Choir Member Profile</p>
+          </div>
+          <div className="-mt-10 flex flex-col items-center px-6">
+            <img src={m.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo'}
+              className="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg" alt="" />
+            <h3 className="mt-3 text-xl font-bold text-gray-900">{m.first_name} {m.last_name}</h3>
+            <span className="text-sm font-bold text-purple-700">{m.member_code || 'Pending ID'}</span>
+            <div className="mt-2 flex gap-2 flex-wrap justify-center">
+              {m.voice_group && <span className="rounded-full bg-indigo-100 px-3 py-0.5 text-xs font-semibold text-indigo-700">{m.voice_group}</span>}
+              <span className="rounded-full bg-purple-100 px-3 py-0.5 text-xs font-semibold text-purple-700 capitalize">{m.choir_role}</span>
+              <span className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase ${STATUS_COLOR[m.approval_status] || 'bg-gray-100 text-gray-600'}`}>
+                {m.approval_status}
+              </span>
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            {rows.filter(([, v]) => v).map(([k, v]) => (
+              <div key={k} className="flex justify-between border-b border-gray-100 py-2.5">
+                <span className="text-sm text-gray-500">{k}</span>
+                <span className="text-sm font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+              </div>
+            ))}
+            {m.bio && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Bio</p><p className="text-sm text-gray-700">{m.bio}</p></div>}
+            {m.notes && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Notes</p><p className="text-sm text-gray-700">{m.notes}</p></div>}
+          </div>
+          <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
+            <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print Form</button>
+            <button onClick={() => onEdit(m)} className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"><Pencil size={15} /> Edit</button>
+            {isPending && (
+              <>
+                <button onClick={() => onApprove(m.id)} className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"><Check size={15} /> Approve</button>
+                <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600"><Ban size={15} /> Reject</button>
+              </>
+            )}
+            {isApprovedNoPwd && (
+              <button onClick={() => onGrantAccount(m.member_id || m.id)} className="flex items-center gap-1 rounded-lg bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-700"><Mail size={15} /> Grant Account</button>
+            )}
+            {isApprovedWithPwd && (
+              <button onClick={() => onDisable(m.member_id || m.id)} className="flex items-center gap-1 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600"><Ban size={15} /> Disable</button>
+            )}
+            <button onClick={() => onDelete(m.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 size={15} /></button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 // ── Choir Members Tab ─────────────────────────────────────────
 const ChoirMembersTab: React.FC = () => {
   const [members, setMembers] = useState<ChoirMember[]>([]);
   const [filter, setFilter] = useState('');
   const [voiceFilter, setVoiceFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<ChoirMember | null>(null);
+  const [editing, setEditing] = useState<ChoirMember | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (voiceFilter) params.set('voice_group', voiceFilter);
+      if (voiceFilter)  params.set('voice_group',     voiceFilter);
+      if (statusFilter) params.set('approval_status', statusFilter);
       const { choir } = await get<{ choir: ChoirMember[] }>(`/choir?${params}`);
       setMembers(choir || []);
     } catch { }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [voiceFilter]);
+  useEffect(() => { load(); }, [voiceFilter, statusFilter]);
 
   const approve = async (id: string) => {
-    try { await post(`/choir/${id}/approve`, {}); toast.success('Choir member approved'); load(); }
+    try { await post(`/choir/${id}/approve`, {}); toast.success('Choir member approved'); setSelected(null); load(); }
     catch (err: any) { toast.error(err.message); }
+  };
+
+  const grantAccount = async (memberId: string) => {
+    try {
+      await post(`/auth/grant-account/${memberId}`, {});
+      toast.success('Account setup email sent');
+      setSelected(null);
+      load();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const disable = async (memberId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/members/${memberId}/disable`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${localStorage.getItem('cms_token')}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message);
+      setSelected(null);
+      load();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   const remove = async (id: string) => {
@@ -42,17 +342,23 @@ const ChoirMembersTab: React.FC = () => {
 
   const filtered = members.filter((m) => {
     const q = filter.toLowerCase();
-    return !q || `${m.first_name} ${m.last_name} ${m.member_code}`.toLowerCase().includes(q);
+    return !q || `${m.first_name} ${m.last_name} ${m.member_code} ${m.email}`.toLowerCase().includes(q);
   });
 
   return (
     <div>
       <div className="flex flex-wrap gap-3 mb-5">
         <input value={filter} onChange={(e) => setFilter(e.target.value)}
-          placeholder="Search choir members..." className="input-base flex-1 min-w-48" />
+          placeholder="Search name, email, code..." className="input-base flex-1 min-w-48" />
         <select value={voiceFilter} onChange={(e) => setVoiceFilter(e.target.value)} className="input-base w-auto">
           <option value="">All Voice Groups</option>
           {VOICE_GROUPS.map((v) => <option key={v}>{v}</option>)}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-base w-auto">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
@@ -61,7 +367,7 @@ const ChoirMembersTab: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{['Photo', 'Name', 'Voice', 'Role', 'Experience', 'Status', 'Actions'].map((h) => (
+                <tr>{['Photo', 'Name', 'Email', 'Voice', 'Role', 'Experience', 'Status', 'Actions'].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                 ))}</tr>
               </thead>
@@ -71,29 +377,34 @@ const ChoirMembersTab: React.FC = () => {
                     <td className="px-4 py-3">
                       <img src={m.profile_photo_url || 'https://placehold.co/36'} className="h-9 w-9 rounded-lg object-cover" alt="" />
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{m.first_name} {m.last_name}
-                      <div className="text-xs text-purple-600 font-mono">{m.member_code}</div>
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      {m.first_name} {m.last_name}
+                      <div className="text-xs text-purple-600 font-mono">{m.member_code || '—'}</div>
                     </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{m.email}</td>
                     <td className="px-4 py-3"><span className="rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs font-semibold">{m.voice_group || '—'}</span></td>
                     <td className="px-4 py-3 text-gray-500 text-xs capitalize">{m.choir_role}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{m.experience_level || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${m.approval_status === 'approved' ? 'bg-green-100 text-green-700' : m.approval_status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_COLOR[m.approval_status] || 'bg-gray-100 text-gray-600'}`}>
                         {m.approval_status}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => setSelected(m)} className="p-1.5 rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-700"><Eye size={15} /></button>
+                        <button onClick={() => setSelected(m)} className="p-1.5 rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-700" title="View"><Eye size={15} /></button>
                         {m.approval_status === 'pending' && (
-                          <button onClick={() => approve(m.id)} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50"><Check size={15} /></button>
+                          <button onClick={() => approve(m.id)} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50" title="Approve"><Check size={15} /></button>
                         )}
-                        <button onClick={() => remove(m.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={15} /></button>
+                        {m.approval_status === 'approved' && !m.password_set && (
+                          <button onClick={() => grantAccount(m.member_id || m.id)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50" title="Grant Account"><Mail size={15} /></button>
+                        )}
+                        <button onClick={() => remove(m.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="Delete"><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-16 text-center text-gray-400">No choir members found</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={8} className="px-4 py-16 text-center text-gray-400">No choir members found</td></tr>}
               </tbody>
             </table>
           </div>
@@ -101,51 +412,23 @@ const ChoirMembersTab: React.FC = () => {
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Choir Member Profile</h2>
-              <button onClick={() => setSelected(null)}><X size={20} className="text-gray-400" /></button>
-            </div>
-            <div className="flex items-center gap-4 mb-4">
-              <img src={selected.profile_photo_url || 'https://placehold.co/64'} className="h-16 w-16 rounded-xl object-cover" alt="" />
-              <div>
-                <div className="font-bold text-gray-900">{selected.first_name} {selected.last_name}</div>
-                <div className="text-sm font-mono text-purple-700">{selected.member_code}</div>
-                <div className="flex gap-1 mt-1">
-                  {selected.voice_group && <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-semibold">{selected.voice_group}</span>}
-                  <span className="rounded-full bg-purple-100 text-purple-700 px-2 py-0.5 text-xs font-semibold capitalize">{selected.choir_role}</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 text-sm">
-              {[
-                ['Experience', selected.experience_level],
-                ['Main Role', selected.main_role],
-                ['Instruments', (selected.instruments || []).join(', ')],
-                ['Activities', (selected.choir_activities || []).join(', ')],
-                ['Email', selected.email],
-                ['Phone', selected.phone],
-                ['Notes', selected.notes],
-              ].filter(([, v]) => v).map(([k, v]) => (
-                <div key={k as string} className="flex justify-between border-b border-gray-50 pb-2">
-                  <span className="text-gray-500">{k}</span>
-                  <span className="font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-4">
-              {selected.approval_status === 'pending' && (
-                <button onClick={() => { approve(selected.id); setSelected(null); }} className="btn-primary flex-1 justify-center py-2 text-sm">
-                  <Check size={15} /> Approve
-                </button>
-              )}
-              <button onClick={() => remove(selected.id)} className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
-                <Trash2 size={15} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <ChoirProfileModal
+          member={selected}
+          onClose={() => setSelected(null)}
+          onApprove={approve}
+          onGrantAccount={grantAccount}
+          onDisable={disable}
+          onEdit={(m) => { setSelected(null); setEditing(m); }}
+          onDelete={remove}
+        />
+      )}
+
+      {editing && (
+        <EditChoirMemberModal
+          member={editing}
+          onClose={() => setEditing(null)}
+          onSuccess={load}
+        />
       )}
     </div>
   );

@@ -71,6 +71,7 @@ router.get('/stats', authenticate, requireAdmin, requireSameChurch, async (req, 
   try {
     const { rows } = await pool.query(`
       SELECT
+        COUNT(*)                                                                                      AS total_all,
         COUNT(*) FILTER (WHERE m.approval_status='approved')                                         AS total_members,
         COUNT(*) FILTER (WHERE m.approval_status='approved' AND u.role='choir_member')               AS choir_members,
         COUNT(*) FILTER (WHERE m.approval_status='pending')                                          AS pending,
@@ -82,13 +83,20 @@ router.get('/stats', authenticate, requireAdmin, requireSameChurch, async (req, 
       WHERE m.church_id=$1 AND m.deleted_at IS NULL`,
       [req.churchId]
     );
+    const { rows: uRows } = await pool.query(
+      `SELECT COUNT(*) AS total_users FROM users WHERE church_id=$1 AND is_active=TRUE`,
+      [req.churchId]
+    );
     const s = rows[0];
     res.json({
+      totalAll:          parseInt(s.total_all),
       totalMembers:      parseInt(s.total_members),
       choirMembers:      parseInt(s.choir_members),
       pending:           parseInt(s.pending),
       birthdaysToday:    parseInt(s.birthdays_today),
       departmentsActive: parseInt(s.departments_active),
+      totalUsers:        parseInt(uRows[0].total_users),
+      // aliases
       total:  parseInt(s.total_members),
       choir:  parseInt(s.choir_members),
     });

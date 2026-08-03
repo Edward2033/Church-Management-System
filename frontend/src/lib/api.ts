@@ -150,14 +150,35 @@ export interface ChoirMember {
   approved_at?: string;
   notes?: string;
   created_at: string;
-  // joined
+  // joined from members
   first_name?: string;
+  middle_name?: string;
   last_name?: string;
   member_code?: string;
   profile_photo_url?: string;
   email?: string;
   phone?: string;
+  whatsapp_number?: string;
   date_of_birth?: string;
+  gender?: string;
+  address?: string;
+  city?: string;
+  occupation?: string;
+  marital_status?: string;
+  baptism_status?: boolean;
+  emergency_name?: string;
+  emergency_phone?: string;
+  emergency_relation?: string;
+  bio?: string;
+  membership_status?: string;
+  member_approval_status?: string;
+  registered_at?: string;
+  date_joined?: string;
+  // joined from users
+  user_id?: string;
+  role?: string;
+  last_login?: string;
+  password_set?: boolean;
 }
 
 export interface Department {
@@ -485,6 +506,8 @@ export interface MemberStats {
   birthdaysToday: number;
   departmentsActive: number;
   // aliases from /members/stats
+  totalAll?: number;
+  totalUsers?: number;
   total?: number;
   choir?: number;
 }

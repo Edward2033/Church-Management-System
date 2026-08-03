@@ -6,10 +6,18 @@ const { authenticate, requireAdmin, requireSameChurch } = require('../middleware
 router.get('/', authenticate, requireSameChurch, async (req, res) => {
   try {
     const { approval_status, voice_group } = req.query;
-    let q = `SELECT cm.*, m.first_name, m.last_name, m.member_code,
-               m.profile_photo_url, m.email, m.phone, m.date_of_birth
-             FROM choir_members cm JOIN members m ON m.id=cm.member_id
-             WHERE cm.church_id=$1`;
+    let q = `SELECT cm.*,
+               m.first_name, m.last_name, m.member_code, m.profile_photo_url,
+               m.email, m.phone, m.whatsapp_number, m.date_of_birth, m.gender,
+               m.address, m.city, m.occupation, m.marital_status, m.baptism_status,
+               m.emergency_name, m.emergency_phone, m.emergency_relation, m.bio,
+               m.approval_status AS member_approval_status, m.approved_at,
+               m.membership_status, m.created_at AS registered_at, m.date_joined,
+               u.id AS user_id, u.last_login, u.password_set, u.role
+             FROM choir_members cm
+             JOIN members m ON m.id=cm.member_id
+             LEFT JOIN users u ON u.id=m.user_id
+             WHERE cm.church_id=$1 AND m.deleted_at IS NULL`;
     const params = [req.churchId]; let idx = 2;
     if (approval_status) { q += ` AND cm.approval_status=$${idx++}`; params.push(approval_status); }
     if (voice_group)     { q += ` AND cm.voice_group=$${idx++}`;     params.push(voice_group); }
@@ -156,26 +164,43 @@ router.post('/dues', authenticate, requireAdmin, requireSameChurch, async (req, 
 // POST /api/choir/:id/approve
 router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
   try {
+    // Get the member_id from choir_members
+    const { rows: [cm] } = await pool.query(
+      `SELECT cm.member_id, m.church_id, m.user_id
+       FROM choir_members cm JOIN members m ON m.id=cm.member_id
+       WHERE cm.id=$1`,
+      [req.params.id]
+    );
+    if (!cm) return res.status(404).json({ error: 'Choir member not found' });
+
+    // Generate member code if not already set
+    const { rows: [existing] } = await pool.query(
+      `SELECT member_code FROM members WHERE id=$1`, [cm.member_id]
+    );
+    let memberCode = existing?.member_code;
+    if (!memberCode) {
+      const { rows: [codeRow] } = await pool.query(
+        `SELECT generate_member_code($1,'choir_member') AS code`, [cm.church_id]
+      );
+      memberCode = codeRow.code;
+    }
+
+    // Approve choir_members record
     await pool.query(
       `UPDATE choir_members SET approval_status='approved', approved_at=NOW(), approved_by=$1 WHERE id=$2`,
       [req.user.id, req.params.id]
     );
+    // Approve members record + set member_code
     await pool.query(
-      `UPDATE members SET membership_status='choir_member'
-       WHERE id=(SELECT member_id FROM choir_members WHERE id=$1)`,
-      [req.params.id]
+      `UPDATE members SET approval_status='approved', membership_status='choir_member',
+       member_code=COALESCE(member_code,$1), approved_at=NOW(), approved_by=$2 WHERE id=$3`,
+      [memberCode, req.user.id, cm.member_id]
     );
-    await pool.query(
-      `UPDATE users SET role='choir_member'
-       WHERE id=(
-         SELECT u.id FROM users u
-         JOIN members m ON m.user_id=u.id
-         JOIN choir_members cm ON cm.member_id=m.id
-         WHERE cm.id=$1
-       )`,
-      [req.params.id]
-    );
-    res.json({ message: 'Choir member approved' });
+    // Update user role
+    if (cm.user_id) {
+      await pool.query(`UPDATE users SET role='choir_member' WHERE id=$1`, [cm.user_id]);
+    }
+    res.json({ message: 'Choir member approved', member_code: memberCode });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -194,6 +219,21 @@ router.patch('/:id', authenticate, requireAdmin, async (req, res) => {
       `UPDATE choir_members SET ${updates.join(',')} WHERE id=$${i} RETURNING *`, vals
     );
     res.json({ choir_member: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/choir/:id (soft-delete member + deactivate user)
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { rows: [cm] } = await pool.query(
+      `SELECT cm.member_id, m.user_id FROM choir_members cm JOIN members m ON m.id=cm.member_id WHERE cm.id=$1`,
+      [req.params.id]
+    );
+    if (!cm) return res.status(404).json({ error: 'Choir member not found' });
+    await pool.query(`DELETE FROM choir_members WHERE id=$1`, [req.params.id]);
+    await pool.query(`UPDATE members SET deleted_at=NOW(), updated_by=$1 WHERE id=$2`, [req.user.id, cm.member_id]);
+    if (cm.user_id) await pool.query(`UPDATE users SET is_active=FALSE WHERE id=$1`, [cm.user_id]);
+    res.json({ message: 'Choir member removed' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

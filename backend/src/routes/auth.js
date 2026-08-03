@@ -316,7 +316,9 @@ router.post('/approve/:memberId', authenticate, requireAdmin, async (req, res) =
 
     await client.query('BEGIN');
     await client.query(
-      `UPDATE members SET approval_status='approved', member_code=$1, approved_at=NOW(), approved_by=$2 WHERE id=$3`,
+      `UPDATE members SET approval_status='approved', member_code=$1,
+       membership_status=CASE WHEN membership_status='visitor' THEN 'member' ELSE membership_status END,
+       approved_at=NOW(), approved_by=$2 WHERE id=$3`,
       [codeRow.code, req.user.id, memberId]
     );
     await client.query('COMMIT');

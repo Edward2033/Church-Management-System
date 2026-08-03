@@ -4,7 +4,7 @@ import { Users, Music2, Clock, Cake, Loader2, TrendingUp, Eye, Ban, Check, X } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Stats { total: number; choir: number; pending: number; birthdaysToday: number;
-  totalMembers?: number; choirMembers?: number; }
+  totalMembers?: number; choirMembers?: number; totalAll?: number; totalUsers?: number; }
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: number | string; color: string; sub?: string }> = ({ icon, label, value, color, sub }) => (
   <div className="card p-5 flex items-center gap-4">
@@ -39,6 +39,8 @@ const AdminOverview: React.FC = () => {
         choir:         s.choir         ?? s.choirMembers  ?? 0,
         pending:       s.pending       ?? 0,
         birthdaysToday:s.birthdaysToday ?? 0,
+        totalAll:      s.totalAll      ?? 0,
+        totalUsers:    s.totalUsers    ?? 0,
       });
       setPending(m.members || []);
       setBirthdays(b.birthdays || []);
@@ -68,7 +70,7 @@ const AdminOverview: React.FC = () => {
   };
 
   const CHART_DATA = [
-    { name: 'Members', value: stats.total - stats.choir },
+    { name: 'Approved', value: stats.total - stats.choir },
     { name: 'Choir', value: stats.choir },
     { name: 'Pending', value: stats.pending },
     { name: 'Birthdays', value: stats.birthdaysToday },
@@ -84,10 +86,12 @@ const AdminOverview: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<Users size={22} className="text-white" />} label="Total Members" value={stats.total} color="bg-purple-600" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <StatCard icon={<Users size={22} className="text-white" />} label="Total Registered" value={stats.totalAll ?? stats.total} color="bg-gray-600" />
+        <StatCard icon={<Users size={22} className="text-white" />} label="Approved Members" value={stats.total} color="bg-purple-600" />
         <StatCard icon={<Music2 size={22} className="text-white" />} label="Choir Members" value={stats.choir} color="bg-indigo-500" />
         <StatCard icon={<Clock size={22} className="text-white" />} label="Pending Approvals" value={stats.pending} color="bg-amber-500" />
+        <StatCard icon={<Users size={22} className="text-white" />} label="Total Users" value={stats.totalUsers ?? 0} color="bg-teal-500" />
         <StatCard icon={<Cake size={22} className="text-white" />} label="Birthdays Today" value={stats.birthdaysToday} color="bg-rose-500" />
       </div>
 

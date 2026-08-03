@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { get, del, post, User, API_BASE_URL } from '@/lib/api';
+import { get, del, post, patch, User, API_BASE_URL, MemberStats } from '@/lib/api';
 import { printMember, printMemberList, exportCSV } from '@/lib/print';
-import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode, Mail } from 'lucide-react';
+import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode, Mail, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import PrintableRegistrationForm from '@/components/PrintableRegistrationForm';
@@ -191,6 +191,128 @@ const CreateUserModal: React.FC<{ onClose: () => void; onSuccess: () => void }> 
   );
 };
 
+const EditMemberModal: React.FC<{ member: User; onClose: () => void; onSuccess: () => void }> = ({ member: m, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    first_name: m.first_name || '',
+    middle_name: m.middle_name || '',
+    last_name: m.last_name || '',
+    gender: m.gender || '',
+    date_of_birth: m.date_of_birth || '',
+    phone: m.phone || '',
+    whatsapp_number: m.whatsapp_number || '',
+    address: m.address || '',
+    city: m.city || '',
+    occupation: m.occupation || '',
+    marital_status: m.marital_status || '',
+    baptism_status: m.baptism_status || false,
+    emergency_name: m.emergency_name || '',
+    emergency_phone: m.emergency_phone || '',
+    emergency_relation: m.emergency_relation || '',
+    bio: m.bio || '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await patch(`/members/${m.member_id || m.id}`, form);
+      toast.success('Member updated successfully');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 py-4 text-white relative sticky top-0 z-10">
+          <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+          <h3 className="text-xl font-bold flex items-center gap-2"><Pencil size={22} /> Edit Member</h3>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="grid grid-cols-3 gap-4">
+            <input placeholder="First Name *" value={form.first_name} required
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="input-base" />
+            <input placeholder="Middle Name" value={form.middle_name}
+              onChange={(e) => setForm({ ...form, middle_name: e.target.value })} className="input-base" />
+            <input placeholder="Last Name *" value={form.last_name} required
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="input-base" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <select value={form.gender} required onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-base">
+              <option value="">Select Gender *</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="date" value={form.date_of_birth} required
+              onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} className="input-base" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <input type="tel" placeholder="Phone *" value={form.phone} required
+              onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-base" />
+            <input type="tel" placeholder="WhatsApp" value={form.whatsapp_number}
+              onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="input-base" />
+          </div>
+
+          <input placeholder="Address *" value={form.address} required
+            onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-base" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <input placeholder="City" value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })} className="input-base" />
+            <input placeholder="Occupation" value={form.occupation}
+              onChange={(e) => setForm({ ...form, occupation: e.target.value })} className="input-base" />
+          </div>
+
+          <select value={form.marital_status} onChange={(e) => setForm({ ...form, marital_status: e.target.value })} className="input-base">
+            <option value="">Marital Status</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Divorced">Divorced</option>
+            <option value="Widowed">Widowed</option>
+          </select>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={form.baptism_status}
+              onChange={(e) => setForm({ ...form, baptism_status: e.target.checked })} />
+            <span className="text-sm font-medium text-gray-700">Baptized</span>
+          </label>
+
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="font-semibold text-gray-800">Emergency Contact</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <input placeholder="Name" value={form.emergency_name}
+                onChange={(e) => setForm({ ...form, emergency_name: e.target.value })} className="input-base" />
+              <input placeholder="Phone" value={form.emergency_phone}
+                onChange={(e) => setForm({ ...form, emergency_phone: e.target.value })} className="input-base" />
+              <input placeholder="Relationship" value={form.emergency_relation}
+                onChange={(e) => setForm({ ...form, emergency_relation: e.target.value })} className="input-base" />
+            </div>
+          </div>
+
+          <textarea placeholder="Bio / Additional Information" value={form.bio} rows={3}
+            onChange={(e) => setForm({ ...form, bio: e.target.value })} className="input-base"></textarea>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <button type="button" onClick={onClose} className="btn-outline flex-1">Cancel</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Check size={16} /> Save Changes</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const ProfileModal: React.FC<{ 
   member: User; 
   onClose: () => void; 
@@ -198,8 +320,9 @@ const ProfileModal: React.FC<{
   onReject: (id: string) => void; 
   onGrantAccount: (id: string) => void;
   onDisable: (id: string) => void;
+  onEdit: (m: User) => void;
   onDelete: (id: string) => void;
-}> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onDelete }) => {
+}> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onEdit, onDelete }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -237,17 +360,30 @@ const ProfileModal: React.FC<{
           </div>
           <div className="px-6 py-4 space-y-0">
             {[
-              ['Gender', m.gender], ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
-              ['Phone', m.phone], ['WhatsApp', m.whatsapp_number], ['Email', m.email], ['Address', m.address],
+              ['Email', m.email],
+              ['Phone', m.phone],
+              ['WhatsApp', m.whatsapp_number],
+              ['Gender', m.gender],
+              ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+              ['Address', m.address],
+              ['City', m.city],
+              ['Occupation', m.occupation],
+              ['Marital Status', m.marital_status],
+              ['Baptized', (m.baptism_status ?? m.baptized) === true ? 'Yes' : (m.baptism_status ?? m.baptized) === false ? 'No' : undefined],
+              ['Baptism Date', m.baptism_date ? new Date(m.baptism_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+              ['Membership Status', m.membership_status],
+              ['Role', m.role],
+              ['Department', m.department_name || m.department],
               m.role === 'choir_member' || m.role === 'choir' ? ['Voice Group', m.voice_group || m.voice_type] : null,
-              m.role === 'choir_member' || m.role === 'choir' ? ['Main Role', m.main_role] : null,
+              m.role === 'choir_member' || m.role === 'choir' ? ['Choir Role', m.choir_role] : null,
               m.role === 'choir_member' || m.role === 'choir' ? ['Experience', m.experience_level] : null,
               m.role === 'choir_member' || m.role === 'choir' ? ['Instruments', (m.instruments || []).join(', ')] : null,
               m.role === 'choir_member' || m.role === 'choir' ? ['Activities', (m.choir_activities || []).join(', ')] : null,
-              ['Department', m.department_name || m.department],
-              ['Baptized', (m.baptism_status ?? m.baptized) === true ? 'Yes' : (m.baptism_status ?? m.baptized) === false ? 'No' : undefined],
               ['Emergency', (m.emergency_name || m.emergency_contact_name) ? `${m.emergency_name || m.emergency_contact_name} · ${m.emergency_phone || m.emergency_contact_phone}` : undefined],
               ['Registered', new Date(m.created_at).toLocaleDateString()],
+              ['Date Joined', m.date_joined ? new Date(m.date_joined).toLocaleDateString() : undefined],
+              ['Approved', m.approved_at ? new Date(m.approved_at).toLocaleDateString() : undefined],
+              ['Last Login', m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never'],
             ].filter((x): x is [string, string | undefined] => x !== null).map(([k, v]) => v ? (
               <div key={k as string} className="flex justify-between border-b border-gray-100 py-2.5">
                 <span className="text-sm text-gray-500">{k}</span>
@@ -257,7 +393,10 @@ const ProfileModal: React.FC<{
             {m.bio && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Bio</p><p className="text-sm text-gray-700">{m.bio}</p></div>}
           </div>
           <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
-            <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print Registration</button>
+            <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print</button>
+            <button onClick={() => onEdit(m)} className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              <Pencil size={15} /> Edit
+            </button>
             
             {/* Pending: Show Approve and Reject */}
             {isPending && (
@@ -301,8 +440,10 @@ const AdminMembers: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<User | null>(null);
+  const [editing, setEditing] = useState<User | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<MemberStats | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -318,6 +459,12 @@ const AdminMembers: React.FC = () => {
   };
 
   useEffect(() => { load(); }, [search, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    get<MemberStats>('/members/stats')
+      .then((s) => setStats(s))
+      .catch(() => {});
+  }, []);
 
   const approve = async (id: string) => {
     try { 
@@ -378,7 +525,9 @@ const AdminMembers: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Members</h1>
-          <p className="text-sm text-gray-500">{members.length} records</p>
+          <p className="text-sm text-gray-500">
+            {stats ? `${stats.totalAll ?? stats.totalMembers ?? stats.total} total · ${stats.pending} pending · ${stats.choirMembers ?? stats.choir} choir` : `${members.length} records`}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowCreateModal(true)} className="btn-primary py-2 text-sm"><UserPlus size={15} /> Create User</button>
@@ -396,7 +545,13 @@ const AdminMembers: React.FC = () => {
         </div>
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="input-base w-auto">
           <option value="">All Roles</option>
-          {['member', 'choir', 'admin'].map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+          <option value="member">Member</option>
+          <option value="choir_member">Choir Member</option>
+          <option value="pastor">Pastor</option>
+          <option value="elder">Elder</option>
+          <option value="deacon">Deacon</option>
+          <option value="leader">Leader</option>
+          <option value="admin">Admin</option>
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-base w-auto">
           <option value="">All Status</option>
@@ -441,6 +596,9 @@ const AdminMembers: React.FC = () => {
                             <button onClick={() => reject(m.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><Ban size={15} /></button>
                           </>
                         ) : null}
+                        {(m.approval_status === 'approved' && !m.password_set) && (
+                          <button onClick={() => grantAccount(m.id)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50" title="Grant Account"><Mail size={15} /></button>
+                        )}
                         <button onClick={() => remove(m.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={15} /></button>
                       </div>
                     </td>
@@ -455,7 +613,8 @@ const AdminMembers: React.FC = () => {
         </div>
       )}
 
-      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onGrantAccount={grantAccount} onDisable={disable} onDelete={remove} />}
+      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onGrantAccount={grantAccount} onDisable={disable} onEdit={(m) => { setSelected(null); setEditing(m); }} onDelete={remove} />}
+      {editing && <EditMemberModal member={editing} onClose={() => setEditing(null)} onSuccess={load} />}
       {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} onSuccess={load} />}
     </div>
   );
