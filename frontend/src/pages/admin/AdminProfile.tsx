@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { User, Camera, Save, Loader2, Lock, Mail, Phone, MapPin } from 'lucide-react';
+import { User, Camera, Save, Loader2, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch, api } from '@/lib/api';
 
 const AdminProfile: React.FC = () => {
   const { member, setMember } = useAuth();
@@ -36,9 +37,6 @@ const AdminProfile: React.FC = () => {
 
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
-
-  const API_URL = import.meta.env.VITE_API_URL || '/api';
-  const token = localStorage.getItem('cms_token');
 
   useEffect(() => {
     if (member) {
@@ -82,7 +80,6 @@ const AdminProfile: React.FC = () => {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const form = new FormData();
       if (profilePhoto) form.append('profilePhoto', profilePhoto);
@@ -90,28 +87,19 @@ const AdminProfile: React.FC = () => {
         form.append(key, String(value));
       });
 
-      const res = await fetch(`${API_URL}/profile`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
+      const res = await apiFetch('/profile', { method: 'PUT', body: form });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
       toast.success('Profile updated successfully!');
-      
-      // Update auth context
       if (setMember && member) {
-        const updatedMember = {
+        setMember({
           ...member,
-          ...profileData,
           first_name: profileData.firstName,
           middle_name: profileData.middleName,
           last_name: profileData.lastName,
           profile_photo_url: data.profile?.profile_photo_url || member.profile_photo_url,
-        };
-        setMember(updatedMember);
+        });
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -122,34 +110,23 @@ const AdminProfile: React.FC = () => {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-
     if (passwordData.newPassword.length < 8) {
       toast.error('Password must be at least 8 characters');
       return;
     }
-
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/profile/password`, {
+      await api('/profile/password', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
       toast.success('Password updated successfully!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {

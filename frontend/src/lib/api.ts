@@ -10,19 +10,57 @@ export const API_BASE_URL      = import.meta.env.VITE_API_URL            || '/ap
 
 function getToken() { return localStorage.getItem('cms_token'); }
 
+async function tryRefresh(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('cms_refresh');
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    localStorage.setItem('cms_token', data.accessToken);
+    localStorage.setItem('cms_refresh', data.refreshToken);
+    return data.accessToken;
+  } catch { return null; }
+}
+
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  const doRequest = (token: string | null) =>
+    fetch(`${BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+
+  let res = await doRequest(getToken());
+  if (res.status === 401) {
+    const newToken = await tryRefresh();
+    if (newToken) res = await doRequest(newToken);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || `HTTP ${res.status}`);
   return data as T;
+}
+
+// For multipart/FormData requests (file uploads) with auto token refresh
+export async function apiFetch(path: string, options: RequestInit): Promise<Response> {
+  const doRequest = (token: string | null) => {
+    const headers = { ...(options.headers as Record<string, string> || {}) };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${BASE}${path}`, { ...options, headers });
+  };
+  let res = await doRequest(getToken());
+  if (res.status === 401) {
+    const newToken = await tryRefresh();
+    if (newToken) res = await doRequest(newToken);
+  }
+  return res;
 }
 
 export const get  = <T>(path: string)                   => api<T>(path);
