@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const pool = require('../lib/db');
 const multer = require('multer');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../lib/cloudinary');
+const { uploadToCloudinary, deleteImage } = require('../lib/cloudinary');
 const { authenticate } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
@@ -63,9 +63,17 @@ router.put('/', authenticate, upload.single('profilePhoto'), async (req, res) =>
     
     // Handle profile photo upload
     if (req.file) {
-      // Delete old photo if exists
+      // Delete old photo if exists (extract public_id from URL if needed)
       if (member.profile_photo_url) {
-        await deleteFromCloudinary(member.profile_photo_url);
+        // Extract public_id from Cloudinary URL if it's a Cloudinary URL
+        try {
+          const urlParts = member.profile_photo_url.split('/');
+          const publicIdWithExt = urlParts.slice(-2).join('/'); // folder/filename.ext
+          const publicId = publicIdWithExt.replace(/\.[^/.]+$/, ''); // remove extension
+          await deleteImage(publicId);
+        } catch (err) {
+          console.log('Could not delete old photo:', err.message);
+        }
       }
       // Upload new photo
       profilePhotoUrl = await uploadToCloudinary(req.file.buffer, 'profiles');

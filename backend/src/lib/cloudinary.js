@@ -25,7 +25,7 @@ const upload = multer({
   }
 });
 
-// Upload to Cloudinary helper
+// Upload to Cloudinary helper - returns the secure URL
 const uploadToCloudinary = (buffer, folder) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -35,7 +35,7 @@ const uploadToCloudinary = (buffer, folder) => {
       },
       (error, result) => {
         if (error) return reject(error);
-        resolve(result);
+        resolve(result.secure_url); // Return just the URL string
       }
     );
     

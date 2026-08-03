@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
 const multer = require('multer');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../lib/cloudinary');
+const { uploadToCloudinary, deleteImage } = require('../lib/cloudinary');
 const { authenticate, requireAdmin, requireLeader, requireSameChurch } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
