@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printMember } from '@/lib/print';
-import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen } from 'lucide-react';
+import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ── Sub-pages ───────────────────────────────────────────────
@@ -14,6 +14,8 @@ const MemberProfile: React.FC = () => {
   const [form, setForm] = useState<Partial<User>>(member || {});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   if (!member) return null;
   const upd = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -35,11 +37,65 @@ const MemberProfile: React.FC = () => {
     finally { setSaving(false); }
   };
 
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      return toast.error('Passwords do not match');
+    }
+    if (passwordData.newPassword.length < 8) {
+      return toast.error('Password must be at least 8 characters');
+    }
+    setSaving(true);
+    try {
+      await patch('/profile/password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      toast.success('Password changed successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setActiveTab('profile');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const m = editing ? { ...member, ...form } : member;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Profile</h1>
+      
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow-sm mb-6">
+        <div className="flex border-b">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium ${
+              activeTab === 'profile'
+                ? 'border-b-2 border-purple-600 text-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <UserIcon size={18} /> Profile Information
+          </button>
+          <button
+            onClick={() => setActiveTab('password')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium ${
+              activeTab === 'password'
+                ? 'border-b-2 border-purple-600 text-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Lock size={18} /> Change Password
+          </button>
+        </div>
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === 'profile' && (
+        <>
       <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-start gap-6">
           <div className="relative shrink-0">
@@ -129,6 +185,55 @@ const MemberProfile: React.FC = () => {
               <button type="button" onClick={() => setEditing(false)} className="btn-outline flex-1 justify-center">Cancel</button>
               <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">{saving && <Loader2 size={16} className="animate-spin" />} Save Changes</button>
             </div>
+          </form>
+        </div>
+      )}
+      </>
+      )}
+
+      {/* Password Tab */}
+      {activeTab === 'password' && (
+        <div className="card p-6">
+          <h3 className="font-bold text-gray-800 mb-4">Change Password</h3>
+          <form onSubmit={changePassword} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+              <input
+                type="password"
+                required
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                className="input-base"
+                placeholder="Enter current password"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                className="input-base"
+                placeholder="Minimum 8 characters"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                required
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                className="input-base"
+                placeholder="Re-enter new password"
+              />
+            </div>
+            <button type="submit" disabled={saving} className="btn-primary justify-center w-full">
+              {saving && <Loader2 size={18} className="animate-spin" />}
+              <Lock size={18} /> Change Password
+            </button>
           </form>
         </div>
       )}

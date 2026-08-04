@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import HeroSlider from '@/components/HeroSlider';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import SectionWrapper, { fadeUp, stagger } from '@/components/SectionWrapper';
 import { get, Announcement, Activity, DEFAULT_CHURCH_ID } from '@/lib/api';
 import {
@@ -102,6 +103,8 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="bg-slate-950">
+      {/* Birthday Banner */}
+      <BirthdayBanner />
 
       {/* ── HERO ── */}
       {slides.length > 0 ? (
