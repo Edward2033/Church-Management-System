@@ -73,7 +73,8 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       'SELECT id, name, email, phone, subject, message, is_read, is_replied, replied_at, created_at',
       'SELECT COUNT(*) as total'
     );
-    const { rows: [{ total }] } = await pool.query(countQuery, params);
+    const { rows: [countRow] } = await pool.query(countQuery, params);
+    const total = countRow ? parseInt(countRow.total) : 0;
     
     // Get paginated results
     query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
@@ -89,6 +90,7 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       unread: rows.filter(m => !m.is_read).length
     });
   } catch (err) {
+    console.error('GET /contact error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -199,8 +201,10 @@ router.patch('/:id/reply', authenticate, requireAdmin, async (req, res) => {
     
     const churchSettings = {};
     churchRows.forEach(row => {
-      const key = row.key.replace('footer_', '');
-      churchSettings[key] = row.value;
+      if (row && row.key) {
+        const key = row.key.replace('footer_', '');
+        churchSettings[key] = row.value;
+      }
     });
     
     const churchName = churchSettings.church_name || 'LUS4G Church';
