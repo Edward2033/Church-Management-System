@@ -46,13 +46,13 @@ const Footer: React.FC = () => {
   }, []);
 
   const churchName  = s.footer_church_name || s.church_name || CHURCH_NAME;
-  const address     = s.footer_address || s.church_address || '12 Grace Avenue, Accra';
-  const email       = s.footer_email || s.church_email || 'admin@lus4g.org';
-  const phone       = s.footer_phone || s.church_phone || '+233 20 000 0001';
-  const tagline     = s.footer_tagline || s.church_tagline || 'One Family. One Faith. One Purpose.';
-  const sundayTimes = s.footer_sunday_service || s.sunday_service_times || '8AM · 10AM · 5PM';
-  const midweek     = s.footer_wednesday_service || s.midweek_service || 'Wednesday 6:30 PM';
-  const prayer      = s.footer_friday_service || s.prayer_meeting || 'Friday 7:00 PM';
+  const address     = s.footer_address || s.church_address || '';
+  const email       = s.footer_email || s.church_email || '';
+  const phone       = s.footer_phone || s.church_phone || '';
+  const tagline     = s.footer_tagline || s.church_tagline || '';
+  const sundayTimes = s.footer_sunday_service || s.sunday_service_times || '';
+  const midweek     = s.footer_wednesday_service || s.midweek_service || '';
+  const prayer      = s.footer_friday_service || s.prayer_meeting || '';
 
   const SOCIALS = [
     { Icon: Facebook,    href: s.social_facebook,  label: 'Facebook'  },
@@ -65,7 +65,7 @@ const Footer: React.FC = () => {
 
   const ministries = s.footer_ministries
     ? s.footer_ministries.split('|').filter(m => m.trim())
-    : ['Choir & Worship', 'Youth Fellowship', "Children's Church", 'Outreach', 'Prayer Ministry', 'Evangelism'];
+    : [];
 
   const serviceTimes = [
     ['Sunday',    sundayTimes],
@@ -97,7 +97,11 @@ const Footer: React.FC = () => {
               </>
             )}
           </Link>
-          <p className="text-sm text-slate-400 leading-relaxed mb-5">{tagline}</p>
+          {tagline ? (
+            <p className="text-sm text-slate-400 leading-relaxed mb-5">{tagline}</p>
+          ) : (
+            <p className="text-sm text-slate-500 italic leading-relaxed mb-5">Footer tagline not configured</p>
+          )}
           {SOCIALS.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {SOCIALS.map(({ Icon, href, label }) => (
@@ -128,36 +132,49 @@ const Footer: React.FC = () => {
         {/* Ministries */}
         <motion.div variants={fadeUp} custom={2}>
           <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-widest">Ministries</h4>
-          <ul className="space-y-2">
-            {ministries.map((m) => (
-              <li key={m} className="text-sm text-slate-400 flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-brand-500/60" />
-                {m.trim()}
-              </li>
-            ))}
-          </ul>
+          {ministries.length > 0 ? (
+            <ul className="space-y-2">
+              {ministries.map((m) => (
+                <li key={m} className="text-sm text-slate-400 flex items-center gap-2">
+                  <span className="h-1 w-1 rounded-full bg-brand-500/60" />
+                  {m.trim()}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-500 italic">Ministries not configured. Update in Admin &gt; CMS Settings &gt; Footer.</p>
+          )}
         </motion.div>
 
         {/* Contact */}
         <motion.div variants={fadeUp} custom={3}>
           <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-widest">Contact</h4>
           <ul className="space-y-3">
-            {[{ Icon: MapPin, text: address }, { Icon: Mail, text: email }, { Icon: Phone, text: phone }]
-              .map(({ Icon, text }) => (
-                <li key={text} className="flex items-start gap-3 text-sm text-slate-400">
-                  <Icon size={15} className="text-brand-400 mt-0.5 shrink-0" />
-                  <span>{text}</span>
-                </li>
-              ))}
+            {[
+              { Icon: MapPin, text: address, placeholder: 'Address not configured' },
+              { Icon: Mail, text: email, placeholder: 'Email not configured' },
+              { Icon: Phone, text: phone, placeholder: 'Phone not configured' }
+            ].map(({ Icon, text, placeholder }) => (
+              <li key={placeholder} className="flex items-start gap-3 text-sm text-slate-400">
+                <Icon size={15} className="text-brand-400 mt-0.5 shrink-0" />
+                <span className={text ? '' : 'italic text-slate-500'}>{text || placeholder}</span>
+              </li>
+            ))}
           </ul>
           <div className="mt-4 glass rounded-xl p-3">
             <p className="text-xs text-slate-400 font-medium mb-1.5">Service Times</p>
-            {serviceTimes.map(([day, time]) => (
-              <div key={day} className="flex justify-between text-xs py-1 border-b border-white/5 last:border-0">
-                <span className="text-slate-400">{day}</span>
-                <span className="text-white font-medium">{time}</span>
-              </div>
-            ))}
+            {(sundayTimes || midweek || prayer) ? (
+              serviceTimes
+                .filter(([_, time]) => time) // Only show configured services
+                .map(([day, time]) => (
+                  <div key={day} className="flex justify-between text-xs py-1 border-b border-white/5 last:border-0">
+                    <span className="text-slate-400">{day}</span>
+                    <span className="text-white font-medium">{time}</span>
+                  </div>
+                ))
+            ) : (
+              <p className="text-xs text-slate-500 italic py-1">Service times not configured</p>
+            )}
           </div>
         </motion.div>
       </motion.div>
@@ -165,7 +182,7 @@ const Footer: React.FC = () => {
       <div className="border-t border-white/8">
         <div className="container-pad py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <span>© {new Date().getFullYear()} {churchName}. All rights reserved.</span>
-          <span>{s.footer_copyright || 'Built with faith & purpose'}</span>
+          <span>{s.footer_copyright || ''}</span>
         </div>
       </div>
     </footer>
