@@ -195,13 +195,13 @@ router.patch('/:id/reply', authenticate, requireAdmin, async (req, res) => {
     
     // Get church info for email template
     const { rows: churchRows } = await pool.query(`
-      SELECT value FROM cms_settings 
+      SELECT key, value FROM cms_settings 
       WHERE church_id = $1 AND key IN ('footer_church_name', 'footer_email', 'footer_phone')
     `, [req.churchId]);
     
     const churchSettings = {};
     churchRows.forEach(row => {
-      if (row && row.key) {
+      if (row && row.key && typeof row.key === 'string') {
         const key = row.key.replace('footer_', '');
         churchSettings[key] = row.value;
       }

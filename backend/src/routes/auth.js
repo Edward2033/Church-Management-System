@@ -333,39 +333,41 @@ router.post('/approve/:memberId', authenticate, requireAdmin, async (req, res) =
 
 // POST /api/auth/grant-account/:memberId  — Step 2: send setup email
 router.post('/grant-account/:memberId', authenticate, requireAdmin, async (req, res) => {
-  const client = await pool.connect();
   try {
     const { memberId } = req.params;
-    const { rows: [m] } = await client.query(
+    
+    // Use pool.query directly instead of pool.connect()
+    const { rows: [m] } = await pool.query(
       `SELECT m.*, u.id AS user_id, u.email AS user_email, u.role AS user_role, u.password_set
        FROM members m JOIN users u ON u.id=m.user_id WHERE m.id=$1`,
       [memberId]
     );
+    
     if (!m) return res.status(404).json({ error: 'Member not found' });
     if (m.approval_status !== 'approved') return res.status(400).json({ error: 'Member must be approved first' });
     if (m.password_set) return res.status(400).json({ error: 'Account already active — password already set' });
 
-    await client.query('BEGIN');
     // Invalidate any existing unused setup tokens
-    await client.query(
+    await pool.query(
       `UPDATE auth_tokens SET used=TRUE WHERE user_id=$1 AND type='account_setup' AND used=FALSE`,
       [m.user_id]
     );
+    
+    // Create new token
     const tok = uuidv4();
-    await client.query(
+    await pool.query(
       `INSERT INTO auth_tokens (user_id,token,type,expires_at) VALUES ($1,$2,'account_setup',NOW()+INTERVAL '48 hours')`,
       [m.user_id, tok]
     );
-    await client.query('COMMIT');
 
     const link = `${process.env.FRONTEND_URL}/setup-password?token=${tok}`;
     await sendEmail(approvalEmail({ ...m, email: m.user_email || m.email, member_code: m.member_code }, link));
+    
     res.json({ message: 'Account setup email sent successfully' });
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error('Grant account error:', err.message);
     res.status(500).json({ error: err.message });
-  } finally { client.release(); }
+  }
 });
 
 // POST /api/auth/reject/:memberId

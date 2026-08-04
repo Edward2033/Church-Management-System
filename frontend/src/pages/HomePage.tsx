@@ -57,10 +57,10 @@ const HomePage: React.FC = () => {
     const cid = DEFAULT_CHURCH_ID;
     Promise.all([
       get<{ slides: HeroSlide[] }>(`/hero?church_id=${cid}`).catch(() => ({ slides: [] })),
-      fetch(`/api/cms/settings?group=home`).then((r) => r.json()).catch(() => ({ raw: [] })),
-      fetch(`/api/cms/homepage-stats?church_id=${cid}`).then((r) => r.json()).catch(() => ({ stats: [] })),
-      fetch(`/api/cms/homepage-features?church_id=${cid}`).then((r) => r.json()).catch(() => ({ features: [] })),
-      fetch(`/api/cms/homepage-services?church_id=${cid}`).then((r) => r.json()).catch(() => ({ services: [] })),
+      get<{ raw: any[] }>(`/cms/settings?group=home`).catch(() => ({ raw: [] })),
+      get<{ stats: Stat[] }>(`/cms/homepage-stats?church_id=${cid}`).catch(() => ({ stats: [] })),
+      get<{ features: Feature[] }>(`/cms/homepage-features?church_id=${cid}`).catch(() => ({ features: [] })),
+      get<{ services: Service[] }>(`/cms/homepage-services?church_id=${cid}`).catch(() => ({ services: [] })),
       get<{ announcements: Announcement[] }>(`/announcements?church_id=${cid}`).catch(() => ({ announcements: [] })),
       get<{ activities: Activity[] }>(`/activities?church_id=${cid}`).catch(() => ({ activities: [] })),
     ]).then(([heroRes, settingsRes, statsRes, featuresRes, servicesRes, annRes, actRes]) => {
