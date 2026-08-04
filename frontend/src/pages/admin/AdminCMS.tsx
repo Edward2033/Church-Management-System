@@ -582,11 +582,15 @@ function BrandingTab() {
           />
           <button
             onClick={async () => {
+              if (!s.site_church_name || !s.site_church_name.trim()) {
+                toast.error('Please enter a church name');
+                return;
+              }
               try {
                 const res = await fetch(`${API}/cms/settings`, {
                   method: 'PUT',
                   headers: { ...authH(), 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ settings: { site_church_name: s.site_church_name } }),
+                  body: JSON.stringify({ settings: { site_church_name: s.site_church_name.trim() } }),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
