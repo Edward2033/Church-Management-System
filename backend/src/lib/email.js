@@ -30,10 +30,21 @@ async function sendEmail({ to, subject, html }) {
   // Use Brevo API if available (more reliable than SMTP)
   if (USE_BREVO_API) {
     try {
+      // Use verified sender email (must be verified in Brevo dashboard)
+      const senderEmail = process.env.EMAIL_SENDER || process.env.SMTP_USER || 'edwardcole203@gmail.com';
+      const senderName = process.env.EMAIL_SENDER_NAME || 'LUS4G Church';
+      
+      console.log('[Brevo API] Attempting to send email...', { 
+        from: senderEmail, 
+        to, 
+        subject,
+        apiKeyPresent: !!process.env.BREVO_API_KEY 
+      });
+      
       const response = await axios.post(
         'https://api.brevo.com/v3/smtp/email',
         {
-          sender: { email: 'no-reply@lus4g.org', name: 'LUS4G Church' },
+          sender: { email: senderEmail, name: senderName },
           to: [{ email: to }],
           subject,
           htmlContent: html,
@@ -42,22 +53,39 @@ async function sendEmail({ to, subject, html }) {
           headers: {
             'api-key': process.env.BREVO_API_KEY,
             'Content-Type': 'application/json',
+            'accept': 'application/json',
           },
-          timeout: 10000,
+          timeout: 15000,
         }
       );
-      console.log('[Email sent via Brevo API]', { to, subject, messageId: response.data.messageId });
+      
+      console.log('[Brevo API] ✅ Email sent successfully!', { 
+        from: senderEmail,
+        to, 
+        subject, 
+        messageId: response.data.messageId,
+        status: response.status
+      });
+      
       return response.data;
     } catch (err) {
-      console.error('[Brevo API error]', err.response?.data || err.message);
-      throw new Error(err.response?.data?.message || err.message);
+      console.error('[Brevo API] ❌ Email send failed:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        errorCode: err.response?.data?.code,
+        errorMessage: err.response?.data?.message,
+        fullError: err.response?.data,
+        requestTo: to,
+        requestSubject: subject
+      });
+      throw new Error(`Email send failed: ${err.response?.data?.message || err.message}`);
     }
   }
 
   // Fallback to SMTP
   try {
     const info = await getTransporter().sendMail({
-      from: process.env.EMAIL_FROM || 'LUS4G Church <no-reply@lus4g.org>',
+      from: process.env.EMAIL_FROM || `${process.env.EMAIL_SENDER_NAME || 'LUS4G Church'} <${process.env.EMAIL_SENDER || process.env.SMTP_USER}>`,
       to, subject, html,
     });
     console.log('[Email sent via SMTP]', { to, subject, messageId: info.messageId });

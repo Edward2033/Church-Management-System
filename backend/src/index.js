@@ -100,6 +100,47 @@ app.get('/health', (_, res) => res.json({
   timestamp: new Date().toISOString(),
 }));
 
+// Test email endpoint (admin only)
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const { sendEmail } = require('./lib/email');
+    const { to, subject = 'Test Email from LUS4G Church' } = req.body;
+    
+    if (!to) {
+      return res.status(400).json({ error: 'Recipient email (to) is required' });
+    }
+    
+    await sendEmail({
+      to,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #7c3aed;">Test Email from LUS4G Church</h2>
+          <p>This is a test email to verify email delivery is working correctly.</p>
+          <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
+          <p>If you received this email, the email system is working properly! ✅</p>
+          <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This is an automated test email from LUS4G Church Management System.
+          </p>
+        </div>
+      `
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Test email sent successfully to ${to}`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[Test email error]', err);
+    res.status(500).json({ 
+      error: 'Failed to send test email', 
+      details: err.message 
+    });
+  }
+});
+
 // 404
 app.use((_, res) => res.status(404).json({ error: 'Not found' }));
 
