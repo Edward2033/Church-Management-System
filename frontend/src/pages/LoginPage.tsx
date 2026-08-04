@@ -3,17 +3,29 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { LogIn, Loader2, Church } from 'lucide-react';
-import { CHURCH_NAME } from '@/lib/api';
+import { CHURCH_NAME, get, DEFAULT_CHURCH_ID } from '@/lib/api';
 
 const LoginPage: React.FC = () => {
   const { login, member } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [churchName, setChurchName] = useState(CHURCH_NAME);
 
   React.useEffect(() => {
     if (member) navigate(['admin','superadmin','pastor','elder'].includes(member.role as string) ? '/admin' : '/dashboard');
   }, [member, navigate]);
+
+  React.useEffect(() => {
+    // Fetch logo and church name from CMS settings
+    get<{ settings: Record<string, string> }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`)
+      .then((data) => {
+        if (data.settings.site_logo_url) setLogo(data.settings.site_logo_url);
+        if (data.settings.site_church_name) setChurchName(data.settings.site_church_name);
+      })
+      .catch(() => {}); // Silently fail, use defaults
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,11 +45,17 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/20 mb-4">
-            <Church size={32} className="text-white" />
-          </div>
+          {logo ? (
+            <div className="mb-4 flex justify-center">
+              <img src={logo} alt={churchName} className="h-16 w-auto object-contain max-w-[200px]" />
+            </div>
+          ) : (
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/20 mb-4">
+              <Church size={32} className="text-white" />
+            </div>
+          )}
           <h1 className="text-3xl font-bold text-white font-serif">Welcome Back</h1>
-          <p className="mt-2 text-slate-400">Sign in to your {CHURCH_NAME} account</p>
+          <p className="mt-2 text-slate-400">Sign in to your {churchName} account</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-8">

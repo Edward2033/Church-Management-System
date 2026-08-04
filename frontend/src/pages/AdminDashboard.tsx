@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { get, CHURCH_NAME } from '@/lib/api';
+import { get, CHURCH_NAME, DEFAULT_CHURCH_ID } from '@/lib/api';
 import {
   Church, LayoutDashboard, Users, Music2, Megaphone, Activity,
   Images, DollarSign, Bell, LogOut, Menu, X, Cake, BarChart2,
@@ -44,6 +44,8 @@ const AdminDashboard: React.FC = () => {
   const { member, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [birthdays, setBirthdays] = useState<{ first_name: string }[]>([]);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [churchName, setChurchName] = useState(CHURCH_NAME);
   const location  = useLocation();
   const navigate  = useNavigate();
 
@@ -53,6 +55,16 @@ const AdminDashboard: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    // Fetch logo and church name from CMS settings
+    get<{ settings: Record<string, string> }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`)
+      .then((data) => {
+        if (data.settings.site_logo_url) setLogo(data.settings.site_logo_url);
+        if (data.settings.site_church_name) setChurchName(data.settings.site_church_name);
+      })
+      .catch(() => {}); // Silently fail, use defaults
+  }, []);
+
   const handleLogout = () => { logout(); navigate('/'); };
 
   return (
@@ -60,13 +72,19 @@ const AdminDashboard: React.FC = () => {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-purple-900 text-white flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:flex`}>
         <div className="flex items-center gap-3 px-6 py-5 border-b border-purple-700">
-          <div className="h-9 w-9 bg-amber-400 rounded-lg flex items-center justify-center shrink-0">
-            <Church size={20} className="text-purple-900" />
-          </div>
-          <div>
-            <div className="font-serif font-bold text-sm leading-tight">{CHURCH_NAME}</div>
-            <div className="text-xs text-purple-300">Admin Panel</div>
-          </div>
+          {logo ? (
+            <img src={logo} alt={churchName} className="h-12 w-auto object-contain max-w-[160px]" />
+          ) : (
+            <>
+              <div className="h-9 w-9 bg-amber-400 rounded-lg flex items-center justify-center shrink-0">
+                <Church size={20} className="text-purple-900" />
+              </div>
+              <div>
+                <div className="font-serif font-bold text-sm leading-tight">{churchName}</div>
+                <div className="text-xs text-purple-300">Admin Panel</div>
+              </div>
+            </>
+          )}
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
