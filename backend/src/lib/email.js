@@ -1,28 +1,71 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 require('dotenv').config();
+
+// Flag to use Brevo API instead of SMTP (more reliable)
+const USE_BREVO_API = !!process.env.BREVO_API_KEY;
 
 let transporter;
 function getTransporter() {
-  if (!transporter) {
+  if (!transporter && !USE_BREVO_API) {
     transporter = nodemailer.createTransport({
       host:   process.env.SMTP_HOST || 'smtp.gmail.com',
       port:   parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_PORT === '465',
       auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
   }
   return transporter;
 }
 
 async function sendEmail({ to, subject, html }) {
-  if (!process.env.SMTP_USER) {
-    console.log('[Email skipped — no SMTP config]', { to, subject });
+  if (!process.env.SMTP_USER && !process.env.BREVO_API_KEY) {
+    console.log('[Email skipped — no email config]', { to, subject });
     return;
   }
-  return getTransporter().sendMail({
-    from: process.env.EMAIL_FROM || 'LUS4G Church <no-reply@lus4g.org>',
-    to, subject, html,
-  });
+
+  // Use Brevo API if available (more reliable than SMTP)
+  if (USE_BREVO_API) {
+    try {
+      const response = await axios.post(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          sender: { email: 'no-reply@lus4g.org', name: 'LUS4G Church' },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+        },
+        {
+          headers: {
+            'api-key': process.env.BREVO_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        }
+      );
+      console.log('[Email sent via Brevo API]', { to, subject, messageId: response.data.messageId });
+      return response.data;
+    } catch (err) {
+      console.error('[Brevo API error]', err.response?.data || err.message);
+      throw new Error(err.response?.data?.message || err.message);
+    }
+  }
+
+  // Fallback to SMTP
+  try {
+    const info = await getTransporter().sendMail({
+      from: process.env.EMAIL_FROM || 'LUS4G Church <no-reply@lus4g.org>',
+      to, subject, html,
+    });
+    console.log('[Email sent via SMTP]', { to, subject, messageId: info.messageId });
+    return info;
+  } catch (err) {
+    console.error('[SMTP error]', err.message);
+    throw err;
+  }
 }
 
 function wrap(content) {
