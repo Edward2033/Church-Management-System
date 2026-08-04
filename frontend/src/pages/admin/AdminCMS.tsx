@@ -6,7 +6,7 @@ const API = import.meta.env.VITE_API_URL || '/api';
 const token = () => localStorage.getItem('cms_token');
 const authH = () => ({ Authorization: `Bearer ${token()}` });
 
-type Tab = 'about' | 'values' | 'footer' | 'social' | 'contact';
+type Tab = 'about' | 'values' | 'footer' | 'social' | 'contact' | 'branding';
 
 interface Value {
   id: string;
@@ -498,6 +498,124 @@ function SocialTab() {
   );
 }
 
+// ── Tab: Branding / Logo ──────────────────────────────────────
+
+function BrandingTab() {
+  const [s, setS] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/cms/settings?group=branding`)
+      .then((r) => r.json())
+      .then((data) => {
+        const flat: Record<string, string> = {};
+        (data.raw || []).forEach((r: any) => { flat[r.key] = r.value ?? ''; });
+        setS(flat);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-purple-600" size={28} /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+        <div>
+          <h2 className="font-semibold text-gray-800 mb-2">Website Logo</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Upload your church logo. It will appear in the navigation bar, footer, and throughout the website.
+            Recommended size: 200x200 pixels or larger (square format works best).
+          </p>
+          <ImageUpload
+            settingKey="site_logo_url"
+            group="branding"
+            currentUrl={s.site_logo_url || ''}
+            label="Main Logo"
+          />
+        </div>
+
+        <div className="border-t pt-6">
+          <h2 className="font-semibold text-gray-800 mb-2">Logo Preview</h2>
+          <p className="text-sm text-gray-600 mb-4">This is how your logo will appear across the site:</p>
+          {s.site_logo_url ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <img src={s.site_logo_url} alt="Logo Preview" className="h-12 w-12 object-contain" />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Navigation Bar (48px height)</p>
+                  <p className="text-xs text-gray-500">Logo appears in the top navigation</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-slate-900 rounded-lg">
+                <img src={s.site_logo_url} alt="Logo Preview" className="h-10 w-10 object-contain" />
+                <div>
+                  <p className="text-sm font-medium text-white">Footer (40px height)</p>
+                  <p className="text-xs text-slate-400">Logo appears in the footer section</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-purple-900 rounded-lg">
+                <img src={s.site_logo_url} alt="Logo Preview" className="h-12 w-12 object-contain" />
+                <div>
+                  <p className="text-sm font-medium text-white">Admin Dashboard (48px height)</p>
+                  <p className="text-xs text-purple-200">Logo appears in the admin sidebar</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500 text-sm">No logo uploaded yet. Upload a logo above to see the preview.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t pt-6">
+          <h2 className="font-semibold text-gray-800 mb-2">Church Name</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            The church name appears next to the logo in the navigation and in various parts of the site.
+          </p>
+          <input
+            type="text"
+            value={s.site_church_name || ''}
+            onChange={(e) => setS((p) => ({ ...p, site_church_name: e.target.value }))}
+            placeholder="LUS4G Church"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch(`${API}/cms/settings`, {
+                  method: 'PUT',
+                  headers: { ...authH(), 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ settings: { site_church_name: s.site_church_name } }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                toast.success('Church name updated');
+              } catch (err: any) {
+                toast.error(err.message);
+              }
+            }}
+            className="mt-3 flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm"
+          >
+            <Save size={15} /> Save Church Name
+          </button>
+        </div>
+
+        <div className="border-t pt-6 bg-blue-50 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">💡 Logo Tips</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Use PNG format with transparent background for best results</li>
+            <li>• Square or horizontal logos work best</li>
+            <li>• Minimum recommended size: 200x200 pixels</li>
+            <li>• Logo will be automatically resized to fit different areas</li>
+            <li>• If no logo is uploaded, a default icon will be shown</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Tab: Contact Page ──────────────────────────────────────────
 
 function ContactTab() {
@@ -605,6 +723,7 @@ function ContactTab() {
 // ── Main AdminCMS ──────────────────────────────────────────────
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'branding', label: 'Logo & Branding' },
   { id: 'about',   label: 'About Page' },
   { id: 'values',  label: 'Core Values' },
   { id: 'contact', label: 'Contact Page' },
@@ -613,7 +732,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const AdminCMS: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('about');
+  const [tab, setTab] = useState<Tab>('branding');
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -638,6 +757,7 @@ const AdminCMS: React.FC = () => {
         ))}
       </div>
 
+      {tab === 'branding' && <BrandingTab />}
       {tab === 'about'   && <AboutTab />}
       {tab === 'values'  && <ValuesTab />}
       {tab === 'contact' && <ContactTab />}

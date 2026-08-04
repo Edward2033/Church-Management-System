@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { User } from '@/lib/api';
+import { User, get, DEFAULT_CHURCH_ID } from '@/lib/api';
 
 interface Props { member: User; verificationUrl: string; }
 
@@ -19,10 +19,20 @@ const InfoField: React.FC<{ label: string; value?: string | null; className?: st
 const PrintableRegistrationForm = forwardRef<HTMLDivElement, Props>(({ member, verificationUrl }, ref) => {
   const [pastor,       setPastor]       = useState<Leader | null>(null);
   const [choirDirector, setChoirDirector] = useState<Leader | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
   const isChoir = member.role === 'choir_member' || member.role === 'choir';
 
   useEffect(() => {
     const API = import.meta.env.VITE_API_URL || '/api';
+    
+    // Fetch logo
+    get<{ settings: Record<string, string> }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`)
+      .then((data) => {
+        if (data.settings.site_logo_url) setLogo(data.settings.site_logo_url);
+      })
+      .catch(() => {});
+    
+    // Fetch leadership
     fetch(`${API}/leadership`)
       .then((r) => r.json())
       .then(({ leadership = [] }: { leadership: Leader[] }) => {
@@ -44,8 +54,12 @@ const PrintableRegistrationForm = forwardRef<HTMLDivElement, Props>(({ member, v
       {/* Header */}
       <div className="flex items-center justify-between mb-8 pb-6 border-b-4 border-purple-700">
         <div className="flex items-center gap-4">
-          <img src="/church-logo.png" alt="Church Logo" className="h-20 w-20 object-contain"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          {logo ? (
+            <img src={logo} alt="Church Logo" className="h-20 w-auto object-contain max-w-[200px]" />
+          ) : (
+            <img src="/church-logo.png" alt="Church Logo" className="h-20 w-20 object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          )}
           <div>
             <h1 className="text-3xl font-bold text-purple-900">LUS4G Church</h1>
             <p className="text-gray-600">{isChoir ? 'Choir Member Registration Form' : 'Member Registration Form'}</p>

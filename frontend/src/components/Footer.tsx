@@ -29,14 +29,18 @@ const WhatsAppIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
 
 const Footer: React.FC = () => {
   const [s, setS] = useState<Settings>({});
+  const [logo, setLogo] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
+      get<{ settings: Settings }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`),
       get<{ settings: Settings }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=footer`),
       get<{ settings: Settings }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=social`),
     ])
-      .then(([footerRes, socialRes]) => {
-        setS({ ...(footerRes.settings || {}), ...(socialRes.settings || {}) });
+      .then(([brandingRes, footerRes, socialRes]) => {
+        const allSettings = { ...(brandingRes.settings || {}), ...(footerRes.settings || {}), ...(socialRes.settings || {}) };
+        setS(allSettings);
+        if (allSettings.site_logo_url) setLogo(allSettings.site_logo_url);
       })
       .catch(() => {});
   }, []);
@@ -82,10 +86,16 @@ const Footer: React.FC = () => {
         {/* Brand */}
         <motion.div variants={fadeUp}>
           <Link to="/" className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center">
-              <Church size={20} className="text-white" />
-            </div>
-            <span className="font-serif text-lg font-bold text-white">{churchName}</span>
+            {logo ? (
+              <img src={logo} alt={churchName} className="h-10 w-auto object-contain max-w-[150px]" />
+            ) : (
+              <>
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center">
+                  <Church size={20} className="text-white" />
+                </div>
+                <span className="font-serif text-lg font-bold text-white">{churchName}</span>
+              </>
+            )}
           </Link>
           <p className="text-sm text-slate-400 leading-relaxed mb-5">{tagline}</p>
           {SOCIALS.length > 0 && (

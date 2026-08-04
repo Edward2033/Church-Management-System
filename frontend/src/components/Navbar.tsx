@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { CHURCH_NAME } from '@/lib/api';
+import { CHURCH_NAME, get, DEFAULT_CHURCH_ID } from '@/lib/api';
 import { Church, Menu, X, LogIn, UserPlus, LogOut, LayoutDashboard } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -18,6 +18,8 @@ const Navbar: React.FC = () => {
   const { member, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [churchName, setChurchName] = useState(CHURCH_NAME);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -25,6 +27,16 @@ const Navbar: React.FC = () => {
     const fn = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
+  }, []);
+
+  useEffect(() => {
+    // Fetch logo and church name from CMS settings
+    get<{ settings: Record<string, string> }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`)
+      .then((data) => {
+        if (data.settings.site_logo_url) setLogo(data.settings.site_logo_url);
+        if (data.settings.site_church_name) setChurchName(data.settings.site_church_name);
+      })
+      .catch(() => {}); // Silently fail, use defaults
   }, []);
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
@@ -48,12 +60,18 @@ const Navbar: React.FC = () => {
         <div className="container-pad flex items-center justify-between h-18 py-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center shadow-glow group-hover:shadow-glow transition-shadow duration-300">
-              <Church size={22} className="text-white" />
-            </div>
-            <span className="font-serif text-lg font-bold text-white hidden sm:block">
-              {CHURCH_NAME}
-            </span>
+            {logo ? (
+              <img src={logo} alt={churchName} className="h-12 w-auto object-contain max-w-[180px] transition-opacity group-hover:opacity-90" />
+            ) : (
+              <>
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 flex items-center justify-center shadow-glow group-hover:shadow-glow transition-shadow duration-300">
+                  <Church size={22} className="text-white" />
+                </div>
+                <span className="font-serif text-lg font-bold text-white hidden sm:block">
+                  {churchName}
+                </span>
+              </>
+            )}
           </Link>
 
           {/* Desktop Nav */}
