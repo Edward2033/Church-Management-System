@@ -28,6 +28,10 @@ router.get('/settings', async (req, res) => {
         : r.type === 'json' ? (() => { try { return JSON.parse(r.value); } catch { return r.value; } })()
         : r.value;
     });
+    // Prevent caching
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json({ settings, raw: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -93,6 +97,7 @@ router.get('/about-values', async (req, res) => {
       `SELECT * FROM about_values WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC, created_at ASC`,
       [cid]
     );
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ values: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -154,6 +159,7 @@ router.get('/homepage-stats', async (req, res) => {
       `SELECT * FROM homepage_stats WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
       [cid]
     );
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ stats: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -213,6 +219,7 @@ router.get('/homepage-features', async (req, res) => {
       `SELECT * FROM homepage_features WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
       [cid]
     );
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ features: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -272,6 +279,7 @@ router.get('/homepage-services', async (req, res) => {
       `SELECT * FROM homepage_service_times WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC`,
       [cid]
     );
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ services: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -339,6 +347,7 @@ router.get('/hero-slides', async (req, res) => {
       `SELECT * FROM cms_hero_slides WHERE church_id=$1 AND is_active=TRUE ORDER BY sort_order ASC, created_at ASC`,
       [cid]
     );
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ slides: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
