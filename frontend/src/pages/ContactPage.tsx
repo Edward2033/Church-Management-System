@@ -38,21 +38,21 @@ const ContactPage: React.FC = () => {
 
   const pageTitle = settings.contact_page_title || 'Contact Us';
   const pageSubtitle = settings.contact_page_subtitle || "We'd love to hear from you. Reach out any time.";
-  const address = settings.contact_address || '12 Grace Avenue, Accra, Ghana';
-  const phone = settings.contact_phone || '+233 20 000 0001';
-  const email = settings.contact_email || 'admin@lus4g.org';
-  const officeHours = settings.contact_office_hours || 'Mon – Fri: 9AM – 5PM';
+  const address = settings.contact_address || '';
+  const phone = settings.contact_phone || '';
+  const email = settings.contact_email || '';
+  const officeHours = settings.contact_office_hours || '';
 
   const sundayServices = [
-    [settings.contact_service1_label || 'First Service', settings.contact_service1_time || '8:00 AM'],
-    [settings.contact_service2_label || 'Second Service', settings.contact_service2_time || '10:00 AM'],
-    [settings.contact_service3_label || 'Evening Service', settings.contact_service3_time || '5:00 PM'],
-  ];
+    [settings.contact_service1_label || '', settings.contact_service1_time || ''],
+    [settings.contact_service2_label || '', settings.contact_service2_time || ''],
+    [settings.contact_service3_label || '', settings.contact_service3_time || ''],
+  ].filter(([label, time]) => label && time);
 
   const midweekServices = [
-    [settings.contact_midweek1_label || 'Bible Study', settings.contact_midweek1_time || 'Wednesday 6:30 PM'],
-    [settings.contact_midweek2_label || 'Prayer Meeting', settings.contact_midweek2_time || 'Friday 7:00 PM'],
-  ];
+    [settings.contact_midweek1_label || '', settings.contact_midweek1_time || ''],
+    [settings.contact_midweek2_label || '', settings.contact_midweek2_time || ''],
+  ].filter(([label, time]) => label && time);
 
   const formEnabled = settings.contact_form_enabled !== 'false';
 
@@ -107,7 +107,11 @@ const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-slate-500">{item.label}</div>
-                      <div className="text-slate-200 font-semibold">{item.value}</div>
+                      {item.value ? (
+                        <div className="text-slate-200 font-semibold">{item.value}</div>
+                      ) : (
+                        <div className="text-slate-500 italic text-sm">Not configured</div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -115,24 +119,35 @@ const ContactPage: React.FC = () => {
             </div>
 
             <div className="card-solid rounded-2xl p-8">
-              <h3 className="font-bold text-white mb-4">Sunday Service Times</h3>
-              <div className="space-y-2 text-sm">
-                {sundayServices.map(([s, t]) => (
-                  <div key={s} className="flex justify-between py-1 border-b border-slate-800 last:border-0">
-                    <span className="text-slate-400">{s}</span>
-                    <span className="font-semibold text-slate-200">{t}</span>
+              {sundayServices.length > 0 && (
+                <>
+                  <h3 className="font-bold text-white mb-4">Sunday Service Times</h3>
+                  <div className="space-y-2 text-sm">
+                    {sundayServices.map(([s, t]) => (
+                      <div key={s} className="flex justify-between py-1 border-b border-slate-800 last:border-0">
+                        <span className="text-slate-400">{s}</span>
+                        <span className="font-semibold text-slate-200">{t}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <h3 className="font-bold text-white mt-5 mb-3">Midweek Services</h3>
-              <div className="space-y-2 text-sm">
-                {midweekServices.map(([s, t]) => (
-                  <div key={s} className="flex justify-between py-1 border-b border-slate-800 last:border-0">
-                    <span className="text-slate-400">{s}</span>
-                    <span className="font-semibold text-slate-200">{t}</span>
+                </>
+              )}
+              {midweekServices.length > 0 && (
+                <>
+                  <h3 className={`font-bold text-white ${sundayServices.length > 0 ? 'mt-5' : ''} mb-3`}>Midweek Services</h3>
+                  <div className="space-y-2 text-sm">
+                    {midweekServices.map(([s, t]) => (
+                      <div key={s} className="flex justify-between py-1 border-b border-slate-800 last:border-0">
+                        <span className="text-slate-400">{s}</span>
+                        <span className="font-semibold text-slate-200">{t}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+              {sundayServices.length === 0 && midweekServices.length === 0 && (
+                <p className="text-slate-500 italic text-sm">Service times not configured. Please update in Admin &gt; CMS Settings &gt; Contact.</p>
+              )}
             </div>
           </div>
 

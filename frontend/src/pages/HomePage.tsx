@@ -67,16 +67,13 @@ const HomePage: React.FC = () => {
       // Slides
       if (heroRes.slides?.length) {
         setSlides(heroRes.slides.map((s) => ({
-          img: s.image_url, title: s.title || 'Welcome',
-          subtitle: s.subtitle || '', tag: s.cta_label || undefined,
+          img: s.image_url,
+          title: s.title || '',
+          subtitle: s.subtitle || '',
+          tag: s.cta_label || undefined,
         })));
       } else {
-        setSlides([{
-          img: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1600&q=85',
-          tag: '✦ Welcome to Our Family',
-          title: 'Where Faith Meets Community',
-          subtitle: "A place to worship, grow, and belong — together in God's love and purpose.",
-        }]);
+        setSlides([]); // No slides - will show placeholder
       }
       // Settings flat map
       const flat: S = {};
@@ -107,16 +104,26 @@ const HomePage: React.FC = () => {
     <div className="bg-slate-950">
 
       {/* ── HERO ── */}
-      <HeroSlider slides={slides} interval={5000}>
-        <div className="flex flex-wrap gap-4">
-          <Link to={s.home_welcome_btn1_url || '/register'} className="btn-gold text-base px-8 py-3.5">
-            <Heart size={18} /> {s.home_welcome_btn1_label || 'Become a Member'}
-          </Link>
-          <Link to={s.home_welcome_btn2_url || '/login'} className="btn-outline text-base px-8 py-3.5">
-            {s.home_welcome_btn2_label || 'Member Login'} <ArrowRight size={18} />
-          </Link>
+      {slides.length > 0 ? (
+        <HeroSlider slides={slides} interval={5000}>
+          <div className="flex flex-wrap gap-4">
+            <Link to={s.home_welcome_btn1_url || '/register'} className="btn-gold text-base px-8 py-3.5">
+              <Heart size={18} /> {s.home_welcome_btn1_label || 'Become a Member'}
+            </Link>
+            <Link to={s.home_welcome_btn2_url || '/login'} className="btn-outline text-base px-8 py-3.5">
+              {s.home_welcome_btn2_label || 'Member Login'} <ArrowRight size={18} />
+            </Link>
+          </div>
+        </HeroSlider>
+      ) : (
+        <div className="relative overflow-hidden pt-32 pb-32 min-h-[500px] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-brand opacity-20" />
+          <div className="container-pad relative text-center">
+            <h2 className="text-white text-3xl font-bold mb-4">Hero Slides Not Configured</h2>
+            <p className="text-slate-400 text-lg mb-6">Please add hero slides in Admin Dashboard &gt; Hero Slider</p>
+          </div>
         </div>
-      </HeroSlider>
+      )}
 
       {/* ── STATS STRIP ── */}
       {enabled('home_stats_enabled') && stats.length > 0 && (

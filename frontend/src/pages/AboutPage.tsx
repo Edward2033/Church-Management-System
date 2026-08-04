@@ -52,7 +52,7 @@ const AboutPage: React.FC = () => {
   const t = (key: string, fallback = '') => (s[key] as string) || fallback;
 
   const heroImage = t('about_hero_image');
-  const introImage = t('about_intro_image', 'https://images.unsplash.com/photo-1492321936769-b49830bc1d1e?w=800&q=80');
+  const introImage = t('about_intro_image');
 
   if (loading) {
     return (
@@ -115,10 +115,20 @@ const AboutPage: React.FC = () => {
           </motion.div>
 
           <motion.div variants={fadeUp} custom={1} className="relative">
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-              <img src={introImage} className="w-full object-cover h-[480px]" alt="Church" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent" />
-            </div>
+            {introImage ? (
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                <img src={introImage} className="w-full object-cover h-[480px]" alt="Church" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent" />
+              </div>
+            ) : (
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl h-[480px] bg-slate-800/50 border-2 border-dashed border-slate-700 flex items-center justify-center">
+                <div className="text-center px-6">
+                  <BookOpen size={48} className="text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-500 italic text-sm">Story image not configured</p>
+                  <p className="text-slate-600 text-xs mt-2">Upload in Admin &gt; CMS Settings &gt; About</p>
+                </div>
+              </div>
+            )}
             {t('about_stat1_value') && (
               <motion.div whileHover={{ scale: 1.05 }}
                 className="absolute -bottom-6 -left-6 glass rounded-2xl p-5 shadow-xl">
