@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printMember } from '@/lib/print';
-import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home } from 'lucide-react';
+import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardHome from './DashboardHome';
 import MemberNotifications from './MemberNotifications';
@@ -312,42 +312,6 @@ const MemberDirectory: React.FC = () => {
   );
 };
 
-const MemberNotifications: React.FC = () => {
-  const { member } = useAuth();
-  const [items, setItems] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const TYPE_ICON: Record<string, string> = { birthday: '🎂', system: '⚙️', alert: '⚠️', announcement: '📢', event: '📅' };
-
-  useEffect(() => {
-    setLoading(true);
-    get<{ notifications: Notification[] }>('/notifications').then((r) => setItems(r.notifications || [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Notifications</h1>
-      {loading ? <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div> : (
-        <div className="space-y-3">
-          {items.map((n) => {
-            const read = member && n.read_by?.includes(member.id);
-            return (
-              <div key={n.id} className={`card p-4 flex gap-4 ${!read ? 'border-l-4 border-purple-500' : ''}`}>
-                <div className="text-2xl shrink-0">{TYPE_ICON[n.type] || '🔔'}</div>
-                <div className="flex-1">
-                  <h3 className={`font-bold ${!read ? 'text-gray-900' : 'text-gray-700'}`}>{n.title}</h3>
-                  <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
-                  <p className="text-xs text-gray-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-            );
-          })}
-          {items.length === 0 && <div className="card p-16 text-center text-gray-400"><Bell size={36} className="mx-auto mb-3 opacity-30" /><p>No notifications yet</p></div>}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const MemberDonate: React.FC = () => {
   const { member } = useAuth();
   const [form, setForm] = useState({ amount: '', currency: 'NGN', type: 'offering', payment_method: 'bank_transfer', note: '' });
@@ -499,6 +463,7 @@ const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
   { to: '/dashboard/profile', label: 'Profile', icon: UserIcon },
   { to: '/dashboard/directory', label: 'Directory', icon: Users },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell },
+  { to: '/dashboard/attendance', label: 'Attendance', icon: Calendar },
   { to: '/dashboard/donate', label: 'Give', icon: DollarSign },
 ];
 
@@ -578,6 +543,7 @@ const MemberDashboard: React.FC = () => {
             <Route path="profile" element={<MemberProfile />} />
             <Route path="directory" element={<MemberDirectory />} />
             <Route path="notifications" element={<MemberNotifications />} />
+            <Route path="attendance" element={<MemberAttendance />} />
             <Route path="donate" element={<MemberDonate />} />
             <Route path="choir" element={<ChoirPortal />} />
           </Routes>
