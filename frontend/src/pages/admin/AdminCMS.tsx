@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Save, Plus, Trash2, Edit2, Loader2, Upload, FileText } from 'lucide-react';
+import { apiFetch, api } from '@/lib/api';
 
 const API = import.meta.env.VITE_API_URL || '/api';
-const token = () => localStorage.getItem('cms_token');
-const authH = () => ({ Authorization: `Bearer ${token()}` });
+const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('cms_token')}` });
 
 type Tab = 'about' | 'values' | 'footer' | 'social' | 'contact' | 'branding';
 
@@ -81,7 +81,7 @@ function ImageUpload({ settingKey, group, currentUrl, label }: {
       fd.append('key', settingKey);
       fd.append('group', group);
       fd.append('folder', 'lus4g-church/cms');
-      const res = await fetch(`${API}/cms/settings/upload`, { method: 'POST', headers: authH(), body: fd });
+      const res = await apiFetch('/cms/settings/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPreview(data.url);
@@ -127,13 +127,7 @@ function AboutTab() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/cms/settings`, {
-        method: 'PUT',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: s }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
       toast.success('About page settings saved');
     } catch (err: any) {
       toast.error(err.message);
@@ -234,14 +228,8 @@ function ValuesTab() {
     e.preventDefault();
     setSaving(true);
     try {
-      const url = editing ? `${API}/cms/about-values/${editing.id}` : `${API}/cms/about-values`;
-      const res = await fetch(url, {
-        method: editing ? 'PUT' : 'POST',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const url = editing ? `/cms/about-values/${editing.id}` : `/cms/about-values`;
+      await api(url, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(form) });
       toast.success(editing ? 'Value updated' : 'Value created');
       setShowForm(false);
       load();
@@ -255,7 +243,7 @@ function ValuesTab() {
   const del = async (id: string) => {
     if (!confirm('Delete this core value?')) return;
     try {
-      await fetch(`${API}/cms/about-values/${id}`, { method: 'DELETE', headers: authH() });
+      await api(`/cms/about-values/${id}`, { method: 'DELETE' });
       toast.success('Deleted');
       load();
     } catch { toast.error('Delete failed'); }
@@ -263,12 +251,7 @@ function ValuesTab() {
 
   const toggleActive = async (v: Value) => {
     try {
-      const res = await fetch(`${API}/cms/about-values/${v.id}`, {
-        method: 'PUT',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !v.is_active }),
-      });
-      if (!res.ok) throw new Error();
+      await api(`/cms/about-values/${v.id}`, { method: 'PUT', body: JSON.stringify({ is_active: !v.is_active }) });
       load();
     } catch { toast.error('Update failed'); }
   };
@@ -369,19 +352,10 @@ function FooterTab() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/cms/settings`, {
-        method: 'PUT',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: s }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
       toast.success('Footer settings saved');
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -448,19 +422,10 @@ function SocialTab() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/cms/settings`, {
-        method: 'PUT',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: s }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
       toast.success('Social links saved');
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   };
 
   const SOCIALS = [
@@ -582,22 +547,11 @@ function BrandingTab() {
           />
           <button
             onClick={async () => {
-              if (!s.site_church_name || !s.site_church_name.trim()) {
-                toast.error('Please enter a church name');
-                return;
-              }
+              if (!s.site_church_name?.trim()) { toast.error('Please enter a church name'); return; }
               try {
-                const res = await fetch(`${API}/cms/settings`, {
-                  method: 'PUT',
-                  headers: { ...authH(), 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ settings: { site_church_name: s.site_church_name.trim() } }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
+                await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: { site_church_name: s.site_church_name.trim() } }) });
                 toast.success('Church name updated');
-              } catch (err: any) {
-                toast.error(err.message);
-              }
+              } catch (err: any) { toast.error(err.message); }
             }}
             className="mt-3 flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm"
           >
@@ -641,19 +595,10 @@ function ContactTab() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/cms/settings`, {
-        method: 'PUT',
-        headers: { ...authH(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: s }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
       toast.success('Contact page settings saved');
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   };
 
   return (

@@ -46,9 +46,28 @@ const uploadToCloudinary = (buffer, folder) => {
   });
 };
 
-// Delete image from Cloudinary
-const deleteImage = async (publicId) => {
+// Extract public_id from a full Cloudinary URL or return as-is
+const extractPublicId = (urlOrId) => {
+  if (!urlOrId) return null;
+  if (!urlOrId.startsWith('http')) return urlOrId; // already a public_id
   try {
+    // e.g. https://res.cloudinary.com/cloud/image/upload/v123/lus4g-church/profiles/abc.jpg
+    const parts = urlOrId.split('/');
+    const uploadIdx = parts.indexOf('upload');
+    if (uploadIdx === -1) return null;
+    // skip version segment (v12345) if present
+    let start = uploadIdx + 1;
+    if (parts[start] && parts[start].match(/^v\d+$/)) start++;
+    const withExt = parts.slice(start).join('/');
+    return withExt.replace(/\.[^/.]+$/, ''); // strip extension
+  } catch { return null; }
+};
+
+// Delete image from Cloudinary
+const deleteImage = async (urlOrPublicId) => {
+  try {
+    const publicId = extractPublicId(urlOrPublicId);
+    if (!publicId) return false;
     await cloudinary.uploader.destroy(publicId);
     return true;
   } catch (error) {

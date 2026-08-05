@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { get, del, GalleryItem } from '@/lib/api';
+import { get, del, apiFetch, GalleryItem } from '@/lib/api';
 import { Plus, Trash2, Loader2, X, ZoomIn, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +14,6 @@ const AdminGallery: React.FC = () => {
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || '/api';
-  const token = localStorage.getItem('cms_token');
 
   const load = () => {
     setLoading(true);
@@ -43,12 +42,7 @@ const AdminGallery: React.FC = () => {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!imageFile) {
-      toast.error('Please select an image');
-      return;
-    }
-
+    if (!imageFile) { toast.error('Please select an image'); return; }
     setSaving(true);
     try {
       const formData = new FormData();
@@ -56,16 +50,9 @@ const AdminGallery: React.FC = () => {
       formData.append('title', form.title);
       formData.append('category', form.category);
       formData.append('caption', form.caption);
-
-      const res = await fetch(`${API_URL}/gallery`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
+      const res = await apiFetch('/gallery', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-
       toast.success('Image added');
       setShowForm(false);
       setForm({ title: '', category: 'general', caption: '' });
