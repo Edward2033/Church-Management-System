@@ -1,4 +1,4 @@
-import { User, CHURCH_NAME } from './api';
+import { User, CHURCH_NAME, API_BASE_URL } from './api';
 
 function fmt(d?: string) {
   if (!d) return '—';
@@ -6,10 +6,20 @@ function fmt(d?: string) {
   catch { return d; }
 }
 
-export function printMember(m: User) {
+export async function printMember(m: User) {
+  // Fetch logo from CMS settings
+  let logoHtml = '';
+  try {
+    const r = await fetch(`${API_BASE_URL}/cms/settings?group=branding`);
+    const d = await r.json();
+    const logoUrl = d.settings?.site_logo_url;
+    if (logoUrl) logoHtml = `<img src="${logoUrl}" style="height:60px;width:auto;object-fit:contain;margin-bottom:8px" alt="logo" />`;
+  } catch { /* no logo */ }
+
   const w = window.open('', '_blank', 'width=850,height=1100');
   if (!w) return;
   const photo = m.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo';
+  const roleLabel = (m.role || 'member').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const choirRows = (m.role === 'choir_member' || m.role === 'choir') ? `
     <tr><td class="lbl">Voice Group</td><td>${m.voice_group || m.voice_type || '—'}</td></tr>
     <tr><td class="lbl">Main Role</td><td>${m.main_role || '—'}</td></tr>
@@ -17,12 +27,12 @@ export function printMember(m: User) {
     <tr><td class="lbl">Instruments</td><td>${(m.instruments || []).join(', ') || '—'}</td></tr>
     <tr><td class="lbl">Activities</td><td>${(m.choir_activities || []).join(', ') || '—'}</td></tr>` : '';
 
-  w.document.write(`<!doctype html><html><head><title>${m.member_code} – Profile</title>
+  w.document.write(`<!doctype html><html><head><title>${m.member_code || roleLabel} – ID Card</title>
   <style>
     *{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
     body{margin:0;padding:40px;color:#1f2937}
     .header{text-align:center;border-bottom:4px solid #6B46C1;padding-bottom:16px;margin-bottom:24px}
-    .header h1{margin:0;color:#6B46C1;font-size:26px}
+    .header h1{margin:4px 0 0;color:#6B46C1;font-size:26px}
     .header p{margin:4px 0 0;color:#6b7280;font-size:12px}
     .top{display:flex;gap:24px;align-items:flex-start;margin-bottom:24px}
     .photo{width:160px;height:160px;border-radius:12px;object-fit:cover;border:3px solid #F59E0B;flex-shrink:0}
@@ -36,42 +46,49 @@ export function printMember(m: User) {
     .footer{margin-top:36px;text-align:center;color:#9ca3af;font-size:11px;border-top:1px solid #e5e7eb;padding-top:12px}
     @media print{body{padding:20px}}
   </style></head><body>
-  <div class="header"><h1>${CHURCH_NAME}</h1><p>Official Member Profile Record</p></div>
+  <div class="header">${logoHtml}<h1>${CHURCH_NAME}</h1><p>Official Member ID Card</p></div>
   <div class="top">
     <img class="photo" src="${photo}" />
     <div>
-      <div class="code">${m.member_code || '—'}</div>
-      <div class="name">${m.first_name} ${m.last_name}</div>
-      <span class="badge">${m.role}</span>
-      <div style="margin-top:8px;color:#6b7280;font-size:13px">Status: <strong>${m.approval_status || m.status || '—'}</strong></div>
+      <div class="code">${m.member_code || 'ADMIN'}</div>
+      <div class="name">${m.first_name || ''} ${m.last_name || ''}</div>
+      <span class="badge">${roleLabel}</span>
+      <div style="margin-top:8px;color:#6b7280;font-size:13px">Status: <strong>${m.approval_status || m.status || 'Active'}</strong></div>
+      ${m.email ? `<div style="margin-top:4px;color:#6b7280;font-size:13px">Email: <strong>${m.email}</strong></div>` : ''}
     </div>
   </div>
   <div class="section">Personal Information</div>
   <table>
     <tr><td class="lbl">Gender</td><td>${m.gender || '—'}</td></tr>
     <tr><td class="lbl">Date of Birth</td><td>${fmt(m.date_of_birth)}</td></tr>
+    <tr><td class="lbl">Marital Status</td><td>${m.marital_status || '—'}</td></tr>
+    <tr><td class="lbl">Occupation</td><td>${m.occupation || '—'}</td></tr>
   </table>
   <div class="section">Contact Information</div>
   <table>
     <tr><td class="lbl">Phone</td><td>${m.phone || '—'}</td></tr>
     <tr><td class="lbl">WhatsApp</td><td>${m.whatsapp_number || '—'}</td></tr>
-    <tr><td class="lbl">Email</td><td>${m.email}</td></tr>
+    <tr><td class="lbl">Email</td><td>${m.email || '—'}</td></tr>
     <tr><td class="lbl">Address</td><td>${m.address || '—'}</td></tr>
+    <tr><td class="lbl">City</td><td>${m.city || '—'}</td></tr>
   </table>
   <div class="section">Church Information</div>
   <table>
+    <tr><td class="lbl">Role</td><td>${roleLabel}</td></tr>
     <tr><td class="lbl">Department</td><td>${m.department_name || m.department || '—'}</td></tr>
     <tr><td class="lbl">Baptized</td><td>${(m.baptism_status ?? m.baptized) ? 'Yes' : 'No'}</td></tr>
+    <tr><td class="lbl">Date Joined</td><td>${fmt(m.date_joined)}</td></tr>
     ${choirRows}
   </table>
   <div class="section">Emergency Contact</div>
   <table>
     <tr><td class="lbl">Name</td><td>${m.emergency_name || m.emergency_contact_name || '—'}</td></tr>
     <tr><td class="lbl">Phone</td><td>${m.emergency_phone || m.emergency_contact_phone || '—'}</td></tr>
+    <tr><td class="lbl">Relation</td><td>${m.emergency_relation || '—'}</td></tr>
   </table>
   ${m.bio ? `<div class="section">Bio</div><p style="padding:10px 14px;font-size:14px">${m.bio}</p>` : ''}
   <div class="footer">Generated on ${new Date().toLocaleString()} · ${CHURCH_NAME} Management System</div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),400);</script>
+  <script>window.onload=()=>setTimeout(()=>window.print(),600);</script>
   </body></html>`);
   w.document.close();
 }

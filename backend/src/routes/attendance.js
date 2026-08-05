@@ -192,13 +192,14 @@ router.get('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
     let query = `
       SELECT 
         ats.*,
-        u.first_name as creator_first_name,
-        u.last_name as creator_last_name,
+        m.first_name as creator_first_name,
+        m.last_name as creator_last_name,
         COUNT(DISTINCT ar.id) as response_count,
         COUNT(DISTINCT CASE WHEN ar.response = 'attending' THEN ar.id END) as confirmed_count,
         COUNT(DISTINCT CASE WHEN ar.response = 'not_attending' THEN ar.id END) as declined_count
       FROM attendance_sessions ats
       LEFT JOIN users u ON ats.created_by = u.id
+      LEFT JOIN members m ON m.user_id = u.id
       LEFT JOIN attendance_responses ar ON ats.id = ar.session_id
       WHERE ats.church_id = $1
     `;
@@ -255,13 +256,14 @@ router.get('/admin/sessions/:id', authenticate, requireAdmin, async (req, res) =
     const { rows: responses } = await pool.query(
       `SELECT 
         ar.*,
-        u.first_name,
-        u.last_name,
+        m.first_name,
+        m.last_name,
         u.email,
         u.role,
-        u.profile_photo_url
+        m.profile_photo_url
        FROM attendance_responses ar
        JOIN users u ON ar.user_id = u.id
+       LEFT JOIN members m ON m.user_id = u.id
        WHERE ar.session_id = $1
        ORDER BY ar.responded_at DESC`,
       [req.params.id]
@@ -384,11 +386,19 @@ router.delete('/admin/sessions/:id', authenticate, requireAdmin, async (req, res
 // POST /api/attendance/admin/sessions/:id/send-invitation - Send invitation (admin)
 router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, async (req, res) => {
   try {
-    // Get session AND church details
+    // Get session AND church logo from cms_settings
     const { rows: [session] } = await pool.query(
-      `SELECT ats.*, c.name as church_name, c.logo_url as church_logo
+      `SELECT ats.*,
+              COALESCE(
+                (SELECT value FROM cms_settings WHERE church_id = ats.church_id AND key = 'site_logo_url' LIMIT 1),
+                ''
+              ) as church_logo,
+              COALESCE(
+                (SELECT value FROM cms_settings WHERE church_id = ats.church_id AND key = 'footer_church_name' LIMIT 1),
+                (SELECT value FROM cms_settings WHERE church_id = ats.church_id AND key = 'church_name' LIMIT 1),
+                'LUS4G Church'
+              ) as church_name
        FROM attendance_sessions ats
-       INNER JOIN churches c ON ats.church_id = c.id
        WHERE ats.id = $1 AND ats.church_id = $2`,
       [req.params.id, req.churchId]
     );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { get, patch, post, User, Notification, CHURCH_NAME } from '@/lib/api';
+import { get, patch, post, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printMember } from '@/lib/print';
 import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ const MemberProfile: React.FC = () => {
   const [form, setForm] = useState<Partial<User>>(member || {});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
@@ -25,17 +26,40 @@ const MemberProfile: React.FC = () => {
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    setUploading(true);
+    setPhotoFile(file);
     const reader = new FileReader();
-    reader.onload = () => { upd('profile_photo_url', reader.result as string); setUploading(false); };
+    reader.onload = () => upd('profile_photo_url', reader.result as string);
     reader.readAsDataURL(file);
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const res = await patch<{ member: User }>(`/members/${member.id}`, form);
-      setMember(res.member); setEditing(false); toast.success('Profile updated!');
+      // Build FormData so photo upload works
+      const fd = new FormData();
+      if (photoFile) fd.append('profilePhoto', photoFile);
+      fd.append('firstName', form.first_name || member.first_name || '');
+      fd.append('middleName', form.middle_name || member.middle_name || '');
+      fd.append('lastName', form.last_name || member.last_name || '');
+      fd.append('phone', form.phone || member.phone || '');
+      fd.append('whatsappNumber', form.whatsapp_number || member.whatsapp_number || '');
+      fd.append('address', form.address || member.address || '');
+      fd.append('dateOfBirth', form.date_of_birth || member.date_of_birth || '');
+      fd.append('emergencyName', form.emergency_name || member.emergency_name || '');
+      fd.append('emergencyPhone', form.emergency_phone || member.emergency_phone || '');
+      fd.append('bio', form.bio || member.bio || '');
+      if (form.voice_group) fd.append('voiceGroup', form.voice_group);
+
+      const res = await apiFetch('/profile', { method: 'PUT', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+
+      // Re-fetch full profile from /auth/me to refresh all fields
+      const meRes = await api<{ user: User }>('/auth/me');
+      setMember(meRes.user);
+      setEditing(false);
+      setPhotoFile(null);
+      toast.success('Profile updated!');
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   };
@@ -50,9 +74,12 @@ const MemberProfile: React.FC = () => {
     }
     setSaving(true);
     try {
-      await patch('/profile/password', {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
+      await api('/profile/password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
       });
       toast.success('Password changed successfully!');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
