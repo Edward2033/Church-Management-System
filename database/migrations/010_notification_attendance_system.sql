@@ -1,22 +1,55 @@
 -- ============================================================================
 -- Migration 010: Complete Notification and Attendance Management System
 -- ============================================================================
+-- This migration must be run in parts due to table dependencies
+-- ============================================================================
 
--- Extend existing notifications table with new fields
-ALTER TABLE notifications 
-  ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal' 
-    CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
-  ADD COLUMN IF NOT EXISTS image_url TEXT,
-  ADD COLUMN IF NOT EXISTS attachment_url TEXT,
-  ADD COLUMN IF NOT EXISTS publish_date TIMESTAMPTZ DEFAULT NOW(),
-  ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'draft' 
-    CHECK (status IN ('draft', 'scheduled', 'published', 'expired')),
-  ADD COLUMN IF NOT EXISTS email_sent BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS delivered_count INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS read_count INTEGER DEFAULT 0;
+-- PART 1: Extend notifications table
+-- ============================================================================
 
--- Create notification delivery tracking table
+DO $$ 
+BEGIN
+  -- Add new columns to notifications table if they don't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'priority') THEN
+    ALTER TABLE notifications ADD COLUMN priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent'));
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'image_url') THEN
+    ALTER TABLE notifications ADD COLUMN image_url TEXT;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'attachment_url') THEN
+    ALTER TABLE notifications ADD COLUMN attachment_url TEXT;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'publish_date') THEN
+    ALTER TABLE notifications ADD COLUMN publish_date TIMESTAMPTZ DEFAULT NOW();
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'expiry_date') THEN
+    ALTER TABLE notifications ADD COLUMN expiry_date TIMESTAMPTZ;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'status') THEN
+    ALTER TABLE notifications ADD COLUMN status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published', 'expired'));
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'email_sent') THEN
+    ALTER TABLE notifications ADD COLUMN email_sent BOOLEAN DEFAULT FALSE;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'delivered_count') THEN
+    ALTER TABLE notifications ADD COLUMN delivered_count INTEGER DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'read_count') THEN
+    ALTER TABLE notifications ADD COLUMN read_count INTEGER DEFAULT 0;
+  END IF;
+END $$;
+
+-- PART 2: Create notification delivery tracking table
+-- ============================================================================
+
 CREATE TABLE IF NOT EXISTS notification_delivery (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
@@ -33,8 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_delivery_notif ON notification_delivery(not
 CREATE INDEX IF NOT EXISTS idx_notif_delivery_user ON notification_delivery(user_id);
 CREATE INDEX IF NOT EXISTS idx_notif_delivery_read ON notification_delivery(read_at) WHERE read_at IS NULL;
 
--- ============================================================================
--- ATTENDANCE MANAGEMENT SYSTEM
+-- PART 3: Attendance Management System
 -- ============================================================================
 
 -- Attendance sessions table
@@ -94,8 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_attendance_resp_user ON attendance_responses(user
 CREATE INDEX IF NOT EXISTS idx_attendance_resp_church ON attendance_responses(church_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_resp_response ON attendance_responses(response);
 
--- ============================================================================
--- RECOGNITION SYSTEM
+-- PART 4: Recognition System
 -- ============================================================================
 
 -- Recognition categories and awards
