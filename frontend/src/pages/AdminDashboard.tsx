@@ -5,7 +5,7 @@ import { get, CHURCH_NAME, DEFAULT_CHURCH_ID } from '@/lib/api';
 import {
   Church, LayoutDashboard, Users, Music2, Megaphone, Activity,
   Images, DollarSign, Bell, LogOut, Menu, X, Cake, BarChart2,
-  Settings, Send, UserCog, Mail, Presentation, Shield, FileText, Home,
+  Settings, Send, UserCog, Mail, Presentation, Shield, FileText, Home, BookOpen,
 } from 'lucide-react';
 import AdminOverview      from './admin/AdminOverview';
 import AdminMembers       from './admin/AdminMembers';
@@ -22,6 +22,7 @@ import AdminProfile       from './admin/AdminProfile';
 import AdminLeadership    from './admin/AdminLeadership';
 import AdminCMS           from './admin/AdminCMS';
 import AdminHomePage      from './admin/AdminHomePage';
+import AdminVerses        from './admin/AdminVerses';
 
 const NAV = [
   { to: '/admin',               label: 'Overview',         icon: LayoutDashboard, end: true },
@@ -31,6 +32,7 @@ const NAV = [
   { to: '/admin/activities',    label: 'Activities',       icon: Activity },
   { to: '/admin/gallery',       label: 'Gallery',          icon: Images },
   { to: '/admin/leadership',    label: 'Leadership',       icon: Shield },
+  { to: '/admin/verses',        label: 'Daily Verses',     icon: BookOpen },
   { to: '/admin/cms',           label: 'CMS Settings',     icon: FileText },
   { to: '/admin/donations',     label: 'Donations',        icon: DollarSign },
   { to: '/admin/hero-slider',   label: 'Hero Slider',      icon: Presentation },
@@ -141,6 +143,7 @@ const AdminDashboard: React.FC = () => {
             <Route path="activities" element={<AdminActivities />} />
             <Route path="gallery" element={<AdminGallery />} />
             <Route path="leadership" element={<AdminLeadership />} />
+            <Route path="verses" element={<AdminVerses />} />
             <Route path="cms" element={<AdminCMS />} />
             <Route path="donations" element={<AdminDonations />} />
             <Route path="hero-slider" element={<AdminHeroSlider />} />

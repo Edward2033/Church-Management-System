@@ -7,6 +7,7 @@ const path       = require('path');
 
 const pool               = require('./lib/db');
 const { registerBirthdayJob } = require('./jobs/birthday.job');
+const { startVerseGenerationJob } = require('./jobs/verse-generation.job');
 
 const authRouter       = require('./routes/auth');
 const membersRouter    = require('./routes/members');
@@ -166,6 +167,7 @@ async function boot() {
       console.log(`[SYSTEM] ✓ LUS4G Church Platform running on port ${PORT}`);
       console.log(`[SYSTEM] ✓ Health check: http://localhost:${PORT}/health`);
       registerBirthdayJob();
+      startVerseGenerationJob();
     });
   } catch (err) {
     console.error('[SYSTEM] ✗ Boot failed:', err.message);
