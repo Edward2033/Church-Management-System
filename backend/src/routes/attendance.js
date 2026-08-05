@@ -190,34 +190,30 @@ router.get('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let query = `
-      SELECT 
+      SELECT
         ats.*,
-        m.first_name as creator_first_name,
-        m.last_name as creator_last_name,
-        COUNT(DISTINCT ar.id) as response_count,
-        COUNT(DISTINCT CASE WHEN ar.response = 'attending' THEN ar.id END) as confirmed_count,
-        COUNT(DISTINCT CASE WHEN ar.response = 'not_attending' THEN ar.id END) as declined_count
+        (SELECT m.first_name FROM members m WHERE m.user_id = ats.created_by LIMIT 1) AS creator_first_name,
+        (SELECT m.last_name  FROM members m WHERE m.user_id = ats.created_by LIMIT 1) AS creator_last_name,
+        (SELECT COUNT(*)        FROM attendance_responses ar WHERE ar.session_id = ats.id)                                    AS response_count,
+        (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'attending')            AS confirmed_count,
+        (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'not_attending')        AS declined_count
       FROM attendance_sessions ats
-      LEFT JOIN users u ON ats.created_by = u.id
-      LEFT JOIN members m ON m.user_id = u.id
-      LEFT JOIN attendance_responses ar ON ats.id = ar.session_id
       WHERE ats.church_id = $1
     `;
-    
+
     const params = [req.churchId];
-    
+
     if (status) {
       query += ` AND ats.status = $${params.length + 1}`;
       params.push(status);
     }
-    
+
     if (type) {
       query += ` AND ats.attendance_type = $${params.length + 1}`;
       params.push(type);
     }
-    
-    query += ` GROUP BY ats.id, m.first_name, m.last_name
-               ORDER BY ats.event_date DESC, ats.created_at DESC
+
+    query += ` ORDER BY ats.event_date DESC, ats.created_at DESC
                LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(parseInt(limit), offset);
     

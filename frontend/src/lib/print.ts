@@ -7,6 +7,13 @@ function fmt(d?: string) {
 }
 
 export async function printMember(m: User) {
+  // Open window FIRST (synchronously) to avoid popup blockers
+  const w = window.open('', '_blank', 'width=850,height=1100');
+  if (!w) { alert('Please allow popups for this site to print ID cards.'); return; }
+
+  // Show loading state
+  w.document.write('<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#6B46C1"><p>Preparing ID card...</p></body></html>');
+
   // Fetch logo from CMS settings
   let logoHtml = '';
   try {
@@ -15,9 +22,6 @@ export async function printMember(m: User) {
     const logoUrl = d.settings?.site_logo_url;
     if (logoUrl) logoHtml = `<img src="${logoUrl}" style="height:60px;width:auto;object-fit:contain;margin-bottom:8px" alt="logo" />`;
   } catch { /* no logo */ }
-
-  const w = window.open('', '_blank', 'width=850,height=1100');
-  if (!w) return;
   const photo = m.profile_photo_url || 'https://placehold.co/200x200?text=No+Photo';
   const roleLabel = (m.role || 'member').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const choirRows = (m.role === 'choir_member' || m.role === 'choir') ? `
