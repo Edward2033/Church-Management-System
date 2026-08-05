@@ -128,46 +128,7 @@ CREATE INDEX IF NOT EXISTS idx_recognitions_user ON recognitions(user_id);
 CREATE INDEX IF NOT EXISTS idx_recognitions_published ON recognitions(is_published) WHERE is_published = TRUE;
 CREATE INDEX IF NOT EXISTS idx_recognitions_date ON recognitions(recognition_month DESC);
 
--- ============================================================================
--- ATTENDANCE STATISTICS VIEW
--- ============================================================================
-
--- Create view for attendance statistics
-CREATE OR REPLACE VIEW attendance_user_stats AS
-SELECT 
-  ar.user_id,
-  ar.church_id,
-  COUNT(*) as total_invitations,
-  COUNT(CASE WHEN ar.response = 'attending' THEN 1 END) as attended_count,
-  COUNT(CASE WHEN ar.response = 'not_attending' THEN 1 END) as declined_count,
-  COUNT(CASE WHEN ar.response = 'pending' THEN 1 END) as pending_count,
-  ROUND(
-    (COUNT(CASE WHEN ar.response = 'attending' THEN 1 END)::DECIMAL / 
-     NULLIF(COUNT(*), 0)) * 100, 
-    2
-  ) as attendance_percentage
-FROM attendance_responses ar
-GROUP BY ar.user_id, ar.church_id;
-
--- Create view for session statistics
-CREATE OR REPLACE VIEW attendance_session_stats AS
-SELECT 
-  ar.session_id,
-  ar.church_id,
-  COUNT(*) as total_invited,
-  COUNT(CASE WHEN ar.response = 'attending' THEN 1 END) as confirmed_count,
-  COUNT(CASE WHEN ar.response = 'not_attending' THEN 1 END) as declined_count,
-  COUNT(CASE WHEN ar.response = 'pending' THEN 1 END) as pending_count,
-  ROUND(
-    (COUNT(CASE WHEN ar.response = 'attending' THEN 1 END)::DECIMAL / 
-     NULLIF(COUNT(*), 0)) * 100, 
-    2
-  ) as attendance_percentage,
-  COUNT(CASE WHEN ar.response = 'attending' AND u.role = 'choir_member' THEN 1 END) as choir_confirmed,
-  COUNT(CASE WHEN u.role = 'choir_member' THEN 1 END) as choir_invited
-FROM attendance_responses ar
-JOIN users u ON ar.user_id = u.id
-GROUP BY ar.session_id, ar.church_id;
+-- Note: Views will be created after all tables exist to avoid dependency issues
 
 -- ============================================================================
 -- SEED DATA: Sample encouragement templates
@@ -232,6 +193,47 @@ GRANT ALL ON recognitions TO PUBLIC;
 GRANT ALL ON notification_delivery TO PUBLIC;
 GRANT SELECT ON attendance_user_stats TO PUBLIC;
 GRANT SELECT ON attendance_session_stats TO PUBLIC;
+
+-- ============================================================================
+-- ATTENDANCE STATISTICS VIEWS (Create after tables)
+-- ============================================================================
+
+-- Create view for attendance statistics
+CREATE OR REPLACE VIEW attendance_user_stats AS
+SELECT 
+  ar.user_id,
+  ar.church_id,
+  COUNT(*) as total_invitations,
+  COUNT(CASE WHEN ar.response = 'attending' THEN 1 END) as attended_count,
+  COUNT(CASE WHEN ar.response = 'not_attending' THEN 1 END) as declined_count,
+  COUNT(CASE WHEN ar.response = 'pending' THEN 1 END) as pending_count,
+  ROUND(
+    (COUNT(CASE WHEN ar.response = 'attending' THEN 1 END)::DECIMAL / 
+     NULLIF(COUNT(*), 0)) * 100, 
+    2
+  ) as attendance_percentage
+FROM attendance_responses ar
+GROUP BY ar.user_id, ar.church_id;
+
+-- Create view for session statistics
+CREATE OR REPLACE VIEW attendance_session_stats AS
+SELECT 
+  ar.session_id,
+  ar.church_id,
+  COUNT(*) as total_invited,
+  COUNT(CASE WHEN ar.response = 'attending' THEN 1 END) as confirmed_count,
+  COUNT(CASE WHEN ar.response = 'not_attending' THEN 1 END) as declined_count,
+  COUNT(CASE WHEN ar.response = 'pending' THEN 1 END) as pending_count,
+  ROUND(
+    (COUNT(CASE WHEN ar.response = 'attending' THEN 1 END)::DECIMAL / 
+     NULLIF(COUNT(*), 0)) * 100, 
+    2
+  ) as attendance_percentage,
+  COUNT(CASE WHEN ar.response = 'attending' AND u.role = 'choir_member' THEN 1 END) as choir_confirmed,
+  COUNT(CASE WHEN u.role = 'choir_member' THEN 1 END) as choir_invited
+FROM attendance_responses ar
+JOIN users u ON ar.user_id = u.id
+GROUP BY ar.session_id, ar.church_id;
 
 -- ============================================================================
 -- MIGRATION COMPLETE
