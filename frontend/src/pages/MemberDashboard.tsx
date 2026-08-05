@@ -3,8 +3,9 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printMember } from '@/lib/print';
-import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock } from 'lucide-react';
+import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home } from 'lucide-react';
 import { toast } from 'sonner';
+import DashboardHome from './DashboardHome';
 
 // ── Sub-pages ───────────────────────────────────────────────
 
@@ -426,7 +427,7 @@ const ChoirPortal: React.FC = () => {
   useEffect(() => {
     Promise.all([
       get<any>('/choir/rehearsals').then((r) => setRehearsals(r.rehearsals || [])).catch(() => {}),
-      get<any>('/choir/music').then((r) => setMusic((r.music || []).slice(0, 6))).catch(() => {}),
+      get<any>('/choir/music').then((r) => setMusic(r.music || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -492,7 +493,8 @@ const ChoirPortal: React.FC = () => {
 // ── Main Member Dashboard ───────────────────────────────────
 
 const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
-  { to: '/dashboard', label: 'Profile', icon: UserIcon, end: true },
+  { to: '/dashboard', label: 'Home', icon: Home, end: true },
+  { to: '/dashboard/profile', label: 'Profile', icon: UserIcon },
   { to: '/dashboard/directory', label: 'Directory', icon: Users },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { to: '/dashboard/donate', label: 'Give', icon: DollarSign },
@@ -570,7 +572,8 @@ const MemberDashboard: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto">
           <Routes>
-            <Route index element={<MemberProfile />} />
+            <Route index element={<DashboardHome />} />
+            <Route path="profile" element={<MemberProfile />} />
             <Route path="directory" element={<MemberDirectory />} />
             <Route path="notifications" element={<MemberNotifications />} />
             <Route path="donate" element={<MemberDonate />} />
