@@ -9,7 +9,8 @@ async function checkBirthdays() {
     // Get members with birthdays today
     const { rows } = await pool.query(
       `SELECT m.id, m.first_name, m.last_name, m.email, m.member_code, m.date_of_birth, m.profile_photo_url
-       FROM users m
+       FROM members m
+       INNER JOIN users u ON u.id = m.user_id
        WHERE m.church_id = $1
          AND m.approval_status = 'approved'
          AND m.deleted_at IS NULL
@@ -61,9 +62,10 @@ async function checkBirthdays() {
 
     // Deliver notification to all approved users
     const { rows: allUsers } = await pool.query(
-      `SELECT id, email, first_name, last_name
-       FROM users
-       WHERE church_id = $1 AND approval_status = 'approved'`,
+      `SELECT u.id, m.email, m.first_name, m.last_name
+       FROM members m
+       INNER JOIN users u ON u.id = m.user_id
+       WHERE m.church_id = $1 AND m.approval_status = 'approved' AND m.deleted_at IS NULL`,
       [churchId]
     );
 
