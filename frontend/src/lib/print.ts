@@ -6,9 +6,312 @@ function fmt(d?: string) {
   catch { return d; }
 }
 
+// ── MEMBER PROFILE PRINT ──────────────────────────────────────
+// Full profile sheet for records/archive
+export async function printMemberProfile(m: User) {
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { alert('Please allow popups for this site to print profiles.'); return; }
+
+  w.document.write('<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#6B46C1;font-size:16px"><p>⏳ Preparing profile…</p></body></html>');
+
+  // Fetch church logo
+  let logoUrl = '';
+  try {
+    const r = await fetch(`${API_BASE_URL}/cms/settings?group=branding`);
+    const d = await r.json();
+    logoUrl = d.settings?.site_logo_url || '';
+  } catch { /* no logo */ }
+
+  const photo = m.profile_photo_url || 'https://placehold.co/200x240?text=Photo';
+  const roleLabel = (m.role || 'member').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const isChoir = m.role === 'choir_member' || m.role === 'choir';
+  const fullName = `${m.first_name || ''} ${m.middle_name ? m.middle_name + ' ' : ''}${m.last_name || ''}`.trim();
+
+  w.document.open();
+  w.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Member Profile – ${fullName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f3f4f6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: linear-gradient(135deg, #5b21b6, #7c3aed);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .logo { width: 60px; height: 60px; margin: 0 auto 15px; border-radius: 10px; object-fit: contain; background: rgba(255,255,255,0.15); padding: 8px; }
+    .logo-placeholder { width: 60px; height: 60px; margin: 0 auto 15px; border-radius: 10px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .header h1 { font-size: 18px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .header .subtitle { font-size: 13px; opacity: 0.9; }
+    .profile-section {
+      padding: 30px;
+      display: flex;
+      gap: 30px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .profile-photo {
+      width: 160px;
+      height: 192px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 4px solid #e9d5ff;
+      flex-shrink: 0;
+    }
+    .profile-info { flex: 1; }
+    .profile-name { font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 5px; }
+    .profile-code { font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; color: #7c3aed; letter-spacing: 2px; margin-bottom: 12px; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-role { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; }
+    .badge-voice { background: #ede9fe; color: #5b21b6; }
+    .badge-status { background: #d1fae5; color: #065f46; }
+    .quick-info { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .quick-info-item { font-size: 12px; color: #6b7280; }
+    .quick-info-item strong { color: #374151; font-weight: 600; }
+    .details {
+      padding: 30px;
+    }
+    .section {
+      margin-bottom: 25px;
+    }
+    .section:last-child { margin-bottom: 0; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #7c3aed;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-bottom: 2px solid #e9d5ff;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px 20px;
+    }
+    .field-full {
+      grid-column: span 2;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 3px;
+    }
+    .field-value {
+      font-size: 13px;
+      color: #1f2937;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    .footer {
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      padding: 20px 30px;
+      text-align: center;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .footer strong { color: #374151; }
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      ${logoUrl
+        ? `<img class="logo" src="${logoUrl}" alt="logo" />`
+        : `<div class="logo-placeholder">✝</div>`}
+      <h1>${CHURCH_NAME}</h1>
+      <div class="subtitle">Member Profile Document</div>
+    </div>
+
+    <div class="profile-section">
+      <img class="profile-photo" src="${photo}" alt="Photo" />
+      <div class="profile-info">
+        <div class="profile-name">${fullName}</div>
+        <div class="profile-code">${m.member_code || 'PENDING'}</div>
+        <div class="badges">
+          <span class="badge badge-role">${roleLabel}</span>
+          ${isChoir && (m.voice_group || m.voice_type) ? `<span class="badge badge-voice">🎵 ${m.voice_group || m.voice_type}</span>` : ''}
+          <span class="badge badge-status">${(m.approval_status || 'Active').toUpperCase()}</span>
+        </div>
+        <div class="quick-info">
+          <div class="quick-info-item"><strong>Gender:</strong> ${m.gender || '—'}</div>
+          <div class="quick-info-item"><strong>DOB:</strong> ${fmt(m.date_of_birth)}</div>
+          <div class="quick-info-item"><strong>Phone:</strong> ${m.phone || '—'}</div>
+          <div class="quick-info-item"><strong>Email:</strong> ${m.email || '—'}</div>
+          <div class="quick-info-item"><strong>Date Joined:</strong> ${fmt(m.date_joined)}</div>
+          <div class="quick-info-item"><strong>Registered:</strong> ${fmt(m.created_at)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="details">
+      <div class="section">
+        <div class="section-title">Contact Information</div>
+        <div class="field-grid">
+          <div>
+            <div class="field-label">Phone Number</div>
+            <div class="field-value">${m.phone || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">WhatsApp Number</div>
+            <div class="field-value">${m.whatsapp_number || '—'}</div>
+          </div>
+          <div class="field-full">
+            <div class="field-label">Email Address</div>
+            <div class="field-value">${m.email || '—'}</div>
+          </div>
+          <div class="field-full">
+            <div class="field-label">Residential Address</div>
+            <div class="field-value">${m.address || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">City</div>
+            <div class="field-value">${m.city || '—'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Personal Details</div>
+        <div class="field-grid">
+          <div>
+            <div class="field-label">Gender</div>
+            <div class="field-value">${m.gender || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Date of Birth</div>
+            <div class="field-value">${fmt(m.date_of_birth)}</div>
+          </div>
+          <div>
+            <div class="field-label">Marital Status</div>
+            <div class="field-value">${m.marital_status || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Occupation</div>
+            <div class="field-value">${m.occupation || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Baptism Status</div>
+            <div class="field-value">${(m.baptism_status ?? (m as any).baptized) ? 'Yes' : 'No'}</div>
+          </div>
+          <div>
+            <div class="field-label">Baptism Date</div>
+            <div class="field-value">${fmt(m.baptism_date)}</div>
+          </div>
+          <div>
+            <div class="field-label">Department</div>
+            <div class="field-value">${m.department_name || m.department || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Membership Status</div>
+            <div class="field-value">${m.membership_status || '—'}</div>
+          </div>
+          ${m.bio ? `
+          <div class="field-full">
+            <div class="field-label">Biography</div>
+            <div class="field-value">${m.bio}</div>
+          </div>` : ''}
+        </div>
+      </div>
+
+      ${isChoir ? `
+      <div class="section">
+        <div class="section-title">Choir Information</div>
+        <div class="field-grid">
+          <div>
+            <div class="field-label">Voice Group</div>
+            <div class="field-value">${m.voice_group || m.voice_type || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Choir Role</div>
+            <div class="field-value">${m.choir_role || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Experience Level</div>
+            <div class="field-value">${m.experience_level || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Main Role</div>
+            <div class="field-value">${m.main_role || '—'}</div>
+          </div>
+          <div class="field-full">
+            <div class="field-label">Instruments</div>
+            <div class="field-value">${(m.instruments || []).join(', ') || '—'}</div>
+          </div>
+          <div class="field-full">
+            <div class="field-label">Choir Activities</div>
+            <div class="field-value">${(m.choir_activities || []).join(', ') || '—'}</div>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <div class="section">
+        <div class="section-title">Emergency Contact</div>
+        <div class="field-grid">
+          <div>
+            <div class="field-label">Name</div>
+            <div class="field-value">${m.emergency_name || (m as any).emergency_contact_name || '—'}</div>
+          </div>
+          <div>
+            <div class="field-label">Relationship</div>
+            <div class="field-value">${m.emergency_relation || '—'}</div>
+          </div>
+          <div class="field-full">
+            <div class="field-label">Phone Number</div>
+            <div class="field-value">${m.emergency_phone || (m as any).emergency_contact_phone || '—'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>${CHURCH_NAME}</strong><br/>
+      Member Profile Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
+      This document is confidential and intended for church administrative use only.
+    </div>
+  </div>
+
+  <script>window.onload = () => setTimeout(() => window.print(), 700);</script>
+</body>
+</html>`);
+  w.document.close();
+}
+
 // ── ID CARD PRINT ─────────────────────────────────────────────
 // Compact, professional ID card (front + back on one page)
-export async function printMember(m: User) {
+export async function printIDCard(m: User) {
   // Open popup FIRST (synchronously) to avoid browser popup blockers
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!w) { alert('Please allow popups for this site to print ID cards.'); return; }

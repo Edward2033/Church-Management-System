@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { get, del, post, patch, User, API_BASE_URL, MemberStats } from '@/lib/api';
-import { printMember, printMemberList, exportCSV } from '@/lib/print';
+import { printIDCard, printMemberProfile, printMemberList, exportCSV } from '@/lib/print';
 import { Search, Printer, FileSpreadsheet, Check, Ban, Trash2, Eye, Loader2, X, Music2, UserPlus, QrCode, Mail, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
@@ -393,7 +393,8 @@ const ProfileModal: React.FC<{
             {m.bio && <div className="pt-3"><p className="text-sm font-medium text-gray-500 mb-1">Bio</p><p className="text-sm text-gray-700">{m.bio}</p></div>}
           </div>
           <div className="flex flex-wrap gap-2 border-t bg-gray-50 px-6 py-4">
-            <button onClick={handlePrint} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print</button>
+            <button onClick={() => printMemberProfile(m)} className="btn-primary py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print Profile</button>
+            <button onClick={() => printIDCard(m)} className="btn-outline py-2 text-sm flex-1 justify-center"><Printer size={15} /> Print ID Card</button>
             <button onClick={() => onEdit(m)} className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">
               <Pencil size={15} /> Edit
             </button>
@@ -590,7 +591,7 @@ const AdminMembers: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         <button onClick={() => setSelected(m)} className="p-1.5 rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-700"><Eye size={15} /></button>
-                        <button onClick={() => printMember(m)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"><Printer size={15} /></button>
+                        <button onClick={() => printIDCard(m)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" title="Print ID Card"><Printer size={15} /></button>
                         {m.status === 'pending' || m.approval_status === 'pending' ? (
                           <>
                             <button onClick={() => approve(m.id)} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50"><Check size={15} /></button>

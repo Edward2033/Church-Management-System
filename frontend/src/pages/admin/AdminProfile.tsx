@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { User, Camera, Save, Loader2, Lock } from 'lucide-react';
+import { User, Camera, Save, Loader2, Lock, Printer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch, api } from '@/lib/api';
+import { printIDCard, printMemberProfile } from '@/lib/print';
 
 const AdminProfile: React.FC = () => {
   const { member, setMember } = useAuth();
@@ -172,7 +173,7 @@ const AdminProfile: React.FC = () => {
         {activeTab === 'profile' && (
           <form onSubmit={handleProfileSubmit} className="p-6 space-y-6">
             {/* Profile Photo */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="relative">
                 <img
                   src={photoPreview || 'https://placehold.co/100'}
@@ -189,16 +190,34 @@ const AdminProfile: React.FC = () => {
                   />
                 </label>
               </div>
-              <div>
+              <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-gray-900">Profile Photo</h3>
                 <p className="text-sm text-gray-600">Upload a new photo (max 5MB)</p>
               </div>
+              {member && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => printMemberProfile(member)}
+                    className="btn-outline py-2 px-4 text-sm"
+                  >
+                    <Printer size={14} /> Print Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => printIDCard(member)}
+                    className="btn-primary py-2 px-4 text-sm"
+                  >
+                    <Printer size={14} /> Print ID Card
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Personal Information */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Personal Information</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                   <input
@@ -267,7 +286,7 @@ const AdminProfile: React.FC = () => {
             {/* Contact Information */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Contact Information</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
@@ -319,7 +338,7 @@ const AdminProfile: React.FC = () => {
             {/* Emergency Contact */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Emergency Contact</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                   <input

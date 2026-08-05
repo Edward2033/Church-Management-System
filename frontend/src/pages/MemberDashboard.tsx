@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
-import { printMember } from '@/lib/print';
+import { printIDCard, printMemberProfile } from '@/lib/print';
 import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardHome from './DashboardHome';
@@ -141,7 +141,8 @@ const MemberProfile: React.FC = () => {
             </div>
             <div className="mt-4 flex gap-2">
               <button onClick={() => { setForm(member); setEditing(true); }} className="btn-outline py-2 text-sm"><Pencil size={14} /> Edit</button>
-              <button onClick={() => printMember(member)} className="btn-primary py-2 text-sm"><Printer size={14} /> Print Profile</button>
+              <button onClick={() => printMemberProfile(member)} className="btn-primary py-2 text-sm"><Printer size={14} /> Print Profile</button>
+              <button onClick={() => printIDCard(member)} className="btn-outline py-2 text-sm"><Printer size={14} /> Print ID Card</button>
             </div>
           </div>
         </div>
