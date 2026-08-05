@@ -142,34 +142,80 @@ router.get('/:id', authenticate, async (req, res) => {
 // PATCH /api/members/:id
 router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
   try {
-    if (req.body.voice_type      !== undefined && req.body.voice_group      === undefined) req.body.voice_group      = req.body.voice_type;
-    if (req.body.baptized        !== undefined && req.body.baptism_status   === undefined) req.body.baptism_status   = req.body.baptized === true || req.body.baptized === 'yes';
-    if (req.body.emergency_contact_name  !== undefined && req.body.emergency_name  === undefined) req.body.emergency_name  = req.body.emergency_contact_name;
+    // Normalize field names for compatibility
+    if (req.body.voice_type !== undefined && req.body.voice_group === undefined) req.body.voice_group = req.body.voice_type;
+    if (req.body.baptized !== undefined && req.body.baptism_status === undefined) req.body.baptism_status = req.body.baptized === true || req.body.baptized === 'yes';
+    if (req.body.emergency_contact_name !== undefined && req.body.emergency_name === undefined) req.body.emergency_name = req.body.emergency_contact_name;
     if (req.body.emergency_contact_phone !== undefined && req.body.emergency_phone === undefined) req.body.emergency_phone = req.body.emergency_contact_phone;
 
-    const allowed = ['first_name','middle_name','last_name','gender','date_of_birth',
-      'profile_photo_url','phone','whatsapp_number','address','city','occupation',
-      'marital_status','baptism_status','baptism_date','department_id',
-      'emergency_name','emergency_phone','emergency_relation','bio'];
-    const updates = []; const vals = []; let i = 1;
-    allowed.forEach((f) => {
-      if (req.body[f] !== undefined) { updates.push(`${f}=$${i++}`); vals.push(req.body[f]); }
+    // Fields that can be updated in members table
+    const memberFields = ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth',
+      'profile_photo_url', 'phone', 'whatsapp_number', 'address', 'city', 'occupation',
+      'marital_status', 'baptism_status', 'baptism_date', 'department_id',
+      'emergency_name', 'emergency_phone', 'emergency_relation', 'bio',
+      'voice_group', 'voice_type', 'main_role', 'experience_level'];
+    
+    const memberUpdates = [];
+    const memberVals = [];
+    let memberIndex = 1;
+    
+    memberFields.forEach((f) => {
+      if (req.body[f] !== undefined) {
+        memberUpdates.push(`${f}=$${memberIndex++}`);
+        memberVals.push(req.body[f]);
+      }
     });
-    if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
 
-    if (['admin','superadmin'].includes(req.user.role) && req.body.membership_status) {
-      updates.push(`membership_status=$${i++}`); vals.push(req.body.membership_status);
+    if (memberUpdates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
     }
 
-    vals.push(req.user.id);
-    vals.push(req.params.id);
-    const { rows } = await pool.query(
-      `UPDATE members SET ${updates.join(',')}, updated_by=$${i++}, updated_at=NOW()
-       WHERE id=$${i} RETURNING id, member_code, first_name, last_name, email, profile_photo_url`,
-      vals
+    // Admin can update membership status
+    if (['admin', 'superadmin'].includes(req.user.role) && req.body.membership_status) {
+      memberUpdates.push(`membership_status=$${memberIndex++}`);
+      memberVals.push(req.body.membership_status);
+    }
+
+    memberVals.push(req.user.id); // updated_by
+    memberVals.push(req.params.id); // member id
+
+    // Update members table
+    const { rows: [member] } = await pool.query(
+      `UPDATE members 
+       SET ${memberUpdates.join(',')}, updated_by=$${memberIndex++}, updated_at=NOW()
+       WHERE id=$${memberIndex}
+       RETURNING *`,
+      memberVals
     );
-    res.json({ member: rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Also update users table with basic info for consistency
+    const { rows: [user] } = await pool.query(
+      `UPDATE users 
+       SET first_name = $1, 
+           last_name = $2, 
+           phone = $3,
+           updated_at = NOW()
+       WHERE id = (SELECT user_id FROM members WHERE id = $4)
+       RETURNING id, email, role, church_id`,
+      [member.first_name, member.last_name, member.phone, member.id]
+    );
+
+    // Return complete member object
+    const response = {
+      ...member,
+      ...user,
+      member_id: member.id
+    };
+
+    res.json({ member: response });
+  } catch (err) {
+    console.error('[PATCH /members/:id]', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PATCH /api/members/:id/disable — admin toggle account active state
