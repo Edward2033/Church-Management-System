@@ -375,9 +375,10 @@ router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, a
     
     // Get all approved users
     const { rows: users } = await pool.query(
-      `SELECT id, email, first_name, last_name, role
-       FROM users
-       WHERE church_id = $1 AND approval_status = 'approved'`,
+      `SELECT u.id, m.email, m.first_name, m.last_name, u.role
+       FROM members m
+       INNER JOIN users u ON u.id = m.user_id
+       WHERE m.church_id = $1 AND m.approval_status = 'approved' AND m.deleted_at IS NULL`,
       [req.churchId]
     );
     
