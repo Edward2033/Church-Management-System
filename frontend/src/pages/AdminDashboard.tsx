@@ -5,7 +5,7 @@ import { get, CHURCH_NAME, DEFAULT_CHURCH_ID } from '@/lib/api';
 import {
   Church, LayoutDashboard, Users, Music2, Megaphone, Activity,
   Images, DollarSign, Bell, LogOut, Menu, X, Cake, BarChart2,
-  Settings, Send, UserCog, Mail, Presentation, Shield, FileText, Home, BookOpen,
+  Settings, Send, UserCog, Mail, Presentation, Shield, FileText, Home, BookOpen, Calendar, Award,
 } from 'lucide-react';
 import AdminOverview      from './admin/AdminOverview';
 import AdminMembers       from './admin/AdminMembers';
@@ -23,6 +23,8 @@ import AdminLeadership    from './admin/AdminLeadership';
 import AdminCMS           from './admin/AdminCMS';
 import AdminHomePage      from './admin/AdminHomePage';
 import AdminVerses        from './admin/AdminVerses';
+import AdminAttendance    from './admin/AdminAttendance';
+import AdminRecognition   from './admin/AdminRecognition';
 
 const NAV = [
   { to: '/admin',               label: 'Overview',         icon: LayoutDashboard, end: true },
@@ -30,6 +32,8 @@ const NAV = [
   { to: '/admin/choir',         label: 'Choir',            icon: Music2 },
   { to: '/admin/announcements', label: 'Announcements',    icon: Megaphone },
   { to: '/admin/activities',    label: 'Activities',       icon: Activity },
+  { to: '/admin/attendance',    label: 'Attendance',       icon: Calendar },
+  { to: '/admin/recognition',   label: 'Recognition',      icon: Award },
   { to: '/admin/gallery',       label: 'Gallery',          icon: Images },
   { to: '/admin/leadership',    label: 'Leadership',       icon: Shield },
   { to: '/admin/verses',        label: 'Daily Verses',     icon: BookOpen },
@@ -141,6 +145,8 @@ const AdminDashboard: React.FC = () => {
             <Route path="choir/*" element={<AdminChoir />} />
             <Route path="announcements" element={<AdminAnnouncements />} />
             <Route path="activities" element={<AdminActivities />} />
+            <Route path="attendance" element={<AdminAttendance />} />
+            <Route path="recognition" element={<AdminRecognition />} />
             <Route path="gallery" element={<AdminGallery />} />
             <Route path="leadership" element={<AdminLeadership />} />
             <Route path="verses" element={<AdminVerses />} />
