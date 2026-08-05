@@ -6,6 +6,8 @@ import { printMember } from '@/lib/print';
 import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardHome from './DashboardHome';
+import MemberNotifications from './MemberNotifications';
+import MemberAttendance from './MemberAttendance';
 
 // ── Sub-pages ───────────────────────────────────────────────
 
