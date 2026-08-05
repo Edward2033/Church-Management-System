@@ -152,8 +152,10 @@ router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
     const memberFields = ['first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth',
       'profile_photo_url', 'phone', 'whatsapp_number', 'address', 'city', 'occupation',
       'marital_status', 'baptism_status', 'baptism_date', 'department_id',
-      'emergency_name', 'emergency_phone', 'emergency_relation', 'bio',
-      'voice_group', 'voice_type', 'main_role', 'experience_level'];
+      'emergency_name', 'emergency_phone', 'emergency_relation', 'bio'];
+    
+    // Choir-specific fields go in choir_members table
+    const choirFields = ['voice_group', 'voice_type', 'main_role', 'experience_level'];
     
     const memberUpdates = [];
     const memberVals = [];
@@ -166,7 +168,7 @@ router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
       }
     });
 
-    if (memberUpdates.length === 0) {
+    if (memberUpdates.length === 0 && !choirFields.some(f => req.body[f] !== undefined)) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
@@ -179,39 +181,101 @@ router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
     memberVals.push(req.user.id); // updated_by
     memberVals.push(req.params.id); // member id
 
-    // Update members table
-    const { rows: [member] } = await pool.query(
-      `UPDATE members 
-       SET ${memberUpdates.join(',')}, updated_by=$${memberIndex++}, updated_at=NOW()
-       WHERE id=$${memberIndex}
-       RETURNING *`,
-      memberVals
-    );
-
-    if (!member) {
-      return res.status(404).json({ error: 'Member not found' });
+    let member;
+    
+    // Update members table if there are member fields
+    if (memberUpdates.length > 0) {
+      const { rows: [m] } = await pool.query(
+        `UPDATE members 
+         SET ${memberUpdates.join(',')}, updated_by=$${memberIndex++}, updated_at=NOW()
+         WHERE id=$${memberIndex}
+         RETURNING *`,
+        memberVals
+      );
+      member = m;
+      
+      if (!member) {
+        return res.status(404).json({ error: 'Member not found' });
+      }
+      
+      // Also update users table with basic info for consistency
+      await pool.query(
+        `UPDATE users 
+         SET first_name = $1, 
+             last_name = $2, 
+             phone = $3,
+             updated_at = NOW()
+         WHERE id = (SELECT user_id FROM members WHERE id = $4)`,
+        [member.first_name, member.last_name, member.phone, member.id]
+      );
+    } else {
+      // Just fetch the member
+      const { rows: [m] } = await pool.query(
+        `SELECT * FROM members WHERE id = $1`,
+        [req.params.id]
+      );
+      member = m;
+    }
+    
+    // Update choir_members table if there are choir fields
+    const choirUpdates = [];
+    const choirVals = [];
+    let choirIndex = 1;
+    
+    choirFields.forEach((f) => {
+      if (req.body[f] !== undefined) {
+        choirUpdates.push(`${f}=$${choirIndex++}`);
+        choirVals.push(req.body[f]);
+      }
+    });
+    
+    if (choirUpdates.length > 0) {
+      choirVals.push(req.params.id); // member_id
+      
+      // Check if choir_members record exists
+      const { rows: [existing] } = await pool.query(
+        `SELECT id FROM choir_members WHERE member_id = $1`,
+        [req.params.id]
+      );
+      
+      if (existing) {
+        // Update existing record
+        await pool.query(
+          `UPDATE choir_members 
+           SET ${choirUpdates.join(',')}, updated_at=NOW()
+           WHERE member_id=$${choirIndex}`,
+          choirVals
+        );
+      } else {
+        // Create new choir_members record if member is choir
+        const { rows: [usr] } = await pool.query(
+          `SELECT u.role, m.church_id FROM members m 
+           JOIN users u ON u.id = m.user_id 
+           WHERE m.id = $1`,
+          [req.params.id]
+        );
+        
+        if (usr && (usr.role === 'choir_member' || usr.role === 'choir')) {
+          const insertFields = ['member_id', 'church_id', ...choirFields.filter(f => req.body[f] !== undefined)];
+          const insertVals = [req.params.id, usr.church_id, ...choirFields.filter(f => req.body[f] !== undefined).map(f => req.body[f])];
+          const insertPlaceholders = insertVals.map((_, i) => `$${i + 1}`).join(',');
+          
+          await pool.query(
+            `INSERT INTO choir_members (${insertFields.join(',')})
+             VALUES (${insertPlaceholders})`,
+            insertVals
+          );
+        }
+      }
     }
 
-    // Also update users table with basic info for consistency
-    const { rows: [user] } = await pool.query(
-      `UPDATE users 
-       SET first_name = $1, 
-           last_name = $2, 
-           phone = $3,
-           updated_at = NOW()
-       WHERE id = (SELECT user_id FROM members WHERE id = $4)
-       RETURNING id, email, role, church_id`,
-      [member.first_name, member.last_name, member.phone, member.id]
+    // Fetch complete member object with joined data
+    const { rows: [completeMember] } = await pool.query(
+      `${MEMBER_SELECT} WHERE m.id = $1`,
+      [req.params.id]
     );
 
-    // Return complete member object
-    const response = {
-      ...member,
-      ...user,
-      member_id: member.id
-    };
-
-    res.json({ member: response });
+    res.json({ member: completeMember });
   } catch (err) {
     console.error('[PATCH /members/:id]', err);
     res.status(500).json({ error: err.message });
