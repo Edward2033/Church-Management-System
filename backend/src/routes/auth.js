@@ -382,31 +382,5 @@ router.post('/reject/:memberId', authenticate, requireAdmin, async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/auth/grant-account/:memberId — resend setup email to approved member
-router.post('/grant-account/:memberId', authenticate, requireAdmin, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { rows: [m] } = await client.query(
-      `SELECT m.*, u.email AS user_email, u.id AS user_id
-       FROM members m JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
-      [req.params.memberId]
-    );
-    if (!m) return res.status(404).json({ error: 'Member not found' });
-    const tok = uuidv4();
-    await client.query(
-      `INSERT INTO auth_tokens (user_id,token,type,expires_at) VALUES ($1,$2,'account_setup',NOW()+INTERVAL '7 days')`,
-      [m.user_id, tok]
-    );
-    const link = `${process.env.FRONTEND_URL}/setup-password?token=${tok}`;
-    await sendEmail({
-      to: m.user_email,
-      subject: 'Account Setup — LUS4G Church',
-      html: `<p>Hello ${m.first_name},</p><p>Click below to set up your account password:</p><p><a href="${link}" style="background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block">Set Password</a></p><p>Link expires in 7 days.</p>`
-    });
-    res.json({ message: 'Account setup email sent' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally { client.release(); }
-});
 
 module.exports = router;

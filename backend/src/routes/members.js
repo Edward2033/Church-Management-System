@@ -198,16 +198,7 @@ router.patch('/:id', authenticate, requireSelfOrAdmin, async (req, res) => {
         return res.status(404).json({ error: 'Member not found' });
       }
       
-      // Also update users table with basic info for consistency
-      await pool.query(
-        `UPDATE users 
-         SET first_name = $1, 
-             last_name = $2, 
-             phone = $3,
-             updated_at = NOW()
-         WHERE id = (SELECT user_id FROM members WHERE id = $4)`,
-        [member.first_name, member.last_name, member.phone, member.id]
-      );
+      // No first_name/last_name/phone columns on users table — skip
     } else {
       // Just fetch the member
       const { rows: [m] } = await pool.query(
@@ -296,19 +287,6 @@ router.patch('/:id/disable', authenticate, requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PATCH /api/members/:id/disable - Toggle member active status
-router.patch('/:id/disable', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { rows: [m] } = await pool.query(
-      `SELECT u.is_active, u.id as user_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
-      [req.params.id]
-    );
-    if (!m) return res.status(404).json({ error: 'Member not found' });
-    const newActive = !m.is_active;
-    await pool.query(`UPDATE users SET is_active = $1 WHERE id = $2`, [newActive, m.user_id]);
-    res.json({ message: newActive ? 'Member enabled' : 'Member disabled' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
 
 // DELETE /api/members/:id (soft delete)
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {

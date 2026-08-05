@@ -416,6 +416,7 @@ const ChoirPortal: React.FC = () => {
   const [rehearsals, setRehearsals] = useState<any[]>([]);
   const [music, setMusic] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSong, setSelectedSong] = useState<any | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -467,18 +468,54 @@ const ChoirPortal: React.FC = () => {
         <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><BookOpen size={18} className="text-purple-600" /> Music Library</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {music.map((s) => (
-            <div key={s.id} className="card p-4">
-              <div className="font-semibold text-gray-900 text-sm">{s.title}</div>
-              {s.artist && <div className="text-xs text-gray-500 mt-0.5">{s.artist}</div>}
-              <div className="flex gap-2 mt-2">
+            <div key={s.id} className="card p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedSong(s)}>
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
+                  <BookOpen size={16} className="text-purple-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900 text-sm truncate">{s.title}</div>
+                  {s.artist && <div className="text-xs text-gray-500 mt-0.5">{s.artist}</div>}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
                 {s.genre && <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 text-xs">{s.genre}</span>}
                 {s.key_note && <span className="rounded-full bg-indigo-50 text-indigo-600 px-2 py-0.5 text-xs">Key: {s.key_note}</span>}
+                {s.lyrics && <span className="rounded-full bg-green-50 text-green-600 px-2 py-0.5 text-xs">Lyrics</span>}
               </div>
             </div>
           ))}
           {music.length === 0 && <div className="card p-8 text-center text-gray-400 text-sm col-span-3">No songs in library yet</div>}
         </div>
       </div>
+
+      {/* Song Lyrics Modal */}
+      {selectedSong && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedSong(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 py-4 text-white relative">
+              <button onClick={() => setSelectedSong(null)} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
+              <h3 className="text-lg font-bold pr-8">{selectedSong.title}</h3>
+              {selectedSong.artist && <p className="text-sm text-purple-200 mt-0.5">{selectedSong.artist}</p>}
+            </div>
+            <div className="p-6">
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {selectedSong.genre && <span className="rounded-full bg-gray-100 text-gray-600 px-3 py-1 text-xs font-medium">{selectedSong.genre}</span>}
+                {selectedSong.key_note && <span className="rounded-full bg-indigo-50 text-indigo-600 px-3 py-1 text-xs font-medium">Key: {selectedSong.key_note}</span>}
+                {selectedSong.bpm && <span className="rounded-full bg-amber-50 text-amber-600 px-3 py-1 text-xs font-medium">{selectedSong.bpm} BPM</span>}
+              </div>
+              {selectedSong.lyrics ? (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Lyrics</h4>
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 rounded-xl p-4">{selectedSong.lyrics}</pre>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No lyrics available for this song</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -216,7 +216,7 @@ router.get('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
       params.push(type);
     }
     
-    query += ` GROUP BY ats.id, u.first_name, u.last_name
+    query += ` GROUP BY ats.id, m.first_name, m.last_name
                ORDER BY ats.event_date DESC, ats.created_at DESC
                LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(parseInt(limit), offset);
