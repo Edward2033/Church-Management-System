@@ -54,6 +54,7 @@ const AdminAttendance: React.FC = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [viewingDetails, setViewingDetails] = useState<SessionDetails | null>(null);
   const [stats, setStats] = useState<any>(null);
+  const [responseFilter, setResponseFilter] = useState<'all' | 'attending' | 'not_attending' | 'pending'>('all');
 
   const [form, setForm] = useState({
     title: '',
@@ -381,36 +382,112 @@ const AdminAttendance: React.FC = () => {
               </div>
 
               {/* Responses */}
-              <h3 className="font-bold text-gray-900 mb-3">Responses</h3>
+              <h3 className="font-bold text-gray-900 mb-3">Responses ({viewingDetails.responses.length})</h3>
+              
+              {/* Filter Tabs */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setResponseFilter('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    responseFilter === 'all'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All ({viewingDetails.responses.length})
+                </button>
+                <button
+                  onClick={() => setResponseFilter('attending')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    responseFilter === 'attending'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Attending ({viewingDetails.stats.confirmed_count})
+                </button>
+                <button
+                  onClick={() => setResponseFilter('not_attending')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    responseFilter === 'not_attending'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Declined ({viewingDetails.stats.declined_count})
+                </button>
+                <button
+                  onClick={() => setResponseFilter('pending')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    responseFilter === 'pending'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Pending ({viewingDetails.stats.pending_count})
+                </button>
+              </div>
+
               <div className="space-y-2">
-                {viewingDetails.responses.map((response: any) => (
-                  <div key={response.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={response.profile_photo_url || 'https://placehold.co/40'} 
-                        alt={response.first_name}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900">{response.first_name} {response.last_name}</div>
-                        <div className="text-xs text-gray-500 capitalize">{response.role.replace('_', ' ')}</div>
+                {viewingDetails.responses
+                  .filter((r: any) => responseFilter === 'all' || r.response === responseFilter)
+                  .map((response: any) => (
+                  <div key={response.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={response.profile_photo_url || 'https://placehold.co/40'} 
+                          alt={response.first_name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-medium text-gray-900">{response.first_name} {response.last_name}</div>
+                          <div className="text-xs text-gray-500 capitalize">{response.role.replace('_', ' ')}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {response.response === 'attending' ? (
+                          <span className="flex items-center gap-1 text-sm font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                            <CheckCircle size={14} /> Attending
+                          </span>
+                        ) : response.response === 'not_attending' ? (
+                          <span className="flex items-center gap-1 text-sm font-medium text-red-700 bg-red-100 px-3 py-1 rounded-full">
+                            <XCircle size={14} /> Declined
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                            <Clock size={14} /> Pending
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {response.response === 'attending' ? (
-                        <span className="flex items-center gap-1 text-sm font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full">
-                          <CheckCircle size={14} /> Attending
-                        </span>
-                      ) : response.response === 'not_attending' ? (
-                        <span className="flex items-center gap-1 text-sm font-medium text-red-700 bg-red-100 px-3 py-1 rounded-full">
-                          <XCircle size={14} /> Declined
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
-                          <Clock size={14} /> Pending
-                        </span>
-                      )}
-                    </div>
+                    
+                    {/* Show decline reason if applicable */}
+                    {response.response === 'not_attending' && response.reason && (
+                      <div className="mt-3 pt-3 border-t border-gray-300">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Reason for declining:</div>
+                        <div className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
+                          {response.reason}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Show comment if available */}
+                    {response.comment && (
+                      <div className="mt-3 pt-3 border-t border-gray-300">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Comment:</div>
+                        <div className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200">
+                          {response.comment}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Response timestamp */}
+                    {response.responded_at && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Responded: {new Date(response.responded_at).toLocaleString()}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

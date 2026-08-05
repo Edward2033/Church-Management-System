@@ -91,6 +91,46 @@ router.get('/my-stats', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/attendance/:sessionId/respond - Quick response from email link (no auth required)
+router.get('/:sessionId/respond', async (req, res) => {
+  try {
+    const { response, user } = req.query;
+    
+    if (!response || !user || !['attending', 'not_attending'].includes(response)) {
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=invalid_response`);
+    }
+    
+    // Verify session exists and is open
+    const { rows: [session] } = await pool.query(
+      'SELECT * FROM attendance_sessions WHERE id = $1 AND status = \'open\'',
+      [req.params.sessionId]
+    );
+    
+    if (!session) {
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=session_not_found`);
+    }
+    
+    // Update or insert response
+    await pool.query(
+      `INSERT INTO attendance_responses 
+        (session_id, user_id, church_id, response)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (session_id, user_id)
+       DO UPDATE SET 
+         response = EXCLUDED.response,
+         responded_at = NOW()`,
+      [req.params.sessionId, user, session.church_id, response]
+    );
+    
+    // Redirect to dashboard with success message
+    const message = response === 'attending' ? 'attendance_confirmed' : 'response_recorded';
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?success=${message}&session=${session.title}`);
+  } catch (err) {
+    console.error('[GET /attendance/:sessionId/respond]', err);
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard?error=response_failed`);
+  }
+});
+
 // POST /api/attendance/:sessionId/respond - Respond to attendance invitation
 router.post('/:sessionId/respond', authenticate, async (req, res) => {
   try {
@@ -344,9 +384,12 @@ router.delete('/admin/sessions/:id', authenticate, requireAdmin, async (req, res
 // POST /api/attendance/admin/sessions/:id/send-invitation - Send invitation (admin)
 router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, async (req, res) => {
   try {
-    // Get session
+    // Get session AND church details
     const { rows: [session] } = await pool.query(
-      'SELECT * FROM attendance_sessions WHERE id = $1 AND church_id = $2',
+      `SELECT ats.*, c.name as church_name, c.logo_url as church_logo
+       FROM attendance_sessions ats
+       INNER JOIN churches c ON ats.church_id = c.id
+       WHERE ats.id = $1 AND ats.church_id = $2`,
       [req.params.id, req.churchId]
     );
     
@@ -373,11 +416,19 @@ router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, a
       session.encouragement_message = encouragement;
     }
     
-    // Get all approved users
+    // Get all approved users with their choir details
     const { rows: users } = await pool.query(
-      `SELECT u.id, m.email, m.first_name, m.last_name, u.role
+      `SELECT 
+         u.id, 
+         m.email, 
+         m.first_name, 
+         m.last_name, 
+         u.role,
+         cm.choir_role,
+         cm.voice_group
        FROM members m
        INNER JOIN users u ON u.id = m.user_id
+       LEFT JOIN choir_members cm ON m.id = cm.member_id AND cm.is_active = TRUE
        WHERE m.church_id = $1 AND m.approval_status = 'approved' AND m.deleted_at IS NULL`,
       [req.churchId]
     );
@@ -398,12 +449,13 @@ router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, a
       try {
         await sendEmail({
           to: user.email,
-          subject: `📅 Attendance Invitation: ${session.title}`,
+          subject: `📅 ${session.church_name} Attendance Invitation: ${session.title}`,
           html: generateAttendanceInvitationEmail(session, user)
         });
         sentCount++;
+        console.log(`[Attendance] Invitation sent to ${user.first_name} ${user.last_name} (${user.email})`);
       } catch (emailErr) {
-        console.error(`Failed to send invitation to ${user.email}:`, emailErr.message);
+        console.error(`[Attendance] Failed to send invitation to ${user.email}:`, emailErr.message);
       }
     }
     
@@ -417,9 +469,12 @@ router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, a
       [session.id]
     );
     
+    console.log(`[Attendance] Invitation sent to ${sentCount}/${users.length} users for session: ${session.title}`);
+    
     res.json({ 
       message: `Invitation sent to ${sentCount} users`,
       sent_count: sentCount,
+      total_users: users.length,
       session
     });
   } catch (err) {
@@ -467,66 +522,156 @@ function generateAttendanceInvitationEmail(session, user) {
     day: 'numeric'
   });
   
+  // Build choir badge if user is choir member
+  const choirBadge = user.choir_role ? `
+    <div style="display: inline-block; background: linear-gradient(135deg, #ec4899, #f472b6); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-left: 10px;">
+      🎵 ${user.voice_group || 'Choir Member'}
+    </div>
+  ` : '';
+  
+  // Build church logo if available
+  const churchLogo = session.church_logo ? `
+    <img src="${session.church_logo}" alt="${session.church_name}" style="max-width: 80px; max-height: 80px; margin-bottom: 15px; border-radius: 8px;" />
+  ` : '';
+  
+  const baseUrl = process.env.FRONTEND_URL || 'https://lus4g-church-platform.vercel.app';
+  
   return `
     <!DOCTYPE html>
     <html>
     <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
-        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .verse { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; font-style: italic; }
-        .encouragement { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; }
-        .details { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .detail-row { margin: 10px 0; }
-        .label { font-weight: bold; color: #6b7280; }
-        .buttons { text-align: center; margin: 30px 0; }
-        .btn { display: inline-block; padding: 14px 28px; margin: 0 10px; text-decoration: none; border-radius: 6px; font-weight: bold; }
-        .btn-attend { background: #10b981; color: white; }
-        .btn-decline { background: #ef4444; color: white; }
-        .footer { background: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; }
+        .header { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 40px 30px; text-align: center; }
+        .content { padding: 40px 30px; background: #ffffff; }
+        .church-info { text-align: center; margin-bottom: 20px; }
+        .church-name { font-size: 20px; font-weight: bold; color: #7c3aed; margin: 10px 0; }
+        .greeting { font-size: 18px; color: #374151; margin-bottom: 20px; }
+        .verse { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }
+        .verse-text { margin: 0; font-size: 15px; line-height: 1.8; font-style: italic; color: #78350f; }
+        .verse-ref { margin: 10px 0 0 0; text-align: right; font-weight: bold; color: #f59e0b; font-size: 14px; }
+        .encouragement { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 4px; }
+        .encouragement-title { margin: 0 0 10px 0; font-size: 15px; font-weight: bold; color: #1e40af; }
+        .encouragement-text { margin: 0; color: #1e3a8a; line-height: 1.7; }
+        .details { background: #f9fafb; padding: 25px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb; }
+        .details-title { margin: 0 0 20px 0; color: #7c3aed; font-size: 18px; font-weight: bold; }
+        .detail-row { margin: 12px 0; font-size: 15px; color: #4b5563; }
+        .detail-label { font-weight: 600; color: #1f2937; display: inline-block; min-width: 80px; }
+        .buttons { text-align: center; margin: 40px 0; }
+        .btn { display: inline-block; padding: 16px 32px; margin: 8px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; transition: transform 0.2s; }
+        .btn-attend { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .btn-attend:hover { transform: translateY(-2px); }
+        .btn-decline { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+        .btn-decline:hover { transform: translateY(-2px); }
+        .dashboard-link { text-align: center; margin: 30px 0; padding: 20px; background: #f3f4f6; border-radius: 8px; }
+        .footer { background: #1f2937; color: #9ca3af; padding: 30px; text-align: center; font-size: 13px; line-height: 1.8; }
+        .footer-church { color: #d1d5db; font-weight: 600; font-size: 14px; margin-bottom: 10px; }
+        @media only screen and (max-width: 600px) {
+          .content { padding: 30px 20px; }
+          .btn { display: block; margin: 10px 0; }
+          .detail-label { display: block; margin-bottom: 5px; }
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1 style="margin: 0; font-size: 28px;">📅 You're Invited!</h1>
-          <p style="margin: 10px 0 0 0; font-size: 18px;">${session.title}</p>
+          ${churchLogo}
+          <h1 style="margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">📅 You're Invited!</h1>
+          <p style="margin: 15px 0 0 0; font-size: 20px; opacity: 0.95;">${session.title}</p>
         </div>
+        
         <div class="content">
-          <p>Hello <strong>${user.first_name}</strong>,</p>
+          <div class="church-info">
+            <div class="church-name">${session.church_name}</div>
+          </div>
           
-          <p>You are invited to join us for <strong>${session.title}</strong>. We would love to have you with us!</p>
+          <div class="greeting">
+            Hello <strong>${user.first_name} ${user.last_name}</strong>${choirBadge}
+          </div>
+          
+          <p style="font-size: 16px; color: #4b5563; line-height: 1.7;">
+            You are warmly invited to join us for <strong style="color: #7c3aed;">${session.title}</strong>. 
+            Your presence will be a blessing as we gather together in fellowship and worship.
+          </p>
           
           <div class="verse">
-            <p style="margin: 0; font-size: 16px; line-height: 1.8;">${session.invitation_verse}</p>
-            <p style="margin: 10px 0 0 0; text-align: right; font-weight: bold; color: #f59e0b;">— ${session.invitation_verse_reference}</p>
+            <p class="verse-text">"${session.invitation_verse}"</p>
+            <p class="verse-ref">— ${session.invitation_verse_reference}</p>
           </div>
           
           <div class="encouragement">
-            <p style="margin: 0; font-size: 15px;">💡 <strong>Encouragement:</strong></p>
-            <p style="margin: 10px 0 0 0;">${session.encouragement_message}</p>
+            <p class="encouragement-title">💡 A Word of Encouragement</p>
+            <p class="encouragement-text">${session.encouragement_message}</p>
           </div>
           
           <div class="details">
-            <h3 style="margin: 0 0 15px 0; color: #7c3aed;">Event Details</h3>
-            <div class="detail-row"><span class="label">📅 Date:</span> ${eventDate}</div>
-            ${session.start_time ? `<div class="detail-row"><span class="label">🕐 Time:</span> ${session.start_time}${session.end_time ? ' - ' + session.end_time : ''}</div>` : ''}
-            ${session.venue ? `<div class="detail-row"><span class="label">📍 Venue:</span> ${session.venue}</div>` : ''}
-            ${session.description ? `<div class="detail-row" style="margin-top: 15px;"><span class="label">Details:</span><br/>${session.description}</div>` : ''}
+            <h3 class="details-title">📋 Event Details</h3>
+            <div class="detail-row">
+              <span class="detail-label">📅 Date:</span>
+              <span>${eventDate}</span>
+            </div>
+            ${session.start_time ? `
+            <div class="detail-row">
+              <span class="detail-label">🕐 Time:</span>
+              <span>${session.start_time}${session.end_time ? ' - ' + session.end_time : ''}</span>
+            </div>
+            ` : ''}
+            ${session.venue ? `
+            <div class="detail-row">
+              <span class="detail-label">📍 Venue:</span>
+              <span>${session.venue}</span>
+            </div>
+            ` : ''}
+            <div class="detail-row">
+              <span class="detail-label">📂 Type:</span>
+              <span style="text-transform: capitalize;">${session.attendance_type.replace(/_/g, ' ')}</span>
+            </div>
+            ${session.description ? `
+            <div class="detail-row" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <span class="detail-label" style="display: block; margin-bottom: 10px;">Details:</span>
+              <p style="margin: 0; color: #6b7280; line-height: 1.7;">${session.description}</p>
+            </div>
+            ` : ''}
           </div>
+          
+          <p style="text-align: center; font-size: 16px; font-weight: 600; color: #7c3aed; margin: 30px 0 20px 0;">
+            Please confirm your attendance:
+          </p>
           
           <div class="buttons">
-            <a href="${process.env.FRONTEND_URL}/dashboard/attendance/${session.id}/respond?response=attending" class="btn btn-attend">✓ I Will Attend</a>
-            <a href="${process.env.FRONTEND_URL}/dashboard/attendance/${session.id}/respond?response=not_attending" class="btn btn-decline">✗ I Cannot Attend</a>
+            <a href="${baseUrl}/api/attendance/${session.id}/respond?response=attending&user=${user.id}" class="btn btn-attend">
+              ✅ Yes, I Will Attend
+            </a>
+            <a href="${baseUrl}/api/attendance/${session.id}/respond?response=not_attending&user=${user.id}" class="btn btn-decline">
+              ❌ Sorry, I Cannot Attend
+            </a>
           </div>
           
-          <p style="text-align: center; color: #6b7280; font-size: 14px;">Or respond directly from your <a href="${process.env.FRONTEND_URL}/dashboard" style="color: #7c3aed;">Dashboard</a></p>
+          <div class="dashboard-link">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
+              You can also respond and manage your attendance from your dashboard:
+            </p>
+            <a href="${baseUrl}/dashboard" style="color: #7c3aed; font-weight: 600; text-decoration: none; font-size: 15px;">
+              🏠 Go to Dashboard →
+            </a>
+          </div>
         </div>
+        
         <div class="footer">
-          <p>This is an automated attendance invitation from LUS4G Church Management System.</p>
-          <p>Please respond at your earliest convenience.</p>
+          <div class="footer-church">${session.church_name}</div>
+          <p style="margin: 5px 0;">
+            This is an automated attendance invitation from ${session.church_name} Management System.
+          </p>
+          <p style="margin: 5px 0;">
+            Please respond at your earliest convenience. Your participation matters!
+          </p>
+          <p style="margin: 15px 0 5px 0; font-size: 12px; color: #6b7280;">
+            © ${new Date().getFullYear()} ${session.church_name}. All rights reserved.
+          </p>
         </div>
       </div>
     </body>
