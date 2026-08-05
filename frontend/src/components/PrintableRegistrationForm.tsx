@@ -1,227 +1,275 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { User, get, DEFAULT_CHURCH_ID } from '@/lib/api';
+import { User, get, DEFAULT_CHURCH_ID, CHURCH_NAME } from '@/lib/api';
 
 interface Props { member: User; verificationUrl: string; }
-
 interface Leader { id: string; name: string; title: string; }
 
-const InfoField: React.FC<{ label: string; value?: string | null; className?: string }> = ({ label, value, className = '' }) => {
-  if (!value) return null;
-  return (
-    <div className={className}>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-sm text-gray-900 font-medium">{value}</p>
+const Field: React.FC<{ label: string; value?: string | null; wide?: boolean }> = ({ label, value, wide }) => (
+  <div className={wide ? 'col-span-2' : ''} style={{ marginBottom: '12px' }}>
+    <div style={{ fontSize: '9px', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
+      {label}
     </div>
-  );
-};
+    <div style={{ fontSize: '12px', color: '#1f2937', fontWeight: 500, borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', minHeight: '20px' }}>
+      {value || '—'}
+    </div>
+  </div>
+);
 
-const PrintableRegistrationForm = forwardRef<HTMLDivElement, Props>(({ member, verificationUrl }, ref) => {
-  const [pastor,       setPastor]       = useState<Leader | null>(null);
+const SectionTitle: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = '#5b21b6' }) => (
+  <div style={{
+    fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px',
+    color: '#fff', background: color, padding: '6px 14px', borderRadius: '4px',
+    marginBottom: '14px', marginTop: '20px',
+  }}>
+    {children}
+  </div>
+);
+
+const PrintableRegistrationForm = forwardRef<HTMLDivElement, Props>(({ member: m, verificationUrl }, ref) => {
+  const [pastor,        setPastor]        = useState<Leader | null>(null);
   const [choirDirector, setChoirDirector] = useState<Leader | null>(null);
-  const [logo, setLogo] = useState<string | null>(null);
-  const isChoir = member.role === 'choir_member' || member.role === 'choir';
+  const [logo,          setLogo]          = useState<string | null>(null);
+  const isChoir = m.role === 'choir_member' || m.role === 'choir';
 
   useEffect(() => {
-    const API = import.meta.env.VITE_API_URL || '/api';
-    
-    // Fetch logo
     get<{ settings: Record<string, string> }>(`/cms/settings?church_id=${DEFAULT_CHURCH_ID}&group=branding`)
-      .then((data) => {
-        if (data.settings.site_logo_url) setLogo(data.settings.site_logo_url);
-      })
+      .then((d) => { if (d.settings?.site_logo_url) setLogo(d.settings.site_logo_url); })
       .catch(() => {});
-    
-    // Fetch leadership
+
+    const API = import.meta.env.VITE_API_URL || '/api';
     fetch(`${API}/leadership`)
       .then((r) => r.json())
       .then(({ leadership = [] }: { leadership: Leader[] }) => {
-        const p = leadership.find((l) =>
-          /pastor|overseer|bishop/i.test(l.title)
-        );
-        const cd = leadership.find((l) =>
-          /choir\s*director|music\s*director/i.test(l.title)
-        );
-        if (p)  setPastor(p);
-        if (cd) setChoirDirector(cd);
+        setPastor(leadership.find((l) => /pastor|overseer|bishop/i.test(l.title)) || null);
+        setChoirDirector(leadership.find((l) => /choir\s*director|music\s*director/i.test(l.title)) || null);
       })
       .catch(() => {});
   }, []);
 
+  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+  const baptized = (m.baptism_status ?? (m as any).baptized);
+
   return (
-    <div ref={ref} className="bg-white p-12 max-w-4xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <div ref={ref} style={{ fontFamily: 'Arial, sans-serif', background: '#fff', color: '#1f2937', maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b-4 border-purple-700">
-        <div className="flex items-center gap-4">
-          {logo ? (
-            <img src={logo} alt="Church Logo" className="h-20 w-auto object-contain max-w-[200px]" />
-          ) : (
-            <img src="/church-logo.png" alt="Church Logo" className="h-20 w-20 object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          )}
+      {/* ── HEADER ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '4px solid #7c3aed', paddingBottom: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {logo
+            ? <img src={logo} alt="logo" style={{ height: '72px', width: 'auto', objectFit: 'contain', maxWidth: '160px' }} />
+            : <img src="/church-logo.png" alt="logo" style={{ height: '72px', width: '72px', objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          }
           <div>
-            <h1 className="text-3xl font-bold text-purple-900">LUS4G Church</h1>
-            <p className="text-gray-600">{isChoir ? 'Choir Member Registration Form' : 'Member Registration Form'}</p>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: '#5b21b6', lineHeight: 1.2 }}>{CHURCH_NAME}</div>
+            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+              {isChoir ? 'Choir Member Registration Form' : 'Member Registration Form'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>Official Church Document — Confidential</div>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Registration Date</p>
-          <p className="font-semibold">{new Date(member.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          {member.approved_at && (
-            <>
-              <p className="text-sm text-gray-500 mt-1">Approved Date</p>
-              <p className="font-semibold">{new Date(member.approved_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-            </>
-          )}
+        <div style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280' }}>
+          <div style={{ marginBottom: '4px' }}><strong>Form No:</strong> {m.member_code || 'PENDING'}</div>
+          <div style={{ marginBottom: '4px' }}><strong>Registered:</strong> {fmt(m.created_at)}</div>
+          {m.approved_at && <div style={{ marginBottom: '4px' }}><strong>Approved:</strong> {fmt(m.approved_at)}</div>}
+          <div>
+            <span style={{
+              display: 'inline-block', padding: '3px 10px', borderRadius: '999px', fontSize: '10px', fontWeight: 700,
+              background: m.approval_status === 'approved' ? '#dcfce7' : m.approval_status === 'pending' ? '#fef3c7' : '#fee2e2',
+              color: m.approval_status === 'approved' ? '#166534' : m.approval_status === 'pending' ? '#92400e' : '#991b1b',
+              textTransform: 'uppercase', letterSpacing: '0.5px',
+            }}>
+              {m.approval_status || 'Pending'}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Photo + Basic Info */}
-      <div className="flex gap-6 mb-8">
-        <div className="flex-shrink-0">
-          <img src={member.profile_photo_url || 'https://placehold.co/200x250?text=No+Photo'}
-            alt={`${member.first_name} ${member.last_name}`}
-            className="w-40 h-48 object-cover border-4 border-gray-300 rounded-lg" />
-        </div>
-        <div className="flex-1">
-          <div className="bg-purple-50 p-4 rounded-lg mb-4">
-            <h2 className="text-2xl font-bold text-purple-900 mb-1">
-              {member.first_name} {member.middle_name ? member.middle_name + ' ' : ''}{member.last_name}
-            </h2>
-            <div className="flex gap-3 mt-2 flex-wrap">
-              <span className="bg-purple-700 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                {member.member_code || 'Pending ID'}
-              </span>
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-semibold capitalize">
-                {member.role?.replace('_', ' ')}
-              </span>
-              <span className={`px-3 py-1 rounded-full text-sm font-semibold capitalize ${
-                member.approval_status === 'approved' ? 'bg-green-600 text-white' :
-                member.approval_status === 'pending'  ? 'bg-amber-500 text-white' : 'bg-red-600 text-white'
-              }`}>
-                {member.approval_status || member.status}
-              </span>
+      {/* ── PHOTO + IDENTITY ── */}
+      <div style={{ display: 'flex', gap: '24px', marginBottom: '8px' }}>
+        <div style={{ flexShrink: 0 }}>
+          <img
+            src={m.profile_photo_url || 'https://placehold.co/160x200?text=No+Photo'}
+            alt="Profile"
+            style={{ width: '150px', height: '185px', objectFit: 'cover', borderRadius: '10px', border: '3px solid #e9d5ff' }}
+          />
+          <div style={{ textAlign: 'center', marginTop: '8px' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#7c3aed', letterSpacing: '1px' }}>
+              {m.member_code || 'PENDING'}
+            </div>
+            <div style={{
+              display: 'inline-block', marginTop: '4px', background: '#7c3aed', color: '#fff',
+              fontSize: '9px', fontWeight: 700, padding: '2px 10px', borderRadius: '999px',
+              textTransform: 'uppercase', letterSpacing: '1px',
+            }}>
+              {(m.role || 'member').replace(/_/g, ' ')}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoField label="Gender"        value={member.gender} />
-            <InfoField label="Date of Birth" value={member.date_of_birth
-              ? new Date(member.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-              : undefined} />
-            <InfoField label="Phone"  value={member.phone} />
-            <InfoField label="Email"  value={member.email} />
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <SectionTitle>Personal Information</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+            <Field label="First Name"    value={m.first_name} />
+            <Field label="Middle Name"   value={m.middle_name} />
+            <Field label="Last Name"     value={m.last_name} />
+            <Field label="Gender"        value={m.gender} />
+            <Field label="Date of Birth" value={fmt(m.date_of_birth)} />
+            <Field label="Marital Status" value={m.marital_status} />
+            <Field label="Occupation"    value={m.occupation} />
+            <Field label="Baptized"      value={baptized === true ? 'Yes' : baptized === false ? 'No' : '—'} />
           </div>
         </div>
       </div>
 
-      {/* Contact & Personal */}
-      <div className="mb-8">
-        <h3 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b-2 border-purple-300">Contact & Personal Information</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <InfoField label="Address"        value={member.address} />
-          <InfoField label="City / Region"  value={member.city} />
-          <InfoField label="WhatsApp"       value={member.whatsapp_number} />
-          <InfoField label="Occupation"     value={member.occupation} />
-          <InfoField label="Marital Status" value={member.marital_status} />
-          <InfoField label="Baptized"       value={(member.baptism_status ?? member.baptized) === true ? 'Yes' : (member.baptism_status ?? member.baptized) === false ? 'No' : undefined} />
-          {member.department_name && <InfoField label="Department" value={member.department_name} />}
-        </div>
+      {/* ── CONTACT INFORMATION ── */}
+      <SectionTitle>Contact Information</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+        <Field label="Email Address"  value={m.email} />
+        <Field label="Phone Number"   value={m.phone} />
+        <Field label="WhatsApp Number" value={m.whatsapp_number} />
+        <Field label="City / Region"  value={m.city} />
+        <Field label="Home Address"   value={m.address} wide />
       </div>
 
-      {/* Emergency Contact */}
-      {(member.emergency_name || member.emergency_contact_name) && (
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b-2 border-purple-300">Emergency Contact</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <InfoField label="Name"         value={member.emergency_name || member.emergency_contact_name} />
-            <InfoField label="Phone"        value={member.emergency_phone || member.emergency_contact_phone} />
-            <InfoField label="Relationship" value={member.emergency_relation} />
-          </div>
-        </div>
-      )}
+      {/* ── CHURCH MEMBERSHIP ── */}
+      <SectionTitle>Church Membership</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+        <Field label="Membership Status" value={m.membership_status} />
+        <Field label="Department"        value={m.department_name || m.department} />
+        <Field label="Date Joined"       value={fmt(m.date_joined)} />
+        <Field label="Baptism Date"      value={fmt((m as any).baptism_date)} />
+      </div>
 
-      {/* Choir Information */}
+      {/* ── CHOIR INFORMATION (choir only) ── */}
       {isChoir && (
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b-2 border-indigo-300">Choir Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoField label="Voice Group"      value={member.voice_group || member.voice_type} />
-            <InfoField label="Choir Role"       value={member.choir_role} />
-            <InfoField label="Main Role"        value={member.main_role} />
-            <InfoField label="Experience Level" value={member.experience_level} />
-            <InfoField label="Instruments"      value={(member.instruments || []).join(', ') || undefined} />
-            <InfoField label="Choir Activities" value={(member.choir_activities || []).join(', ') || undefined} />
+        <>
+          <SectionTitle color="#4f46e5">Choir Information</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+            <Field label="Voice Group"      value={m.voice_group || m.voice_type} />
+            <Field label="Choir Role"       value={m.choir_role} />
+            <Field label="Main Role"        value={m.main_role} />
+            <Field label="Experience Level" value={m.experience_level} />
+            <Field label="Instruments"      value={(m.instruments || []).join(', ') || undefined} />
+            <Field label="Choir Activities" value={(m.choir_activities || []).join(', ') || undefined} />
           </div>
-        </div>
+        </>
       )}
 
-      {/* Bio */}
-      {member.bio && (
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b-2 border-purple-300">Biography</h3>
-          <p className="text-gray-700 leading-relaxed text-sm">{member.bio}</p>
-        </div>
+      {/* ── EMERGENCY CONTACT ── */}
+      <SectionTitle color="#dc2626">Emergency Contact</SectionTitle>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 20px' }}>
+        <Field label="Contact Name"     value={m.emergency_name || (m as any).emergency_contact_name} />
+        <Field label="Contact Phone"    value={m.emergency_phone || (m as any).emergency_contact_phone} />
+        <Field label="Relationship"     value={m.emergency_relation} />
+      </div>
+
+      {/* ── BIO ── */}
+      {m.bio && (
+        <>
+          <SectionTitle>Biography / Additional Information</SectionTitle>
+          <div style={{ fontSize: '12px', color: '#374151', lineHeight: 1.7, borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
+            {m.bio}
+          </div>
+        </>
       )}
 
-      {/* QR Code + Account Status */}
-      <div className="flex justify-between items-start mb-12">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Verification QR Code</h3>
-          <p className="text-sm text-gray-600 mb-4">Scan to verify member information online</p>
-          <div className="border-4 border-purple-200 p-4 inline-block rounded-lg bg-white">
-            <QRCodeSVG value={verificationUrl} size={140} level="H" includeMargin={true} />
+      {/* ── QR CODE + ACCOUNT STATUS ── */}
+      <div style={{ display: 'flex', gap: '24px', marginTop: '24px', marginBottom: '24px', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+            Verification QR Code
           </div>
-          <p className="text-xs text-gray-500 mt-2 max-w-xs break-words">{verificationUrl}</p>
+          <div style={{ border: '3px solid #e9d5ff', borderRadius: '10px', padding: '10px', display: 'inline-block', background: '#fff' }}>
+            <QRCodeSVG value={verificationUrl} size={110} level="H" includeMargin />
+          </div>
+          <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '6px', maxWidth: '140px', wordBreak: 'break-all' }}>
+            {verificationUrl}
+          </div>
         </div>
-        <div className="flex-1 text-right">
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 inline-block text-left">
-            <h4 className="font-semibold text-gray-700 mb-2">Account Status</h4>
-            <div className="space-y-1 text-sm">
-              <p><span className="font-medium">Status:</span> <span className="capitalize">{member.approval_status}</span></p>
-              <p><span className="font-medium">Approved:</span> {member.approved_at ? new Date(member.approved_at).toLocaleDateString() : 'Pending'}</p>
-              <p><span className="font-medium">Last Login:</span> {member.last_login ? new Date(member.last_login).toLocaleDateString() : 'Never'}</p>
-              <p><span className="font-medium">Registered:</span> {new Date(member.created_at).toLocaleDateString()}</p>
-            </div>
+
+        <div style={{ flex: 1, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+            Account & Membership Record
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
+            {[
+              ['Member Code',       m.member_code || 'Pending'],
+              ['Role',              (m.role || '').replace(/_/g, ' ')],
+              ['Approval Status',   m.approval_status || 'Pending'],
+              ['Password Set',      (m as any).password_set ? 'Yes' : 'No'],
+              ['Account Active',    (m as any).is_active !== false ? 'Yes' : 'No'],
+              ['Last Login',        m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never'],
+              ['Registered',        fmt(m.created_at)],
+              ['Approved',          m.approved_at ? fmt(m.approved_at) : 'Pending'],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{k}</div>
+                <div style={{ fontWeight: 600, color: '#1f2937', textTransform: 'capitalize' }}>{v}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Signatures */}
-      <div className="border-t-2 border-gray-300 pt-8">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Approval Signatures</h3>
-        <div className={`grid gap-8 mb-8 ${isChoir ? 'grid-cols-2' : 'grid-cols-2'}`}>
+      {/* ── SIGNATURES ── */}
+      <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '24px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px' }}>
+          Official Approval Signatures
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isChoir ? '1fr 1fr 1fr' : '1fr 1fr', gap: '24px' }}>
 
-          {/* Pastor Signature */}
+          {/* Member signature */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-1">Pastor / Overseer Approval</p>
-            {pastor && <p className="text-xs text-gray-500 mb-3">{pastor.name} — {pastor.title}</p>}
-            <div className="border-b-2 border-gray-400 mb-2" style={{ height: '60px' }} />
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>{pastor ? pastor.name : 'Pastor / Overseer'}</span>
-              <span>Date: _______________</span>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>Member Signature</div>
+            <div style={{ height: '50px', borderBottom: '2px solid #374151' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '10px', color: '#6b7280' }}>
+              <span>{m.first_name} {m.last_name}</span>
+              <span>Date: ___________</span>
             </div>
           </div>
 
-          {/* Choir Director Signature */}
+          {/* Pastor signature */}
+          <div>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>
+              Pastor / Overseer Approval
+            </div>
+            {pastor && (
+              <div style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '4px' }}>{pastor.name} — {pastor.title}</div>
+            )}
+            <div style={{ height: '50px', borderBottom: '2px solid #374151' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '10px', color: '#6b7280' }}>
+              <span>{pastor ? pastor.name : 'Pastor / Overseer'}</span>
+              <span>Date: ___________</span>
+            </div>
+          </div>
+
+          {/* Choir Director signature (choir only) */}
           {isChoir && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">Choir Director Approval</p>
-              {choirDirector && <p className="text-xs text-gray-500 mb-3">{choirDirector.name} — {choirDirector.title}</p>}
-              <div className="border-b-2 border-gray-400 mb-2" style={{ height: '60px' }} />
-              <div className="flex justify-between text-sm text-gray-600">
+              <div style={{ fontSize: '10px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>
+                Choir Director Approval
+              </div>
+              {choirDirector && (
+                <div style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '4px' }}>{choirDirector.name} — {choirDirector.title}</div>
+              )}
+              <div style={{ height: '50px', borderBottom: '2px solid #374151' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '10px', color: '#6b7280' }}>
                 <span>{choirDirector ? choirDirector.name : 'Choir Director'}</span>
-                <span>Date: _______________</span>
+                <span>Date: ___________</span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="text-center mt-10 text-sm text-gray-500 border-t pt-4">
-          <p>This is an official registration document of LUS4G Church</p>
-          <p>Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+        {/* Footer */}
+        <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '10px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '12px' }}>
+          <strong style={{ color: '#6b7280' }}>{CHURCH_NAME}</strong> — Official Registration Document<br />
+          This document is confidential and the property of {CHURCH_NAME}.<br />
+          Generated on {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
+
     </div>
   );
 });
