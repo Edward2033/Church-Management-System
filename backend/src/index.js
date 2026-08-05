@@ -25,6 +25,9 @@ const profileRouter    = require('./routes/profile');
 const contactRouter    = require('./routes/contact');
 const verifyRouter     = require('./routes/verify');
 const versesRouter     = require('./routes/verses');
+const notificationsRouter = require('./routes/notifications');
+const attendanceRouter = require('./routes/attendance');
+const recognitionRouter = require('./routes/recognition');
 
 const app = express();
 
@@ -92,14 +95,17 @@ app.use('/api/profile',     profileRouter);
 app.use('/api/contact',     contactRouter);
 app.use('/api/verify',      verifyRouter);
 app.use('/api/verses',      versesRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/attendance',  attendanceRouter);
+app.use('/api/recognition', recognitionRouter);
 app.use('/api',             contentRouter);  // catch-all content routes last
 
 // Health check
 app.get('/health', (_, res) => res.json({
   status: 'ok',
   app: 'LUS4G Church Management Platform',
-  version: '1.3.0',
-  routes: ['auth','members','choir','finance','cms','reports','leadership','broadcasts','permissions','subadmin','hero','profile','contact','verify','verses'],
+  version: '1.4.0',
+  routes: ['auth','members','choir','finance','cms','reports','leadership','broadcasts','permissions','subadmin','hero','profile','contact','verify','verses','notifications','attendance','recognition'],
   timestamp: new Date().toISOString(),
 }));
 
