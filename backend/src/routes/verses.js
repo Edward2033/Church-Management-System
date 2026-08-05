@@ -220,7 +220,7 @@ router.get('/prayer/all', authenticate, requireAdmin, async (req, res) => {
       total: parseInt(count.total),
       page: parseInt(page),
       limit: parseInt(limit)
-    );
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
