@@ -104,7 +104,7 @@ app.use('/api',             contentRouter);  // catch-all content routes last
 app.get('/health', (_, res) => res.json({
   status: 'ok',
   app: 'LUS4G Church Management Platform',
-  version: '1.4.0',
+  version: '1.5.0',
   routes: ['auth','members','choir','finance','cms','reports','leadership','broadcasts','permissions','subadmin','hero','profile','contact','verify','verses','notifications','attendance','recognition'],
   timestamp: new Date().toISOString(),
 }));
