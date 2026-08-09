@@ -28,7 +28,7 @@ INSERT INTO cms_settings (church_id, key, value, type, group_name) VALUES
   ('00000000-0000-0000-0000-000000000001', 'about_intro_title',     'Our Journey of Faith',                                         'text', 'about'),
   ('00000000-0000-0000-0000-000000000001', 'about_intro_p1',        'For over 38 years, LUS4G Church has been a beacon of hope and love in our community. Founded on the principles of faith, service, and fellowship, we have grown from a small gathering into a vibrant family of believers.', 'text', 'about'),
   ('00000000-0000-0000-0000-000000000001', 'about_intro_p2',        'Our mission is to spread the Gospel of Jesus Christ through worship, discipleship, and community outreach. We believe in creating an atmosphere where everyone can encounter God''s presence and experience His transforming love.', 'text', 'about'),
-  ('00000000-0000-0000-0000-000000000001', 'about_intro_p3',        'Whether you''re seeking spiritual guidance, looking for a church family, or wanting to serve in ministry, LUS4G Church welcomes you with open arms.', 'text', 'about'),
+  ('00000000-0000-0000-0000-000000000001', 'about_intro_p3',        'Whether you are seeking spiritual guidance, looking for a church family, or wanting to serve in ministry, LUS4G Church welcomes you with open arms.', 'text', 'about'),
   ('00000000-0000-0000-0000-000000000001', 'about_stat1_value',     '38+',                                                          'text', 'about'),
   ('00000000-0000-0000-0000-000000000001', 'about_stat1_label',     'Years of Ministry',                                            'text', 'about'),
   ('00000000-0000-0000-0000-000000000001', 'about_stat2_value',     '2K+',                                                          'text', 'about'),
@@ -76,7 +76,7 @@ INSERT INTO cms_settings (church_id, key, value, type, group_name) VALUES
   ('00000000-0000-0000-0000-000000000001', 'contact_midweek1_label',       'Wednesday Service',                                           'text',    'contact'),
   ('00000000-0000-0000-0000-000000000001', 'contact_midweek1_time',        '6:00 PM',                                                     'text',    'contact'),
   ('00000000-0000-0000-0000-000000000001', 'contact_form_enabled',         'true',                                                        'boolean', 'contact'),
-  ('00000000-0000-0000-0000-000000000001', 'contact_success_message',      'Thank you! We''ll get back to you within 24 hours.',          'text',    'contact')
+  ('00000000-0000-0000-0000-000000000001', 'contact_success_message',      'Thank you! We will get back to you within 24 hours.',          'text',    'contact')
 ON CONFLICT (church_id, key) DO NOTHING;
 
 -- Seed default Footer settings (only if not exists)
