@@ -110,17 +110,23 @@ router.get('/stats', authenticate, requireAdmin, async (req, res) => {
 });
 
 // GET /api/members/birthdays
+// Returns ALL approved members with a birthday this month, ordered by day.
+// The frontend splits them into today vs rest-of-month for display.
 router.get('/birthdays', async (req, res) => {
   try {
     const churchId = req.query.church_id || process.env.DEFAULT_CHURCH_ID;
     const { rows } = await pool.query(`
       SELECT m.id, m.first_name, m.last_name, m.member_code, m.profile_photo_url,
-             m.date_of_birth, u.role
-      FROM members m LEFT JOIN users u ON u.id=m.user_id
-      WHERE m.church_id=$1 AND m.approval_status='approved' AND m.deleted_at IS NULL
-        AND EXTRACT(MONTH FROM m.date_of_birth)=EXTRACT(MONTH FROM CURRENT_DATE)
-        AND EXTRACT(DAY   FROM m.date_of_birth)=EXTRACT(DAY   FROM CURRENT_DATE)
-      ORDER BY m.first_name`,
+             -- Return date as plain YYYY-MM-DD text to avoid UTC timezone shift
+             TO_CHAR(m.date_of_birth, 'YYYY-MM-DD') AS date_of_birth,
+             u.role
+      FROM members m LEFT JOIN users u ON u.id = m.user_id
+      WHERE m.church_id = $1
+        AND m.approval_status = 'approved'
+        AND m.deleted_at IS NULL
+        AND m.date_of_birth IS NOT NULL
+        AND EXTRACT(MONTH FROM m.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)
+      ORDER BY EXTRACT(DAY FROM m.date_of_birth)`,
       [churchId]
     );
     res.json({ birthdays: rows });

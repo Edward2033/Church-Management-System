@@ -9,6 +9,20 @@ import DashboardHome from './DashboardHome';
 import MemberNotifications from './MemberNotifications';
 import MemberAttendance from './MemberAttendance';
 
+// ── Safe date formatter: prevents UTC-to-local timezone shift ──
+// PostgreSQL DATE columns come as '2001-12-25T00:00:00.000Z' (UTC midnight).
+// new Date(str) parses that as UTC, then toLocaleDateString shifts it back
+// one day in timezones behind UTC. Fix: parse the YYYY-MM-DD part directly.
+function fmtDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  // Take only the date part (YYYY-MM-DD) and split it
+  const part = dateStr.slice(0, 10); // '2001-12-25'
+  const [year, month, day] = part.split('-').map(Number);
+  if (!year || !month || !day) return dateStr;
+  const d = new Date(year, month - 1, day); // local midnight — no UTC shift
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 // ── Sub-pages ───────────────────────────────────────────────
 
 const MemberProfile: React.FC = () => {
@@ -197,7 +211,7 @@ const MemberProfile: React.FC = () => {
         <h3 className="font-bold text-gray-800 mb-4">Member Information</h3>
         <div className="grid gap-y-3">
           {[
-            ['Gender', m.gender], ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+            ['Gender', m.gender], ['Date of Birth', fmtDate(m.date_of_birth)],
             ['Email', m.email], ['Phone', m.phone], ['WhatsApp', m.whatsapp_number], ['Address', m.address],
             (m.role === 'choir_member' || m.role === 'choir') ? ['Voice Group', m.voice_group || m.voice_type] : null,
             (m.role === 'choir_member' || m.role === 'choir') ? ['Main Role', m.main_role] : null,
@@ -924,12 +938,32 @@ const LEADER_NAV: { to: string; label: string; icon: any }[] = [{ to: '/dashboar
 const MemberDashboard: React.FC = () => {
   const { member, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [birthdays, setBirthdays] = useState<{ first_name: string }[]>([]);
+  const [todayBirthdays, setTodayBirthdays] = useState<{ first_name: string; last_name: string }[]>([]);
+  const [monthBirthdays, setMonthBirthdays] = useState<{ first_name: string; last_name: string; date_of_birth: string }[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    get<{ birthdays: { first_name: string }[] }>('/members/birthdays').then((r) => setBirthdays(r.birthdays || [])).catch(() => {});
+    // Today's birthdays
+    get<{ birthdays: { first_name: string; last_name: string; date_of_birth: string }[] }>('/members/birthdays')
+      .then((r) => {
+        const all = r.birthdays || [];
+        const today = new Date();
+        const todayMonth = today.getMonth() + 1;
+        const todayDay = today.getDate();
+        // Split into today vs rest-of-month
+        const todayList = all.filter((b) => {
+          const [, m, d] = (b.date_of_birth || '').slice(0, 10).split('-').map(Number);
+          return m === todayMonth && d === todayDay;
+        });
+        const monthList = all.filter((b) => {
+          const [, m, d] = (b.date_of_birth || '').slice(0, 10).split('-').map(Number);
+          return !(m === todayMonth && d === todayDay);
+        });
+        setTodayBirthdays(todayList);
+        setMonthBirthdays(monthList);
+      })
+      .catch(() => {});
   }, []);
 
   const handleLogout = () => { logout(); navigate('/'); };
@@ -990,14 +1024,21 @@ const MemberDashboard: React.FC = () => {
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"><Menu size={22} /></button>
-          {birthdays.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5 hidden sm:flex">
-              <Cake size={15} /> 🎂 {birthdays.map((b) => b.first_name).join(', ')}'s birthday today!
-            </div>
-          )}
-          <div className="flex items-center gap-3 ml-auto">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0"><Menu size={22} /></button>
+          <div className="flex-1 flex flex-wrap gap-2">
+            {todayBirthdays.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                <Cake size={15} /> 🎂 <strong>{todayBirthdays.map((b) => b.first_name).join(', ')}</strong>'s birthday is today! Wish them well 🎉
+              </div>
+            )}
+            {monthBirthdays.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
+                <Cake size={15} /> 🗓️ This month: <strong>{monthBirthdays.map((b) => `${b.first_name} (${fmtDate(b.date_of_birth).split(',')[0]})`).join(', ')}</strong>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-sm text-gray-600 hidden sm:block">Welcome, <strong>{member?.first_name}</strong></span>
             <img src={member?.profile_photo_url || 'https://placehold.co/40'} className="h-9 w-9 rounded-full object-cover" alt="" />
           </div>
