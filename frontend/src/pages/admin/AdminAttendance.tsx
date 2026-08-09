@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, put, del } from '@/lib/api';
-import { Calendar, Plus, Edit, Trash2, Send, Eye, Loader2, Save, X, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Send, Eye, Loader2, Save, X, Users, CheckCircle, XCircle, Clock, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface AttendanceSession {
   id: string;
@@ -174,6 +175,77 @@ const AdminAttendance: React.FC = () => {
       description: '',
       status: 'draft'
     });
+  };
+
+  const exportToExcel = () => {
+    if (!viewingDetails) return;
+
+    const session = viewingDetails.session;
+    const responses = viewingDetails.responses;
+
+    // Prepare data for Excel
+    const excelData = responses.map((r: any) => ({
+      'Member Code': r.member_code || 'N/A',
+      'First Name': r.first_name,
+      'Last Name': r.last_name,
+      'Email': r.email || 'N/A',
+      'Phone': r.phone || 'N/A',
+      'Role': r.role.replace('_', ' ').toUpperCase(),
+      'Status': r.response === 'attending' ? 'PRESENT' : r.response === 'not_attending' ? 'ABSENT' : 'PENDING',
+      'Reason for Absence': r.response === 'not_attending' ? (r.reason || 'No reason provided') : '',
+      'Comment': r.comment || '',
+      'Responded At': r.responded_at ? new Date(r.responded_at).toLocaleString() : 'Not responded'
+    }));
+
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+
+    // Add summary sheet
+    const summaryData = [
+      ['Session Title:', session.title],
+      ['Attendance Type:', ATTENDANCE_TYPES.find(t => t.value === session.attendance_type)?.label || session.attendance_type],
+      ['Event Date:', new Date(session.event_date).toLocaleDateString()],
+      ['Start Time:', session.start_time || 'N/A'],
+      ['End Time:', session.end_time || 'N/A'],
+      ['Venue:', session.venue || 'N/A'],
+      ['Status:', session.status.toUpperCase()],
+      [],
+      ['STATISTICS'],
+      ['Total Responses:', viewingDetails.stats.total_responses],
+      ['Present:', viewingDetails.stats.confirmed_count],
+      ['Absent:', viewingDetails.stats.declined_count],
+      ['Pending:', viewingDetails.stats.pending_count],
+      ['Attendance Rate:', `${viewingDetails.stats.attendance_percentage || 0}%`],
+    ];
+
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+    // Add attendance data sheet
+    const attendanceWs = XLSX.utils.json_to_sheet(excelData);
+    
+    // Set column widths
+    attendanceWs['!cols'] = [
+      { wch: 15 }, // Member Code
+      { wch: 15 }, // First Name
+      { wch: 15 }, // Last Name
+      { wch: 25 }, // Email
+      { wch: 15 }, // Phone
+      { wch: 15 }, // Role
+      { wch: 10 }, // Status
+      { wch: 40 }, // Reason
+      { wch: 40 }, // Comment
+      { wch: 20 }  // Responded At
+    ];
+
+    XLSX.utils.book_append_sheet(wb, attendanceWs, 'Attendance');
+
+    // Generate filename with date
+    const filename = `Attendance_${session.title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Export file
+    XLSX.writeFile(wb, filename);
+    toast.success('Excel file downloaded successfully!');
   };
 
   const handleCancel = () => {
@@ -354,9 +426,19 @@ const AdminAttendance: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{viewingDetails.session.title}</h2>
-                <button onClick={() => setViewingDetails(null)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    title="Export to Excel"
+                  >
+                    <FileSpreadsheet size={18} />
+                    Export Excel
+                  </button>
+                  <button onClick={() => setViewingDetails(null)} className="text-gray-400 hover:text-gray-600">
+                    <X size={24} />
+                  </button>
+                </div>
               </div>
             </div>
             
