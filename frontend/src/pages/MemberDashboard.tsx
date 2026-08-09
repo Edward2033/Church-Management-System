@@ -12,7 +12,7 @@ import MemberAttendance from './MemberAttendance';
 // ── Sub-pages ───────────────────────────────────────────────
 
 const MemberProfile: React.FC = () => {
-  const { member, setMember } = useAuth();
+  const { member, setMember, refresh } = useAuth();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<User>>(member || {});
   const [saving, setSaving] = useState(false);
@@ -20,6 +20,32 @@ const MemberProfile: React.FC = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  // Debug: Log member data on mount and when it changes
+  useEffect(() => {
+    console.log('MemberProfile member data:', member);
+    console.log('Member fields check:', {
+      hasFirstName: !!member?.first_name,
+      hasMiddleName: !!member?.middle_name,
+      hasLastName: !!member?.last_name,
+      hasPhone: !!member?.phone,
+      hasEmail: !!member?.email,
+      hasAddress: !!member?.address,
+      hasGender: !!member?.gender,
+      hasOccupation: !!member?.occupation,
+      hasMaritalStatus: !!member?.marital_status,
+      hasDOB: !!member?.date_of_birth,
+      hasEmergencyName: !!member?.emergency_name,
+    });
+  }, [member]);
+
+  // Ensure we have full profile data on mount
+  useEffect(() => {
+    if (member && !member.middle_name && !member.occupation) {
+      console.log('Member data seems incomplete, refreshing from API...');
+      refresh();
+    }
+  }, []);
 
   if (!member) return null;
   const upd = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
