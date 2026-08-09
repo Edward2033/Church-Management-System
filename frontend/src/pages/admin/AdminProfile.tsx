@@ -6,6 +6,16 @@ import { apiFetch, api } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
 import { printIDCard, printMemberProfile } from '@/lib/print';
 
+// ── Safe date formatter: prevents UTC-to-local timezone shift ──
+function fmtDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const part = dateStr.slice(0, 10); // '2001-12-25'
+  const [year, month, day] = part.split('-').map(Number);
+  if (!year || !month || !day) return dateStr;
+  const d = new Date(year, month - 1, day); // local midnight — no UTC shift
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 const AdminProfile: React.FC = () => {
   const { member, setMember } = useAuth();
   const [loading, setLoading] = useState(false);

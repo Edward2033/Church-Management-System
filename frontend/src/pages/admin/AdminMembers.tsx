@@ -6,6 +6,16 @@ import { toast } from 'sonner';
 import { useReactToPrint } from 'react-to-print';
 import PrintableRegistrationForm from '@/components/PrintableRegistrationForm';
 
+// ── Safe date formatter: prevents UTC-to-local timezone shift ──
+function fmtDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const part = dateStr.slice(0, 10); // '2001-12-25'
+  const [year, month, day] = part.split('-').map(Number);
+  if (!year || !month || !day) return dateStr;
+  const d = new Date(year, month - 1, day); // local midnight — no UTC shift
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 const STATUS_COLOR: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
   pending: 'bg-amber-100 text-amber-700',
@@ -364,7 +374,7 @@ const ProfileModal: React.FC<{
               ['Phone', m.phone],
               ['WhatsApp', m.whatsapp_number],
               ['Gender', m.gender],
-              ['Date of Birth', m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined],
+              ['Date of Birth', fmtDate(m.date_of_birth)],
               ['Address', m.address],
               ['City', m.city],
               ['Occupation', m.occupation],

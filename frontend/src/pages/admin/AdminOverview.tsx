@@ -3,6 +3,16 @@ import { get, post, Member } from '@/lib/api';
 import { Users, Music2, Clock, Cake, Loader2, TrendingUp, Eye, Ban, Check, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+// ── Safe date formatter: prevents UTC-to-local timezone shift ──
+function fmtDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const part = dateStr.slice(0, 10); // '2001-12-25'
+  const [year, month, day] = part.split('-').map(Number);
+  if (!year || !month || !day) return dateStr;
+  const d = new Date(year, month - 1, day); // local midnight — no UTC shift
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 interface Stats { total: number; choir: number; pending: number; birthdaysToday: number;
   totalMembers?: number; choirMembers?: number; totalAll?: number; totalUsers?: number; }
 
@@ -32,7 +42,7 @@ const AdminOverview: React.FC = () => {
       const [s, m, b] = await Promise.all([
         get<Stats>('/members/stats'),
         get<{ members: Member[] }>('/members?approval_status=pending'),
-        get<{ birthdays: { first_name: string; last_name: string; member_code: string; profile_photo_url?: string }[] }>('/members/birthdays'),
+        get<{ birthdays: { first_name: string; last_name: string; member_code: string; profile_photo_url?: string; date_of_birth?: string }[] }>('/members/birthdays'),
       ]);
       setStats({
         total:          s.total          ?? s.totalMembers  ?? 0,
@@ -43,7 +53,17 @@ const AdminOverview: React.FC = () => {
         totalUsers:     s.totalUsers     ?? 0,
       });
       setPending(m.members || []);
-      setBirthdays(b.birthdays || []);
+      
+      // Filter to show ONLY today's birthdays (not all birthdays this month)
+      const today = new Date();
+      const todayMonth = today.getMonth() + 1;
+      const todayDay = today.getDate();
+      const todayBirthdays = (b.birthdays || []).filter((member) => {
+        if (!member.date_of_birth) return false;
+        const [, month, day] = member.date_of_birth.slice(0, 10).split('-').map(Number);
+        return month === todayMonth && day === todayDay;
+      });
+      setBirthdays(todayBirthdays);
     } catch (err: any) {
       console.error('Overview load error:', err.message);
     } finally { setLoading(false); }
@@ -224,7 +244,7 @@ const AdminOverview: React.FC = () => {
                 ['Email', selectedMember.email],
                 ['Phone', selectedMember.phone],
                 ['Gender', selectedMember.gender],
-                ['Date of Birth', selectedMember.date_of_birth ? new Date(selectedMember.date_of_birth).toLocaleDateString() : undefined],
+                ['Date of Birth', fmtDate(selectedMember.date_of_birth)],
                 ['Address', selectedMember.address],
                 ['Registered', new Date(selectedMember.created_at).toLocaleDateString()],
               ].filter(([, v]) => v).map(([k, v]) => (

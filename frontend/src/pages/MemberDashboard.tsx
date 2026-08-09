@@ -1029,12 +1029,16 @@ const MemberDashboard: React.FC = () => {
           <div className="flex-1 flex flex-wrap gap-2">
             {todayBirthdays.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
-                <Cake size={15} /> 🎂 <strong>{todayBirthdays.map((b) => b.first_name).join(', ')}</strong>'s birthday is today! Wish them well 🎉
+                <Cake size={15} /> 🎂 <strong>{todayBirthdays.map((b) => `${b.first_name} ${b.last_name}`).join(', ')}</strong> {todayBirthdays.length === 1 ? 'has a' : 'have'} birthday today! Wish them well 🎉
               </div>
             )}
             {monthBirthdays.length > 0 && (
               <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
-                <Cake size={15} /> 🗓️ This month: <strong>{monthBirthdays.map((b) => `${b.first_name} (${fmtDate(b.date_of_birth).split(',')[0]})`).join(', ')}</strong>
+                <Cake size={15} /> 🗓️ Upcoming birthdays this month: <strong>{monthBirthdays.map((b) => {
+                  const [, month, day] = (b.date_of_birth || '').slice(0, 10).split('-');
+                  const monthName = new Date(2000, parseInt(month) - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+                  return `${b.first_name} ${b.last_name} (${monthName} ${parseInt(day)})`;
+                }).join(', ')}</strong>
               </div>
             )}
           </div>
