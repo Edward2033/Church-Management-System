@@ -260,7 +260,7 @@ const AdminProfile: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                   <input
                     type="date"
-                    value={profileData.dateOfBirth}
+                    value={(profileData.dateOfBirth || '').slice(0, 10)}
                     onChange={(e) => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   />

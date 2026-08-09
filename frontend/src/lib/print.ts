@@ -22,6 +22,10 @@ export async function printMemberProfile(m: User) {
     logoUrl = d.settings?.site_logo_url || '';
   } catch { /* no logo */ }
 
+  // Generate QR code URL for verification
+  const verificationUrl = `${window.location.origin}/verify/${m.member_code || 'pending'}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verificationUrl)}`;
+
   const photo = m.profile_photo_url || 'https://placehold.co/200x240?text=Photo';
   const roleLabel = (m.role || 'member').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const isChoir = m.role === 'choir_member' || m.role === 'choir';
@@ -297,9 +301,17 @@ export async function printMemberProfile(m: User) {
     </div>
 
     <div class="footer">
-      <strong>${CHURCH_NAME}</strong><br/>
-      Member Profile Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
-      This document is confidential and intended for church administrative use only.
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+        <div style="flex: 1; text-align: left;">
+          <strong>${CHURCH_NAME}</strong><br/>
+          Member Profile Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}<br/>
+          This document is confidential and intended for church administrative use only.
+        </div>
+        <div style="text-align: center;">
+          <img src="${qrCodeUrl}" alt="Verification QR" style="width: 100px; height: 100px; border: 2px solid #e9d5ff; border-radius: 8px;" />
+          <div style="font-size: 9px; color: #9ca3af; margin-top: 4px;">Scan to Verify</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -325,6 +337,10 @@ export async function printIDCard(m: User) {
     const d = await r.json();
     logoUrl = d.settings?.site_logo_url || '';
   } catch { /* no logo */ }
+
+  // Generate QR code URL for verification
+  const verificationUrl = `${window.location.origin}/verify/${m.member_code || 'pending'}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`;
 
   const photo    = m.profile_photo_url || 'https://placehold.co/160x180?text=Photo';
   const roleLabel = (m.role || 'member').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -747,10 +763,20 @@ export async function printIDCard(m: User) {
       </div>
 
       <div class="back-footer">
-        <div class="back-footer-text">
-          <strong>${CHURCH_NAME}</strong><br/>
-          This card is the property of ${CHURCH_NAME}.<br/>
-          If found, please return to the church office.<br/>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="flex: 1;">
+            <div class="back-footer-text">
+              <strong>${CHURCH_NAME}</strong><br/>
+              This card is the property of ${CHURCH_NAME}.<br/>
+              If found, please return to the church office.
+            </div>
+          </div>
+          <div style="text-align: center;">
+            <img src="${qrCodeUrl}" alt="Verify" style="width: 80px; height: 80px; border: 2px solid #e9d5ff; border-radius: 6px;" />
+            <div style="font-size: 7px; color: #9ca3af; margin-top: 2px;">Scan to Verify</div>
+          </div>
+        </div>
+        <div style="font-size: 7px; color: #9ca3af; text-align: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
           Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
       </div>
