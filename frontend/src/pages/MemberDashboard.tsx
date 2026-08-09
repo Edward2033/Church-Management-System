@@ -64,15 +64,22 @@ const MemberProfile: React.FC = () => {
       // Build FormData so photo upload works
       const fd = new FormData();
       if (photoFile) fd.append('profilePhoto', photoFile);
+      
+      // Send ALL profile fields
       fd.append('firstName', form.first_name || member.first_name || '');
       fd.append('middleName', form.middle_name || member.middle_name || '');
       fd.append('lastName', form.last_name || member.last_name || '');
+      fd.append('gender', form.gender || member.gender || '');
       fd.append('phone', form.phone || member.phone || '');
       fd.append('whatsappNumber', form.whatsapp_number || member.whatsapp_number || '');
       fd.append('address', form.address || member.address || '');
+      fd.append('city', form.city || member.city || '');
       fd.append('dateOfBirth', form.date_of_birth || member.date_of_birth || '');
+      fd.append('occupation', form.occupation || member.occupation || '');
+      fd.append('maritalStatus', form.marital_status || member.marital_status || '');
       fd.append('emergencyName', form.emergency_name || member.emergency_name || '');
       fd.append('emergencyPhone', form.emergency_phone || member.emergency_phone || '');
+      fd.append('emergencyRelation', form.emergency_relation || member.emergency_relation || '');
       fd.append('bio', form.bio || member.bio || '');
       if (form.voice_group) fd.append('voiceGroup', form.voice_group);
 
@@ -83,6 +90,7 @@ const MemberProfile: React.FC = () => {
       // Re-fetch full profile from /auth/me to refresh all fields
       const meRes = await api<{ user: User }>('/auth/me');
       setMember(meRes.user);
+      setForm(meRes.user); // Also update form state
       setEditing(false);
       setPhotoFile(null);
       toast.success('Profile updated!');
@@ -213,17 +221,40 @@ const MemberProfile: React.FC = () => {
             </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                {[['first_name','First Name'],['last_name','Last Name']].map(([k,l]) => (
-                  <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input value={(form as any)[k] || ''} onChange={(e) => upd(k, e.target.value)} className="input-base" /></div>
+                {[['first_name','First Name'],['middle_name','Middle Name'],['last_name','Last Name']].map(([k,l]) => (
+                  <div key={k} className={k === 'last_name' ? 'col-span-2' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input value={(form as any)[k] || ''} onChange={(e) => upd(k, e.target.value)} className="input-base" /></div>
                 ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select value={form.gender || ''} onChange={(e) => upd('gender', e.target.value)} className="input-base">
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={(form.date_of_birth || '').slice(0, 10)} onChange={(e) => upd('date_of_birth', e.target.value)} className="input-base" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[['phone','Phone'],['whatsapp_number','WhatsApp']].map(([k,l]) => (
                   <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input type="tel" value={(form as any)[k] || ''} onChange={(e) => upd(k, e.target.value)} className="input-base" /></div>
                 ))}
               </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={(form.date_of_birth || '').slice(0, 10)} onChange={(e) => upd('date_of_birth', e.target.value)} className="input-base" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label><input value={form.occupation || ''} onChange={(e) => upd('occupation', e.target.value)} className="input-base" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                  <select value={form.marital_status || ''} onChange={(e) => upd('marital_status', e.target.value)} className="input-base">
+                    <option value="">Select status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                  </select>
+                </div>
+              </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><textarea rows={2} value={form.address || ''} onChange={(e) => upd('address', e.target.value)} className="input-base resize-none" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={form.city || ''} onChange={(e) => upd('city', e.target.value)} className="input-base" /></div>
               {(member.role === 'choir_member' || member.role === 'choir') && (
                 <>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Voice Group</label>
@@ -235,7 +266,10 @@ const MemberProfile: React.FC = () => {
                 </>
               )}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name</label><input value={(form as any).emergency_name || (form as any).emergency_contact_name || ''} onChange={(e) => upd('emergency_name', e.target.value)} className="input-base" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Phone</label><input type="tel" value={(form as any).emergency_phone || (form as any).emergency_contact_phone || ''} onChange={(e) => upd('emergency_phone', e.target.value)} className="input-base" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Emergency Phone</label><input type="tel" value={(form as any).emergency_phone || (form as any).emergency_contact_phone || ''} onChange={(e) => upd('emergency_phone', e.target.value)} className="input-base" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label><input value={form.emergency_relation || ''} onChange={(e) => upd('emergency_relation', e.target.value)} className="input-base" placeholder="e.g., Spouse, Parent" /></div>
+              </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Bio</label><textarea rows={3} value={form.bio || ''} onChange={(e) => upd('bio', e.target.value)} className="input-base resize-none" /></div>
             </div>
             <div className="flex gap-3 mt-5">
