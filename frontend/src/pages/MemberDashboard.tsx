@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { get, patch, post, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
+import { get, patch, post, del, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printIDCard, printMemberProfile } from '@/lib/print';
 import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -521,6 +521,311 @@ const ChoirPortal: React.FC = () => {
   );
 };
 
+// ── Choir Director Portal ──────────────────────────────────
+const ChoirDirectorPortal: React.FC = () => {
+  const { member } = useAuth();
+  const [tab, setTab] = useState<'members' | 'music' | 'rehearsals' | 'broadcasts'>('members');
+  const [choir, setChoir] = useState<any[]>([]);
+  const [music, setMusic] = useState<any[]>([]);
+  const [rehearsals, setRehearsals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddSong, setShowAddSong] = useState(false);
+  const [showAddRehearsal, setShowAddRehearsal] = useState(false);
+  const [songForm, setSongForm] = useState({ title: '', artist: '', genre: '', key_note: '', lyrics: '', bpm: '' });
+  const [rehearsalForm, setRehearsalForm] = useState({ title: '', rehearsal_date: '', start_time: '', end_time: '', location: '', notes: '' });
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      get<any>('/choir?approval_status=approved').then(r => setChoir(r.choir || [])).catch(() => {}),
+      get<any>('/choir/music').then(r => setMusic(r.music || [])).catch(() => {}),
+      get<any>('/choir/rehearsals').then(r => setRehearsals(r.rehearsals || [])).catch(() => {}),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  const addSong = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true);
+    try {
+      const res = await post<any>('/choir/music', { ...songForm, bpm: songForm.bpm ? parseInt(songForm.bpm) : undefined });
+      setMusic(prev => [res.music, ...prev]);
+      setSongForm({ title: '', artist: '', genre: '', key_note: '', lyrics: '', bpm: '' });
+      setShowAddSong(false);
+      toast.success('Song added!');
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const deleteSong = async (id: string) => {
+    if (!confirm('Delete this song?')) return;
+    try {
+      await del(`/choir/music/${id}`);
+      setMusic(prev => prev.filter(s => s.id !== id));
+      toast.success('Song deleted');
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const addRehearsal = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true);
+    try {
+      const res = await post<any>('/choir/rehearsals', rehearsalForm);
+      setRehearsals(prev => [res.rehearsal, ...prev]);
+      setRehearsalForm({ title: '', rehearsal_date: '', start_time: '', end_time: '', location: '', notes: '' });
+      setShowAddRehearsal(false);
+      toast.success('Rehearsal scheduled!');
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const deleteRehearsal = async (id: string) => {
+    if (!confirm('Delete this rehearsal?')) return;
+    try {
+      await del(`/choir/rehearsals/${id}`);
+      setRehearsals(prev => prev.filter(r => r.id !== id));
+      toast.success('Rehearsal deleted');
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const sendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!broadcastMsg.trim()) return;
+    setSaving(true);
+    try {
+      await post('/broadcasts', { message: broadcastMsg, audience: 'choir' });
+      setBroadcastMsg('');
+      toast.success('Broadcast sent to choir!');
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>;
+
+  const tabs = [
+    { id: 'members', label: `Members (${choir.length})` },
+    { id: 'music', label: `Music Library (${music.length})` },
+    { id: 'rehearsals', label: `Rehearsals (${rehearsals.length})` },
+    { id: 'broadcasts', label: 'Broadcasts' },
+  ] as const;
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Choir Management</h1>
+        <p className="text-sm text-gray-500">Director: {member?.first_name} {member?.last_name} · {member?.voice_group || member?.choir_role || 'Choir Director'}</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[['Total Members', choir.length, 'bg-purple-50 text-purple-700'], ['Songs', music.length, 'bg-indigo-50 text-indigo-700'], ['Rehearsals', rehearsals.length, 'bg-green-50 text-green-700'], ['Upcoming', rehearsals.filter(r => new Date(r.rehearsal_date) >= new Date()).length, 'bg-amber-50 text-amber-700']].map(([l, v, c]) => (
+          <div key={l as string} className={`card p-4 text-center ${c}`}><div className="text-2xl font-bold">{v}</div><div className="text-xs mt-1">{l}</div></div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+              tab === t.id ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            }`}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Members Tab */}
+      {tab === 'members' && (
+        <div className="space-y-2">
+          {choir.map(m => (
+            <div key={m.id} className="card p-4 flex items-center gap-4">
+              <img src={m.profile_photo_url || 'https://placehold.co/40'} className="h-10 w-10 rounded-full object-cover" alt="" />
+              <div className="flex-1">
+                <div className="font-semibold text-gray-900">{m.first_name} {m.last_name}</div>
+                <div className="text-xs text-gray-500">{m.voice_group} · {m.choir_role?.replace(/_/g, ' ')} · {m.phone || m.email}</div>
+              </div>
+              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">{m.voice_group}</span>
+            </div>
+          ))}
+          {choir.length === 0 && <div className="card p-12 text-center text-gray-400">No choir members yet</div>}
+        </div>
+      )}
+
+      {/* Music Tab */}
+      {tab === 'music' && (
+        <div className="space-y-4">
+          <button onClick={() => setShowAddSong(true)} className="btn-primary"><Music2 size={16} /> Add Song</button>
+          {showAddSong && (
+            <form onSubmit={addSong} className="card p-5 space-y-3">
+              <h3 className="font-bold text-gray-900">Add New Song</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <input required placeholder="Title *" value={songForm.title} onChange={e => setSongForm({...songForm, title: e.target.value})} className="input-base" />
+                <input placeholder="Artist" value={songForm.artist} onChange={e => setSongForm({...songForm, artist: e.target.value})} className="input-base" />
+                <input placeholder="Genre" value={songForm.genre} onChange={e => setSongForm({...songForm, genre: e.target.value})} className="input-base" />
+                <input placeholder="Key (e.g. C, G, Bb)" value={songForm.key_note} onChange={e => setSongForm({...songForm, key_note: e.target.value})} className="input-base" />
+                <input placeholder="BPM" type="number" value={songForm.bpm} onChange={e => setSongForm({...songForm, bpm: e.target.value})} className="input-base" />
+              </div>
+              <textarea placeholder="Lyrics" rows={5} value={songForm.lyrics} onChange={e => setSongForm({...songForm, lyrics: e.target.value})} className="input-base resize-none" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowAddSong(false)} className="btn-outline flex-1">Cancel</button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1">{saving && <Loader2 size={14} className="animate-spin" />} Save Song</button>
+              </div>
+            </form>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {music.map(s => (
+              <div key={s.id} className="card p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{s.title}</div>
+                    {s.artist && <div className="text-xs text-gray-500">{s.artist}</div>}
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      {s.genre && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s.genre}</span>}
+                      {s.key_note && <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">Key: {s.key_note}</span>}
+                      {s.lyrics && <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Lyrics</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteSong(s.id)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><X size={14} /></button>
+                </div>
+              </div>
+            ))}
+            {music.length === 0 && <div className="card p-12 text-center text-gray-400 col-span-3">No songs yet</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Rehearsals Tab */}
+      {tab === 'rehearsals' && (
+        <div className="space-y-4">
+          <button onClick={() => setShowAddRehearsal(true)} className="btn-primary"><Calendar size={16} /> Schedule Rehearsal</button>
+          {showAddRehearsal && (
+            <form onSubmit={addRehearsal} className="card p-5 space-y-3">
+              <h3 className="font-bold text-gray-900">Schedule Rehearsal</h3>
+              <input required placeholder="Title *" value={rehearsalForm.title} onChange={e => setRehearsalForm({...rehearsalForm, title: e.target.value})} className="input-base" />
+              <div className="grid grid-cols-3 gap-3">
+                <input required type="date" value={rehearsalForm.rehearsal_date} onChange={e => setRehearsalForm({...rehearsalForm, rehearsal_date: e.target.value})} className="input-base" />
+                <input type="time" value={rehearsalForm.start_time} onChange={e => setRehearsalForm({...rehearsalForm, start_time: e.target.value})} className="input-base" />
+                <input type="time" value={rehearsalForm.end_time} onChange={e => setRehearsalForm({...rehearsalForm, end_time: e.target.value})} className="input-base" />
+              </div>
+              <input placeholder="Location" value={rehearsalForm.location} onChange={e => setRehearsalForm({...rehearsalForm, location: e.target.value})} className="input-base" />
+              <textarea placeholder="Notes" rows={3} value={rehearsalForm.notes} onChange={e => setRehearsalForm({...rehearsalForm, notes: e.target.value})} className="input-base resize-none" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowAddRehearsal(false)} className="btn-outline flex-1">Cancel</button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1">{saving && <Loader2 size={14} className="animate-spin" />} Schedule</button>
+              </div>
+            </form>
+          )}
+          <div className="space-y-2">
+            {rehearsals.map(r => (
+              <div key={r.id} className="card p-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0"><Mic size={16} className="text-indigo-600" /></div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900">{r.title}</div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(r.rehearsal_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                    {r.start_time && ` · ${r.start_time}`}{r.location && ` · ${r.location}`}
+                  </div>
+                </div>
+                <button onClick={() => deleteRehearsal(r.id)} className="p-1 text-red-400 hover:text-red-600"><X size={14} /></button>
+              </div>
+            ))}
+            {rehearsals.length === 0 && <div className="card p-12 text-center text-gray-400">No rehearsals scheduled</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Broadcasts Tab */}
+      {tab === 'broadcasts' && (
+        <div className="space-y-4">
+          <div className="card p-5">
+            <h3 className="font-bold text-gray-900 mb-3">Send Choir Broadcast</h3>
+            <form onSubmit={sendBroadcast} className="space-y-3">
+              <textarea required rows={4} placeholder="Type your message to all choir members..." value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} className="input-base resize-none" />
+              <button type="submit" disabled={saving} className="btn-primary">{saving && <Loader2 size={14} className="animate-spin" />} Send to Choir</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Leader Portal ────────────────────────────────────────────────
+const LeaderPortal: React.FC = () => {
+  const { member } = useAuth();
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      get<any>('/announcements?limit=10').then(r => setAnnouncements(r.announcements || [])).catch(() => {}),
+      get<any>('/members?status=approved&limit=50').then(r => setMembers(r.members || [])).catch(() => {}),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  const sendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!broadcastMsg.trim()) return;
+    setSaving(true);
+    try {
+      await post('/broadcasts', { message: broadcastMsg, audience: 'all' });
+      setBroadcastMsg('');
+      toast.success('Broadcast sent!');
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>;
+
+  const roleLabel = (member?.role || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Leadership Tools</h1>
+        <p className="text-sm text-gray-500">{roleLabel} · {member?.first_name} {member?.last_name}</p>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-6">
+        {/* Send Broadcast */}
+        <div className="card p-5">
+          <h3 className="font-bold text-gray-900 mb-3">Send Broadcast</h3>
+          <form onSubmit={sendBroadcast} className="space-y-3">
+            <textarea required rows={4} placeholder="Type your message..." value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} className="input-base resize-none" />
+            <button type="submit" disabled={saving} className="btn-primary w-full justify-center">{saving && <Loader2 size={14} className="animate-spin" />} Send Broadcast</button>
+          </form>
+        </div>
+        {/* Member Overview */}
+        <div className="card p-5">
+          <h3 className="font-bold text-gray-900 mb-3">Members ({members.length})</h3>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {members.slice(0, 20).map(m => (
+              <div key={m.id} className="flex items-center gap-3">
+                <img src={m.profile_photo_url || 'https://placehold.co/32'} className="h-8 w-8 rounded-full object-cover" alt="" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{m.first_name} {m.last_name}</div>
+                  <div className="text-xs text-gray-500 capitalize">{m.role?.replace(/_/g, ' ')}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Recent Announcements */}
+      <div className="card p-5">
+        <h3 className="font-bold text-gray-900 mb-3">Recent Announcements</h3>
+        <div className="space-y-2">
+          {announcements.slice(0, 5).map(a => (
+            <div key={a.id} className="p-3 bg-gray-50 rounded-lg">
+              <div className="font-medium text-gray-900 text-sm">{a.title}</div>
+              <div className="text-xs text-gray-500 mt-1">{new Date(a.created_at).toLocaleDateString()}</div>
+            </div>
+          ))}
+          {announcements.length === 0 && <p className="text-sm text-gray-400">No announcements</p>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Member Dashboard ───────────────────────────────────
 
 const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
@@ -533,6 +838,8 @@ const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
 ];
 
 const CHOIR_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [{ to: '/dashboard/choir', label: 'Choir Portal', icon: Music2 }];
+const DIRECTOR_NAV: { to: string; label: string; icon: any }[] = [{ to: '/dashboard/choir-director', label: 'Choir Management', icon: Music2 }];
+const LEADER_NAV: { to: string; label: string; icon: any }[] = [{ to: '/dashboard/leader', label: 'Leadership Tools', icon: Users }];
 
 const MemberDashboard: React.FC = () => {
   const { member, logout } = useAuth();
@@ -547,6 +854,18 @@ const MemberDashboard: React.FC = () => {
 
   const handleLogout = () => { logout(); navigate('/'); };
 
+  const role = member?.role || 'member';
+  const isChoir = role === 'choir_member' || role === 'choir';
+  const isDirector = (member as any)?.is_choir_director === true || (member as any)?.choir_role === 'choir_director';
+  const isLeader = ['pastor', 'elder', 'deacon', 'leader'].includes(role);
+
+  const navItems: { to: string; label: string; icon: any; end?: boolean }[] = [
+    ...MEMBER_NAV,
+    ...(isChoir && !isDirector ? CHOIR_NAV : []),
+    ...(isDirector ? DIRECTOR_NAV : []),
+    ...(isLeader ? LEADER_NAV : []),
+  ];
+
   return (
     <div className="flex h-screen bg-gray-100">
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-purple-900 text-white flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:flex`}>
@@ -556,11 +875,13 @@ const MemberDashboard: React.FC = () => {
           </div>
           <div>
             <div className="font-serif font-bold text-sm leading-tight">{CHURCH_NAME}</div>
-            <div className="text-xs text-purple-300">Member Portal</div>
+            <div className="text-xs text-purple-300">
+              {isDirector ? 'Choir Director Portal' : isLeader ? 'Leadership Portal' : 'Member Portal'}
+            </div>
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {[...MEMBER_NAV, ...((member?.role === 'choir_member' || member?.role === 'choir') ? CHOIR_NAV : [])].map((n) => {
+          {navItems.map((n) => {
             const active = n.end ? location.pathname === n.to : location.pathname.startsWith(n.to);
             return (
               <Link key={n.to} to={n.to} onClick={() => setSidebarOpen(false)}
@@ -610,7 +931,12 @@ const MemberDashboard: React.FC = () => {
             <Route path="notifications" element={<MemberNotifications />} />
             <Route path="attendance" element={<MemberAttendance />} />
             <Route path="donate" element={<MemberDonate />} />
+            {/* Choir member portal */}
             <Route path="choir" element={<ChoirPortal />} />
+            {/* Choir director management portal */}
+            <Route path="choir-director" element={<ChoirDirectorPortal />} />
+            {/* Leader portal */}
+            <Route path="leader" element={<LeaderPortal />} />
           </Routes>
         </main>
       </div>

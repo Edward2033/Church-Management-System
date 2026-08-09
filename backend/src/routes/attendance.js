@@ -248,22 +248,53 @@ router.get('/admin/sessions/:id', authenticate, requireAdmin, async (req, res) =
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    // Get responses
+    // Get responses with full member details from schema
     const { rows: responses } = await pool.query(
       `SELECT 
-        ar.*,
+        ar.id,
+        ar.session_id,
+        ar.user_id,
+        ar.response,
+        ar.reason,
+        ar.comment,
+        ar.responded_at,
+        ar.created_at,
+        m.member_code,
         m.first_name,
+        m.middle_name,
         m.last_name,
-        u.email,
+        m.gender,
+        m.date_of_birth,
+        m.phone,
+        m.whatsapp_number,
+        m.email        AS member_email,
+        m.address,
+        m.city,
+        m.occupation,
+        m.marital_status,
+        m.membership_status,
+        m.baptism_status,
+        m.date_joined,
+        m.profile_photo_url,
+        u.email        AS user_email,
         u.role,
-        m.profile_photo_url
+        cm.voice_group,
+        cm.choir_role
        FROM attendance_responses ar
        JOIN users u ON ar.user_id = u.id
        LEFT JOIN members m ON m.user_id = u.id
+       LEFT JOIN choir_members cm ON cm.member_id = m.id AND cm.is_active = TRUE
        WHERE ar.session_id = $1
-       ORDER BY ar.responded_at DESC`,
+       ORDER BY
+         CASE ar.response WHEN 'attending' THEN 1 WHEN 'not_attending' THEN 2 ELSE 3 END,
+         m.last_name ASC, m.first_name ASC`,
       [req.params.id]
     );
+
+    // Normalise: prefer member email, fall back to user email
+    responses.forEach(r => {
+      r.email = r.member_email || r.user_email || null;
+    });
     
     // Get stats
     const { rows: [stats] } = await pool.query(

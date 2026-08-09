@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, put, del } from '@/lib/api';
-import { Calendar, Plus, Edit, Trash2, Send, Eye, Loader2, Save, X, Users, CheckCircle, XCircle, Clock, FileSpreadsheet } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Send, Eye, Loader2, Save, X, Users, CheckCircle, XCircle, Clock, FileSpreadsheet, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { CHURCH_NAME } from '@/lib/api';
 
 interface AttendanceSession {
   id: string;
@@ -179,73 +180,191 @@ const AdminAttendance: React.FC = () => {
 
   const exportToExcel = () => {
     if (!viewingDetails) return;
-
-    const session = viewingDetails.session;
-    const responses = viewingDetails.responses;
-
-    // Prepare data for Excel
-    const excelData = responses.map((r: any) => ({
-      'Member Code': r.member_code || 'N/A',
-      'First Name': r.first_name,
-      'Last Name': r.last_name,
-      'Email': r.email || 'N/A',
-      'Phone': r.phone || 'N/A',
-      'Role': r.role.replace('_', ' ').toUpperCase(),
-      'Status': r.response === 'attending' ? 'PRESENT' : r.response === 'not_attending' ? 'ABSENT' : 'PENDING',
-      'Reason for Absence': r.response === 'not_attending' ? (r.reason || 'No reason provided') : '',
-      'Comment': r.comment || '',
-      'Responded At': r.responded_at ? new Date(r.responded_at).toLocaleString() : 'Not responded'
-    }));
-
-    // Create a new workbook
+    const { session, responses, stats } = viewingDetails;
+    const typeLabel = ATTENDANCE_TYPES.find(t => t.value === session.attendance_type)?.label || session.attendance_type;
+    const eventDate = new Date(session.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const wb = XLSX.utils.book_new();
 
-    // Add summary sheet
-    const summaryData = [
-      ['Session Title:', session.title],
-      ['Attendance Type:', ATTENDANCE_TYPES.find(t => t.value === session.attendance_type)?.label || session.attendance_type],
-      ['Event Date:', new Date(session.event_date).toLocaleDateString()],
-      ['Start Time:', session.start_time || 'N/A'],
-      ['End Time:', session.end_time || 'N/A'],
-      ['Venue:', session.venue || 'N/A'],
-      ['Status:', session.status.toUpperCase()],
+    // ── Summary sheet ──────────────────────────────────────────
+    const summaryWs = XLSX.utils.aoa_to_sheet([
+      [CHURCH_NAME + ' — ATTENDANCE REPORT'],
       [],
-      ['STATISTICS'],
-      ['Total Responses:', viewingDetails.stats.total_responses],
-      ['Present:', viewingDetails.stats.confirmed_count],
-      ['Absent:', viewingDetails.stats.declined_count],
-      ['Pending:', viewingDetails.stats.pending_count],
-      ['Attendance Rate:', `${viewingDetails.stats.attendance_percentage || 0}%`],
-    ];
-
-    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+      ['Session Title:',    session.title],
+      ['Attendance Type:',  typeLabel],
+      ['Event Date:',       eventDate],
+      ['Start Time:',       session.start_time  || 'N/A'],
+      ['End Time:',         session.end_time    || 'N/A'],
+      ['Venue:',            session.venue       || 'N/A'],
+      ['Description:',      session.description || 'N/A'],
+      ['Session Status:',   session.status.toUpperCase()],
+      ['Generated On:',     new Date().toLocaleString()],
+      [],
+      ['── STATISTICS ──'],
+      ['Total Invited:',          stats.total_responses],
+      ['Present (Attending):',    stats.confirmed_count],
+      ['Absent (Declined):',      stats.declined_count],
+      ['Pending / No Response:',  stats.pending_count],
+      ['Attendance Rate:',        `${stats.attendance_percentage || 0}%`],
+    ]);
+    summaryWs['!cols'] = [{ wch: 28 }, { wch: 55 }];
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
-    // Add attendance data sheet
-    const attendanceWs = XLSX.utils.json_to_sheet(excelData);
-    
-    // Set column widths
-    attendanceWs['!cols'] = [
-      { wch: 15 }, // Member Code
-      { wch: 15 }, // First Name
-      { wch: 15 }, // Last Name
-      { wch: 25 }, // Email
-      { wch: 15 }, // Phone
-      { wch: 15 }, // Role
-      { wch: 10 }, // Status
-      { wch: 40 }, // Reason
-      { wch: 40 }, // Comment
-      { wch: 20 }  // Responded At
+    // ── helper to build a row from a response ──────────────────
+    const toRow = (r: any, i: number, includeAbsence: boolean) => {
+      const base: Record<string, any> = {
+        '#':                i + 1,
+        'Member ID':        r.member_code        || 'N/A',
+        'Full Name':        `${r.first_name || ''} ${r.middle_name ? r.middle_name + ' ' : ''}${r.last_name || ''}`.trim() || 'N/A',
+        'Gender':           r.gender             || 'N/A',
+        'Date of Birth':    r.date_of_birth      ? new Date(r.date_of_birth).toLocaleDateString() : 'N/A',
+        'Phone':            r.phone              || 'N/A',
+        'WhatsApp':         r.whatsapp_number    || 'N/A',
+        'Email':            r.email              || 'N/A',
+        'Address':          r.address            || 'N/A',
+        'City':             r.city               || 'N/A',
+        'Occupation':       r.occupation         || 'N/A',
+        'Marital Status':   r.marital_status     || 'N/A',
+        'Membership Status':r.membership_status  || 'N/A',
+        'Baptized':         r.baptism_status     ? 'Yes' : 'No',
+        'Date Joined':      r.date_joined        ? new Date(r.date_joined).toLocaleDateString() : 'N/A',
+        'Role':             (r.role || '').replace(/_/g, ' ').toUpperCase(),
+        'Voice Group':      r.voice_group        || 'N/A',
+        'Choir Role':       r.choir_role         || 'N/A',
+        'Status':           r.response === 'attending' ? 'PRESENT' : r.response === 'not_attending' ? 'ABSENT' : 'PENDING',
+        'Responded At':     r.responded_at       ? new Date(r.responded_at).toLocaleString() : 'Not responded',
+      };
+      if (includeAbsence) {
+        base['Reason for Absence'] = r.response === 'not_attending' ? (r.reason || 'No reason provided') : '—';
+        base['Comment']            = r.comment || '—';
+      }
+      return base;
+    };
+
+    const colWidths = [
+      { wch: 4 }, { wch: 14 }, { wch: 28 }, { wch: 8 }, { wch: 14 },
+      { wch: 16 }, { wch: 16 }, { wch: 28 }, { wch: 28 }, { wch: 14 },
+      { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 14 },
+      { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 10 }, { wch: 20 },
     ];
 
-    XLSX.utils.book_append_sheet(wb, attendanceWs, 'Attendance');
+    // ── Present sheet ──────────────────────────────────────────
+    const presentData = responses.filter((r: any) => r.response === 'attending').map((r: any, i: number) => toRow(r, i, false));
+    const presentWs = XLSX.utils.json_to_sheet(
+      presentData.length ? presentData : [{ '#': '', 'Member ID': 'No members present', 'Full Name': '', 'Gender': '', 'Date of Birth': '', 'Phone': '', 'WhatsApp': '', 'Email': '', 'Address': '', 'City': '', 'Occupation': '', 'Marital Status': '', 'Membership Status': '', 'Baptized': '', 'Date Joined': '', 'Role': '', 'Voice Group': '', 'Choir Role': '', 'Status': '', 'Responded At': '' }]
+    );
+    presentWs['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, presentWs, 'Present');
 
-    // Generate filename with date
+    // ── Absent sheet ───────────────────────────────────────────
+    const absentData = responses.filter((r: any) => r.response !== 'attending').map((r: any, i: number) => toRow(r, i, true));
+    const absentWs = XLSX.utils.json_to_sheet(
+      absentData.length ? absentData : [{ '#': '', 'Member ID': 'No absent members', 'Full Name': '', 'Gender': '', 'Date of Birth': '', 'Phone': '', 'WhatsApp': '', 'Email': '', 'Address': '', 'City': '', 'Occupation': '', 'Marital Status': '', 'Membership Status': '', 'Baptized': '', 'Date Joined': '', 'Role': '', 'Voice Group': '', 'Choir Role': '', 'Status': '', 'Responded At': '', 'Reason for Absence': '', 'Comment': '' }]
+    );
+    absentWs['!cols'] = [...colWidths, { wch: 40 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, absentWs, 'Absent');
+
+    // ── All Members sheet ──────────────────────────────────────
+    const allData = responses.map((r: any, i: number) => toRow(r, i, true));
+    const allWs = XLSX.utils.json_to_sheet(allData.length ? allData : [{}]);
+    allWs['!cols'] = [...colWidths, { wch: 40 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, allWs, 'All Members');
+
     const filename = `Attendance_${session.title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-    // Export file
     XLSX.writeFile(wb, filename);
     toast.success('Excel file downloaded successfully!');
+  };
+
+  const handlePrint = () => {
+    if (!viewingDetails) return;
+    const { session, responses, stats } = viewingDetails;
+    const typeLabel = ATTENDANCE_TYPES.find(t => t.value === session.attendance_type)?.label || session.attendance_type;
+    const eventDate = new Date(session.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+    const rows = responses.map((r: any, i: number) => {
+      const fullName = `${r.first_name || ''} ${r.middle_name ? r.middle_name + ' ' : ''}${r.last_name || ''}`.trim() || 'N/A';
+      const statusColor = r.response === 'attending' ? '#16a34a' : r.response === 'not_attending' ? '#dc2626' : '#d97706';
+      const statusText  = r.response === 'attending' ? '✓ PRESENT' : r.response === 'not_attending' ? '✗ ABSENT' : '⏳ PENDING';
+      const reason = r.response === 'not_attending' ? (r.reason || 'No reason provided') : '—';
+      const choir = r.voice_group || r.choir_role ? `${r.voice_group || ''}${r.voice_group && r.choir_role ? ' · ' : ''}${r.choir_role || ''}` : '—';
+      return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
+        <td style="text-align:center;color:#6b7280">${i + 1}</td>
+        <td style="font-family:monospace;color:#7c3aed;font-weight:700">${r.member_code || 'N/A'}</td>
+        <td><strong>${fullName}</strong><br><span style="font-size:10px;color:#6b7280">${(r.role || '').replace(/_/g, ' ').toUpperCase()}</span></td>
+        <td>${r.gender || '—'}</td>
+        <td>${fmtDate(r.date_of_birth)}</td>
+        <td>${r.phone || '—'}${r.whatsapp_number && r.whatsapp_number !== r.phone ? '<br><span style="font-size:10px;color:#6b7280">WA: ' + r.whatsapp_number + '</span>' : ''}</td>
+        <td style="font-size:10px">${r.email || '—'}</td>
+        <td style="font-size:10px">${r.address ? r.address + (r.city ? ', ' + r.city : '') : (r.city || '—')}</td>
+        <td style="font-size:10px">${choir}</td>
+        <td style="color:${statusColor};font-weight:700;white-space:nowrap">${statusText}</td>
+        <td style="font-size:10px;color:#374151">${reason}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${CHURCH_NAME} — Attendance Report — ${session.title}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#111;padding:20px;background:#fff}
+  .header{border-bottom:3px solid #7c3aed;padding-bottom:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start}
+  .header h1{font-size:20px;color:#5b21b6;margin-bottom:2px}
+  .header h2{font-size:13px;color:#374151;font-weight:500}
+  .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 20px;margin-bottom:16px;background:#f9fafb;padding:12px;border-radius:6px;border:1px solid #e5e7eb}
+  .meta-item .label{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px}
+  .meta-item .value{font-size:11px;color:#1f2937;font-weight:600;margin-top:2px}
+  .stats{display:flex;gap:12px;margin-bottom:16px}
+  .stat{flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;text-align:center}
+  .stat .n{font-size:20px;font-weight:800}
+  .stat .l{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:10px}
+  thead th{background:#7c3aed;color:#fff;padding:7px 6px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
+  td{padding:5px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+  .footer{margin-top:16px;text-align:center;font-size:9px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:10px}
+  @media print{body{padding:10px}.stat{break-inside:avoid}}
+</style></head><body>
+<div class="header">
+  <div>
+    <h1>${CHURCH_NAME}</h1>
+    <h2>Attendance Report — ${session.title}</h2>
+  </div>
+  <div style="text-align:right;font-size:10px;color:#6b7280">
+    Generated: ${new Date().toLocaleString()}
+  </div>
+</div>
+<div class="meta">
+  <div class="meta-item"><div class="label">Type</div><div class="value">${typeLabel}</div></div>
+  <div class="meta-item"><div class="label">Date</div><div class="value">${eventDate}</div></div>
+  <div class="meta-item"><div class="label">Time</div><div class="value">${session.start_time || 'N/A'}${session.end_time ? ' – ' + session.end_time : ''}</div></div>
+  <div class="meta-item"><div class="label">Venue</div><div class="value">${session.venue || 'N/A'}</div></div>
+  <div class="meta-item"><div class="label">Status</div><div class="value">${session.status.toUpperCase()}</div></div>
+  ${session.description ? `<div class="meta-item" style="grid-column:span 1"><div class="label">Description</div><div class="value">${session.description}</div></div>` : ''}
+</div>
+<div class="stats">
+  <div class="stat"><div class="n" style="color:#3b82f6">${stats.total_responses}</div><div class="l">Total Invited</div></div>
+  <div class="stat"><div class="n" style="color:#16a34a">${stats.confirmed_count}</div><div class="l">Present</div></div>
+  <div class="stat"><div class="n" style="color:#dc2626">${stats.declined_count}</div><div class="l">Absent</div></div>
+  <div class="stat"><div class="n" style="color:#d97706">${stats.pending_count}</div><div class="l">Pending</div></div>
+  <div class="stat"><div class="n" style="color:#7c3aed">${stats.attendance_percentage || 0}%</div><div class="l">Attendance Rate</div></div>
+</div>
+<table>
+  <thead><tr>
+    <th>#</th><th>Member ID</th><th>Name / Role</th><th>Gender</th><th>Date of Birth</th>
+    <th>Phone / WhatsApp</th><th>Email</th><th>Address</th><th>Choir</th>
+    <th>Status</th><th>Reason for Absence</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="footer">
+  ${CHURCH_NAME} — Attendance Report · ${session.title} · ${eventDate}<br>
+  This document is confidential and intended for church administrative use only.
+</div>
+<script>window.onload = () => setTimeout(() => window.print(), 500);<\/script>
+</body></html>`;
+
+    const win = window.open('', '_blank', 'width=1200,height=800');
+    if (win) { win.document.write(html); win.document.close(); }
   };
 
   const handleCancel = () => {
@@ -427,6 +546,14 @@ const AdminAttendance: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{viewingDetails.session.title}</h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    title="Print Attendance"
+                  >
+                    <Printer size={18} />
+                    Print
+                  </button>
                   <button
                     onClick={exportToExcel}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"

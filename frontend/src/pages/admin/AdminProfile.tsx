@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { User, Camera, Save, Loader2, Lock, Printer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch, api } from '@/lib/api';
+import type { User as UserType } from '@/lib/api';
 import { printIDCard, printMemberProfile } from '@/lib/print';
 
 const AdminProfile: React.FC = () => {
@@ -92,16 +93,11 @@ const AdminProfile: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
+      // Re-fetch full profile so all fields (phone, DOB, etc.) are refreshed in context
+      const meRes = await api<{ user: UserType }>('/auth/me');
+      if (setMember) setMember(meRes.user);
+
       toast.success('Profile updated successfully!');
-      if (setMember && member) {
-        setMember({
-          ...member,
-          first_name: profileData.firstName,
-          middle_name: profileData.middleName,
-          last_name: profileData.lastName,
-          profile_photo_url: data.profile?.profile_photo_url || member.profile_photo_url,
-        });
-      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {

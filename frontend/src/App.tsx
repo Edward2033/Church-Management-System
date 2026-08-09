@@ -37,9 +37,25 @@ const App: React.FC = () => (
         <Route path="/verify/:memberCode" element={<VerifyMemberPage />} />
       </Route>
 
-      {/* Protected dashboards */}
-      <Route path="/admin/*" element={<ProtectedRoute roles={['admin','superadmin','pastor','elder']}><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/dashboard/*" element={<ProtectedRoute roles={['member','choir_member','choir','admin','superadmin','pastor','elder','deacon','leader']}><MemberDashboard /></ProtectedRoute>} />
+      {/* Admin dashboard — admin, superadmin, pastor, elder */}
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin', 'pastor', 'elder']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Member / choir / leader dashboard — all authenticated roles */}
+      <Route
+        path="/dashboard/*"
+        element={
+          <ProtectedRoute roles={['member', 'choir_member', 'choir', 'choir_director', 'admin', 'superadmin', 'pastor', 'elder', 'deacon', 'leader']}>
+            <MemberDashboard />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   </AuthProvider>
 );
