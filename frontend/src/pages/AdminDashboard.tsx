@@ -49,15 +49,33 @@ const NAV = [
 const AdminDashboard: React.FC = () => {
   const { member, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [birthdays, setBirthdays] = useState<{ first_name: string }[]>([]);
+  const [todayBirthdays, setTodayBirthdays] = useState<{ first_name: string; last_name: string }[]>([]);
+  const [monthBirthdays, setMonthBirthdays] = useState<{ first_name: string; last_name: string; date_of_birth: string }[]>([]);
   const [logo, setLogo] = useState<string | null>(null);
   const [churchName, setChurchName] = useState(CHURCH_NAME);
   const location  = useLocation();
   const navigate  = useNavigate();
 
   useEffect(() => {
-    get<{ birthdays: { first_name: string }[] }>('/members/birthdays')
-      .then((r) => setBirthdays(r.birthdays || []))
+    // Fetch all birthdays this month and split into today vs upcoming
+    get<{ birthdays: { first_name: string; last_name: string; date_of_birth: string }[] }>('/members/birthdays')
+      .then((r) => {
+        const all = r.birthdays || [];
+        const today = new Date();
+        const todayMonth = today.getMonth() + 1;
+        const todayDay = today.getDate();
+        // Split into today vs rest-of-month
+        const todayList = all.filter((b) => {
+          const [, m, d] = (b.date_of_birth || '').slice(0, 10).split('-').map(Number);
+          return m === todayMonth && d === todayDay;
+        });
+        const monthList = all.filter((b) => {
+          const [, m, d] = (b.date_of_birth || '').slice(0, 10).split('-').map(Number);
+          return !(m === todayMonth && d === todayDay);
+        });
+        setTodayBirthdays(todayList);
+        setMonthBirthdays(monthList);
+      })
       .catch(() => {});
   }, []);
 
@@ -125,14 +143,25 @@ const AdminDashboard: React.FC = () => {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"><Menu size={22} /></button>
-          {birthdays.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-1.5 hidden sm:flex">
-              <Cake size={15} /> 🎉 Birthday today: {birthdays.map((b) => b.first_name).join(', ')}
-            </div>
-          )}
-          <div className="flex items-center gap-3 ml-auto">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 shrink-0"><Menu size={22} /></button>
+          <div className="flex-1 flex flex-wrap gap-2">
+            {todayBirthdays.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                <Cake size={15} /> 🎂 <strong>{todayBirthdays.map((b) => `${b.first_name} ${b.last_name}`).join(', ')}</strong> {todayBirthdays.length === 1 ? 'has a' : 'have'} birthday today! 🎉
+              </div>
+            )}
+            {monthBirthdays.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
+                <Cake size={15} /> 🗓️ Upcoming: <strong>{monthBirthdays.slice(0, 3).map((b) => {
+                  const [, month, day] = (b.date_of_birth || '').slice(0, 10).split('-');
+                  const monthName = new Date(2000, parseInt(month) - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+                  return `${b.first_name} ${b.last_name} (${monthName} ${parseInt(day)})`;
+                }).join(', ')}</strong>{monthBirthdays.length > 3 && ` +${monthBirthdays.length - 3} more`}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-sm text-gray-600 hidden sm:block">Welcome, <strong>{member?.first_name}</strong></span>
             <img src={member?.profile_photo_url || 'https://placehold.co/40'} className="h-9 w-9 rounded-full object-cover" alt="" />
           </div>

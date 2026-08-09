@@ -1,458 +1,290 @@
-# LUS4G Church Management Platform
+# LUS4G Church Management System
 
-A unified church management system combining the LUS4G Church Website and LUS4G Choir System into one complete platform.
+A comprehensive church management platform with member management, choir system, attendance tracking, donations, and more.
 
----
-
-## Project Structure
-
-```
-lus4g-church-platform/
-├── backend/                  # Node.js / Express API
-│   ├── src/
-│   │   ├── config/           # (reserved for future config modules)
-│   │   ├── jobs/             # Cron jobs (birthday notifications)
-│   │   ├── lib/              # db.js, email.js, initDb.js
-│   │   ├── middleware/       # auth.js (JWT + role guards)
-│   │   ├── routes/           # All API route handlers
-│   │   │   ├── auth.js       # Register, login, approve, setup-password
-│   │   │   ├── members.js    # Member CRUD + stats + birthdays
-│   │   │   ├── choir.js      # Choir members, rehearsals, music library
-│   │   │   ├── broadcasts.js # Choir broadcasts (email/SMS/WhatsApp)
-│   │   │   ├── finance.js    # Transactions, categories, summary, report
-│   │   │   ├── content.js    # Announcements, events, gallery, sermons, donations
-│   │   │   ├── cms.js        # Hero slides, pages, settings
-│   │   │   ├── leadership.js # Leadership profiles
-│   │   │   └── reports.js    # Overview, members, attendance, finance, choir
-│   │   ├── services/
-│   │   │   └── notification.js  # Email + SMS + WhatsApp (Twilio)
-│   │   └── index.js          # Express app entry point
-│   ├── .env                  # Environment variables (copy and fill in)
-│   └── package.json
-├── frontend/                 # React + TypeScript + Vite + Tailwind
-│   ├── src/
-│   │   ├── components/       # Navbar, Footer, HeroSlider, etc.
-│   │   ├── contexts/         # AuthContext
-│   │   ├── lib/              # api.ts (typed API client), print.ts
-│   │   └── pages/
-│   │       ├── admin/
-│   │       │   ├── AdminOverview.tsx      # Dashboard stats + pending approvals
-│   │       │   ├── AdminMembers.tsx       # Full member management
-│   │       │   ├── AdminChoir.tsx         # Choir members, rehearsals, music, broadcasts
-│   │       │   ├── AdminAnnouncements.tsx
-│   │       │   ├── AdminActivities.tsx
-│   │       │   ├── AdminGallery.tsx
-│   │       │   ├── AdminDonations.tsx
-│   │       │   └── AdminNotifications.tsx
-│   │       ├── AdminDashboard.tsx         # Admin shell with sidebar
-│   │       ├── MemberDashboard.tsx        # Member portal (+ Choir Portal for choir members)
-│   │       ├── HomePage.tsx
-│   │       ├── RegisterPage.tsx           # Multi-step: member or choir member
-│   │       ├── LoginPage.tsx
-│   │       └── ...public pages
-│   ├── .env
-│   └── package.json
-├── database/
-│   └── schema.sql            # Full unified PostgreSQL schema
-├── uploads/                  # File upload directories
-└── package.json              # Root scripts
-```
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
-## Setup
+## 🌟 Features
 
-### 1. Configure Environment
+### Member Management
+- ✅ Member registration with approval workflow
+- ✅ Profile management with photo upload
+- ✅ Member directory with search and filters
+- ✅ Birthday notifications and reminders
+- ✅ Print ID cards and member profiles
+- ✅ Age validation (minimum 12 years)
 
-Edit `backend/.env` and fill in your values:
+### Choir System
+- ✅ Voice group assignments (Soprano, Alto, Tenor, Bass)
+- ✅ Rehearsal scheduling
+- ✅ Music library with lyrics and notes
+- ✅ Choir broadcasts (Email + SMS + WhatsApp)
+- ✅ Choir director management portal
 
-```env
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
-JWT_SECRET=your_strong_secret_here
-SMTP_USER=your@email.com
-SMTP_PASS=your_smtp_password
-TWILIO_SID=your_twilio_sid          # optional — for SMS/WhatsApp
-TWILIO_AUTH_TOKEN=your_token        # optional
-FRONTEND_URL=http://localhost:5173
+### Attendance Tracking
+- ✅ Create attendance sessions
+- ✅ Email invitations with RSVP buttons
+- ✅ Real-time attendance reports
+- ✅ Export attendance to Excel
+
+### Financial Management
+- ✅ Donations tracking (tithe, offering, special)
+- ✅ Income and expense management
+- ✅ Financial reports and summaries
+
+### Communication
+- ✅ Announcements with categories
+- ✅ In-app notifications
+- ✅ Email notifications
+- ✅ SMS and WhatsApp broadcasts (via Twilio)
+
+### Content Management
+- ✅ Homepage customization
+- ✅ Hero slider management
+- ✅ Gallery with photo upload
+- ✅ Leadership profiles
+- ✅ Activities and events
+- ✅ Daily Bible verses
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm
+- PostgreSQL database (or Supabase account)
+- SMTP service (Gmail, Brevo, SendGrid, etc.)
+- Optional: Twilio account for SMS/WhatsApp
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/Edward2033/Church-Management-System.git
+cd Church-Management-System
 ```
 
-> The `DATABASE_URL` uses the **LUS4G Supabase connection** as the single database for the entire platform.
-
-### 2. Initialize Database
-
+### 2. Setup Backend
 ```bash
 cd backend
 npm install
+```
+
+Create `backend/.env`:
+```env
+# Database
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# JWT
+JWT_SECRET=your_strong_secret_here
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=your_refresh_secret
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=your_app_password
+EMAIL_FROM=Church Name <no-reply@church.org>
+
+# Optional: Twilio (SMS/WhatsApp)
+TWILIO_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_PHONE=+1234567890
+TWILIO_WHATSAPP_NUMBER=whatsapp:+1234567890
+
+# URLs
+FRONTEND_URL=http://localhost:5173
+BASE_URL=http://localhost:5000
+
+# Church
+DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
+
+# Optional: Cloudinary (Image hosting)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+Initialize database:
+```bash
 npm run db:init
 ```
 
-This runs `database/schema.sql` against your Supabase PostgreSQL instance, creating all tables and the default church record.
-
-### 3. Start Backend
-
+Start backend:
 ```bash
-cd backend
-npm run dev        # development (nodemon)
-# or
-npm start          # production
-```
-
-Backend runs on **http://localhost:5000**
-
-### 4. Start Frontend
-
-```bash
-cd frontend
-npm install
 npm run dev
 ```
 
-Frontend runs on **http://localhost:5173**
+### 3. Setup Frontend
+```bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env`:
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_CHURCH_NAME=LUS4G Church
+VITE_DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
+```
+
+Start frontend:
+```bash
+npm run dev
+```
+
+Visit: **http://localhost:5173**
 
 ---
 
-## Features
+## 📁 Project Structure
 
-### Public Website
-- Home page with hero slider, announcements, activities
-- About, Gallery, Announcements, Activities, Contact pages
-- Member & Choir registration (multi-step form)
-- Login / Setup Password / Forgot Password
-
-### Admin Dashboard (`/admin`)
-| Section | Features |
-|---|---|
-| Overview | Stats: members, choir, pending, birthdays; approval queue; chart |
-| Members | Full CRUD, approve/reject, print profile, export CSV |
-| Choir | Members by voice group, rehearsal scheduling, music library, broadcasts |
-| Announcements | Create/edit/delete, pin, category, expiry |
-| Activities | Church events management |
-| Gallery | Photo upload and management |
-| Donations | Income tracking and summary |
-| Notifications | Broadcast in-app notifications |
-
-### Member Dashboard (`/dashboard`)
-| Section | Features |
-|---|---|
-| Profile | View & edit profile, print/PDF |
-| Directory | Browse all approved members, filter choir |
-| Notifications | In-app notification feed |
-| Give | Submit donations (tithe, offering, special) |
-| Choir Portal | *(choir members only)* Rehearsal schedule + music library |
-
-### Choir System (from LUS4G)
-- Voice group assignments (Soprano, Alto, Tenor, Bass)
-- Rehearsal scheduling
-- Music library with lyrics and key notes
-- Broadcasts: send messages to choir via **Email + SMS + WhatsApp** (Twilio)
-- Choir member approval workflow
-
-### Finance
-- Income & expense tracking
-- Categories, payment methods, receipt numbers
-- Monthly trend reports
-- Donation submission from member portal
+```
+lus4g-church-platform/
+├── backend/              # Node.js + Express API
+│   ├── src/
+│   │   ├── jobs/        # Cron jobs (birthdays)
+│   │   ├── lib/         # Database, email, utilities
+│   │   ├── middleware/  # Auth middleware
+│   │   └── routes/      # API endpoints
+│   ├── .env
+│   └── package.json
+├── frontend/            # React + TypeScript + Vite
+│   ├── src/
+│   │   ├── components/  # Reusable components
+│   │   ├── contexts/    # React contexts
+│   │   ├── lib/         # API client, utilities
+│   │   └── pages/       # Page components
+│   ├── .env
+│   └── package.json
+├── database/
+│   └── schema.sql       # Database schema
+└── README.md
+```
 
 ---
 
-## API Endpoints
+## 🔑 Default Admin Account
 
-| Prefix | Description |
-|---|---|
-| `POST /api/auth/register` | Register member or choir member |
-| `POST /api/auth/login` | Login |
-| `POST /api/auth/approve/:id` | Admin approve member |
-| `GET /api/members` | List members |
-| `GET /api/choir` | List choir members |
-| `GET /api/choir/rehearsals` | List rehearsals |
-| `GET /api/choir/music` | Music library |
-| `POST /api/broadcasts` | Send choir broadcast |
-| `GET /api/finance/summary` | Finance summary |
-| `GET /api/reports/overview` | Dashboard stats |
-| `GET /api/announcements` | Public announcements |
-| `GET /api/gallery` | Gallery items |
-| `GET /api/leadership` | Leadership profiles |
-| `/health` | Health check |
+After running `npm run db:init`, create an admin account:
 
----
-
-## Database
-
-Single PostgreSQL database (Supabase) with these key tables:
-
-- `churches` — church record (seeded with default LUS4G church)
-- `users` — authentication accounts
-- `members` — member profiles
-- `choir_members` — choir-specific data (voice, instruments, activities)
-- `choir_broadcasts` — broadcast message history
-- `events` / `event_registrations` — events and RSVP
-- `attendance` — attendance records
-- `finance_transactions` / `finance_categories` — finance
-- `announcements`, `gallery`, `sermons`, `testimonials`
-- `notifications`, `contact_messages`, `documents`
-- `rehearsals`, `music_library`, `choir_dues`
-- `cms_pages`, `cms_hero_slides`, `cms_settings`
-- `leadership`, `departments`, `auth_tokens`, `audit_logs`
-
----
-
-## Roles
-
-`superadmin` → `admin` → `pastor` → `elder` → `deacon` → `leader` → `choir_member` → `member` → `visitor`
-
-Admin dashboard accessible to: `admin`, `superadmin`, `pastor`, `elder`
-
-
----
-
-## 🎨 UI Design
-
-### Consistent Dark Theme
-All pages now feature a unified dark theme for a modern, professional appearance:
-
-- **Background**: Dark slate-950
-- **Primary Color**: Brand purple-600
-- **Accent**: Gold highlights
-- **Cards**: Glass morphism with borders
-- **Typography**: Crisp white text on dark backgrounds
-- **Animations**: Smooth Framer Motion transitions
-
-### Page Layouts
-- **Homepage**: Hero slider, features, upcoming events, testimonials
-- **About**: Church story, mission/vision, core values, leadership team
-- **Announcements**: Card-based layout with category filters and pinned posts
-- **Activities**: Grid of event cards with dates, times, and locations
-- **Gallery**: Masonry grid with lightbox and category filters
-- **Contact**: Split layout with contact info and submission form
-- **Dashboards**: Modern admin and member portals with sidebar navigation
-
----
-
-## ✅ Database Verification
-
-After running `schema.sql`, verify your setup:
-
-### Quick Check
+1. Register at `/register`
+2. Check database for pending user
+3. Manually approve in database:
 ```sql
--- Run this in Supabase SQL Editor
-SELECT COUNT(*) AS table_count FROM information_schema.tables 
-WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
--- Should return 28+ tables
+UPDATE members SET approval_status = 'approved' WHERE email = 'your@email.com';
+UPDATE users SET role = 'admin' WHERE email = 'your@email.com';
 ```
-
-### Detailed Verification
-Run the complete verification script:
-```bash
-# In Supabase SQL Editor, run:
-database/verify-tables.sql
-```
-
-This checks:
-- ✅ All 28 tables exist
-- ✅ Default church record created
-- ✅ Functions (generate_member_code, generate_receipt_number) exist
-- ✅ Indexes created for performance
-- ✅ Foreign key relationships established
-
-### Add Sample Data
-To test with sample accounts and data:
-```bash
-# In Supabase SQL Editor, run:
-database/sample-data.sql
-```
-
-**Test Accounts Created:**
-| Email | Password | Role |
-|---|---|---|
-| admin@lus4g.org | Admin@123 | Admin |
-| john.mensah@lus4g.org | Member@123 | Member |
-| grace.asante@lus4g.org | Member@123 | Choir Member |
-| samuel.boateng@lus4g.org | Member@123 | Member (Youth) |
 
 ---
 
-## 🚀 Deployment
+## 🌐 Deployment
 
-### Backend on Render.com
+### Backend (Render.com)
+1. Create new Web Service
+2. Connect GitHub repository
+3. Set root directory: `backend`
+4. Build command: `npm install`
+5. Start command: `npm start`
+6. Add environment variables from `.env`
 
-1. **Create New Web Service**
-   - Go to https://render.com/dashboard
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository: `Edward2033/Church-Management-System`
-
-2. **Configure Service**
-   - **Name**: `lus4g-church-backend` (or your choice)
-   - **Region**: Choose closest to your users
-   - **Branch**: `main`
-   - **Root Directory**: `backend`
-   - **Runtime**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: Free or Starter (recommended)
-
-3. **Environment Variables**
-   Add these in Render dashboard:
-   ```
-   NODE_ENV=production
-   PORT=5000
-   DATABASE_URL=your_supabase_pooler_url_with_port_6543
-   JWT_SECRET=your_secure_jwt_secret
-   JWT_EXPIRES_IN=15m
-   JWT_REFRESH_SECRET=your_secure_refresh_secret
-   JWT_REFRESH_EXPIRES_IN=7d
-   DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
-   SMTP_HOST=smtp-relay.brevo.com
-   SMTP_PORT=587
-   SMTP_USER=your_brevo_email
-   SMTP_PASS=your_brevo_password
-   EMAIL_FROM=LUS4G Church <no-reply@lus4g.org>
-   BREVO_API_KEY=your_brevo_api_key
-   TWILIO_SID=your_twilio_sid
-   TWILIO_AUTH_TOKEN=your_twilio_token
-   TWILIO_PHONE=your_twilio_phone
-   TWILIO_WHATSAPP_NUMBER=your_twilio_whatsapp
-   FRONTEND_URL=https://your-app.vercel.app
-   BASE_URL=https://your-backend.onrender.com
-   TZ=Africa/Accra
-   ```
-
-4. **Deploy**
-   - Click "Create Web Service"
-   - Render will automatically build and deploy
-   - Note your backend URL: `https://your-backend.onrender.com`
-
-### Frontend on Vercel
-
-1. **Import Project**
-   - Go to https://vercel.com/dashboard
-   - Click "Add New" → "Project"
-   - Import `Edward2033/Church-Management-System`
-
-2. **Configure Project**
-   - **Framework Preset**: Vite
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-   - **Install Command**: `npm install`
-
-3. **Environment Variables**
-   Add these in Vercel dashboard:
-   ```
-   VITE_API_URL=https://your-backend.onrender.com/api
-   VITE_CHURCH_NAME=LUS4G Church
-   VITE_DEFAULT_CHURCH_ID=00000000-0000-0000-0000-000000000001
-   ```
-
-4. **Deploy**
-   - Click "Deploy"
-   - Vercel will build and deploy automatically
-   - Your app will be live at: `https://your-app.vercel.app`
-
-5. **Update Backend CORS**
-   - Go back to Render dashboard
-   - Update `FRONTEND_URL` environment variable with your Vercel URL
-   - Redeploy backend
+### Frontend (Vercel)
+1. Import project from GitHub
+2. Set root directory: `frontend`
+3. Framework: Vite
+4. Build command: `npm run build`
+5. Output directory: `dist`
+6. Add environment variables from `.env`
 
 ### Database (Supabase)
-- ✅ Already hosted on Supabase
-- ✅ Use connection pooler URL (port 6543) for production
-- ✅ Run `database/schema.sql` in Supabase SQL Editor before deployment
-- ✅ Ensure your DATABASE_URL uses the pooler connection string
-
-### Post-Deployment Checklist
-- [ ] Backend health check works: `https://your-backend.onrender.com/health`
-- [ ] Frontend loads correctly: `https://your-app.vercel.app`
-- [ ] Login/Register works
-- [ ] Admin dashboard accessible
-- [ ] API calls working (check browser console)
-- [ ] Environment variables set correctly on both platforms
-- [ ] Database schema deployed to Supabase
-- [ ] CORS configured with correct frontend URL
+1. Create new project
+2. Run `database/schema.sql` in SQL Editor
+3. Use connection pooler URL (port 6543) in DATABASE_URL
 
 ---
 
-## 📋 Troubleshooting
+## 📖 API Documentation
 
-### Issue: API Proxy Errors (ECONNREFUSED)
-**Cause**: Backend server not running  
-**Solution**: Start backend with `npm run dev` in backend folder
+### Authentication
+- `POST /api/auth/register` - Register member
+- `POST /api/auth/login` - Login
+- `POST /api/auth/approve/:id` - Approve member (admin)
 
-### Issue: Pages Show Demo Data
-**Cause**: Backend not connected or API endpoints failing  
-**Solution**: Check backend console for errors, verify DATABASE_URL
+### Members
+- `GET /api/members` - List members
+- `GET /api/members/:id` - Get member
+- `PATCH /api/members/:id` - Update member
+- `GET /api/members/birthdays` - Get birthdays this month
 
-### Issue: Database Connection Failed
-**Solution**: 
-- Verify `DATABASE_URL` in `.env` is correct
-- Use Supabase pooler URL (port 6543, not 5432)
-- Check Supabase project is active
+### Choir
+- `GET /api/choir` - List choir members
+- `GET /api/choir/rehearsals` - List rehearsals
+- `POST /api/choir/rehearsals` - Create rehearsal
+- `GET /api/choir/music` - Music library
+- `POST /api/broadcasts` - Send broadcast
 
-### Issue: Login Not Working
-**Solution**:
-- Verify JWT_SECRET is set in backend `.env`
-- Check user exists in database
-- Verify password was set (password_set = true)
+### Attendance
+- `GET /api/attendance` - List sessions
+- `POST /api/attendance` - Create session
+- `GET /api/attendance/:id/responses` - Get responses
+- `GET /api/attendance/:sessionId/respond` - RSVP to session
 
-### Issue: Blank Pages After Navigation
-**Solution**:
-- This was fixed - all pages now use consistent dark theme
-- If still occurring, check browser console for React errors
-- Ensure frontend dev server is running
-
----
-
-## 📚 Additional Documentation
-
-- **Setup Guide**: See `SETUP_INSTRUCTIONS.md` for detailed setup
-- **Database Schema**: See `database/schema.sql` for complete schema
-- **Table Verification**: See `database/verify-tables.sql` for verification
-- **Sample Data**: See `database/sample-data.sql` for test data
+### Finance
+- `GET /api/donations` - List donations
+- `POST /api/donations` - Record donation
+- `GET /api/finance/summary` - Financial summary
 
 ---
 
-## 🆕 What's New in v3.0
+## 🛠️ Tech Stack
 
-### ✨ Features
-- ✅ Unified church + choir platform
-- ✅ Consistent dark theme across all pages
-- ✅ Card-based layouts for better content organization
-- ✅ Complete database schema with all relationships
-- ✅ Admin and member dashboards fully integrated
-- ✅ CMS for dynamic content management
-- ✅ Reports and analytics system
-- ✅ Email + SMS/WhatsApp notifications
-- ✅ Choir-specific features (voice groups, rehearsals, broadcasts)
-- ✅ Multi-tenant architecture support
+### Backend
+- Node.js + Express
+- PostgreSQL (Supabase)
+- JWT Authentication
+- Nodemailer (Email)
+- Twilio (SMS/WhatsApp)
+- Cloudinary (Image hosting)
+- Node-cron (Scheduled jobs)
 
-### 🔧 Technical Improvements
-- React 18 with TypeScript
-- Vite for lightning-fast builds
-- TanStack Query for server state
-- Framer Motion animations
-- Glass morphism UI design
-- Responsive mobile-first layout
-- JWT authentication with refresh tokens
-- Row-level data isolation by church_id
+### Frontend
+- React 18 + TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- TanStack Query
+- Framer Motion
+- Recharts (Analytics)
+- Sonner (Notifications)
 
 ---
 
-## 📞 Support & Contributing
+## 🔒 Security
 
-### Get Help
-- 📧 Email: edwardcole203@gmail.com
-- 📖 Docs: Read `SETUP_INSTRUCTIONS.md`
-- 🐛 Issues: Report on [GitHub Issues](https://github.com/Edward2033/Church-Management-System/issues)
-
-### Contributing
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+- JWT tokens with refresh mechanism
+- Password hashing with bcrypt
+- Role-based access control
+- Input validation
+- SQL injection protection (parameterized queries)
+- CORS configuration
+- Helmet security headers
 
 ---
 
-**Version**: 3.0.0  
-**Last Updated**: August 2, 2026  
-**License**: MIT  
+## 📧 Support
+
+- **Email**: edwardcole203@gmail.com
+- **GitHub**: [Issues](https://github.com/Edward2033/Church-Management-System/issues)
+
+---
+
+## 📜 License
+
+MIT License - feel free to use for your church!
+
+---
+
 **Made with ❤️ for the Kingdom of God**
