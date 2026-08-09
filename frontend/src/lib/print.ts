@@ -360,7 +360,7 @@ export async function printIDCard(m: User) {
     .cards-row {
       display: flex;
       gap: 32px;
-      align-items: flex-start;
+      align-items: stretch;
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -368,10 +368,13 @@ export async function printIDCard(m: User) {
     /* ── CARD BASE ── */
     .card {
       width: 340px;
+      min-height: 480px;
       border-radius: 18px;
       overflow: hidden;
       box-shadow: 0 8px 32px rgba(0,0,0,0.18);
       background: #fff;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── FRONT CARD ── */
@@ -423,6 +426,7 @@ export async function printIDCard(m: User) {
       display: flex;
       gap: 16px;
       align-items: flex-start;
+      flex: 1;
     }
     .front-photo {
       width: 90px;
@@ -497,7 +501,7 @@ export async function printIDCard(m: User) {
     }
 
     /* ── BACK CARD ── */
-    .back { background: #fff; }
+    .back { background: #fff; display: flex; flex-direction: column; }
     .back-header {
       background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
       padding: 14px 20px;
@@ -514,7 +518,7 @@ export async function printIDCard(m: User) {
       height: 6px;
       background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
     }
-    .back-body { padding: 16px 20px; }
+    .back-body { padding: 16px 20px; flex: 1; }
     .back-section-title {
       font-size: 9px;
       font-weight: 700;
@@ -576,7 +580,9 @@ export async function printIDCard(m: User) {
       body { background: white; padding: 10px; gap: 16px; }
       .page-title { display: none; }
       .cards-row { gap: 20px; }
-      .card { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+      .card { box-shadow: 0 2px 8px rgba(0,0,0,0.12); break-inside: avoid; }
+      /* Force both cards to the same height for double-sided printing */
+      .cards-row { align-items: stretch; }
     }
   </style>
 </head>

@@ -59,8 +59,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     localStorage.setItem('cms_token', res.accessToken);
     localStorage.setItem('cms_refresh', res.refreshToken);
-    setUserState(res.user);
-    return res.user;
+    // Fetch full profile immediately after login so all fields are available
+    try {
+      const meRes = await api<{ user: User }>('/auth/me');
+      setUserState(meRes.user);
+      return meRes.user;
+    } catch {
+      // Fallback to login response if /auth/me fails
+      setUserState(res.user);
+      return res.user;
+    }
   };
 
   const logout = async () => {

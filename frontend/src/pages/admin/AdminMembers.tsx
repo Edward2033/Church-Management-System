@@ -468,6 +468,10 @@ const AdminMembers: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  // In the members list, m.id = members.id (the member table primary key).
+  // All auth/approve, auth/reject, auth/grant-account, members/:id endpoints
+  // expect the members.id — which is m.id from the list query.
+
   const approve = async (id: string) => {
     try { 
       await post(`/auth/approve/${id}`, {}); 

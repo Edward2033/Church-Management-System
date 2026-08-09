@@ -196,7 +196,7 @@ const MemberProfile: React.FC = () => {
                   <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input type="tel" value={(form as any)[k] || ''} onChange={(e) => upd(k, e.target.value)} className="input-base" /></div>
                 ))}
               </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={form.date_of_birth || ''} onChange={(e) => upd('date_of_birth', e.target.value)} className="input-base" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={(form.date_of_birth || '').slice(0, 10)} onChange={(e) => upd('date_of_birth', e.target.value)} className="input-base" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><textarea rows={2} value={form.address || ''} onChange={(e) => upd('address', e.target.value)} className="input-base resize-none" /></div>
               {(member.role === 'choir_member' || member.role === 'choir') && (
                 <>

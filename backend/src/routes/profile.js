@@ -11,26 +11,33 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get('/', authenticate, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT u.id, u.email, u.role, u.is_active, u.last_login, u.created_at,
+      SELECT u.id, u.email AS user_email, u.role, u.is_active, u.last_login, u.created_at,
              m.id as member_id, m.member_code, m.first_name, m.middle_name, m.last_name,
              m.gender, m.date_of_birth, m.profile_photo_url, m.phone, m.whatsapp_number,
+             m.email AS member_email,
              m.address, m.city, m.occupation, m.marital_status, m.membership_status,
              m.baptism_status, m.baptism_date, m.date_joined,
              m.emergency_name, m.emergency_phone, m.emergency_relation, m.bio,
+             m.approval_status, m.approved_at,
              d.id as department_id, d.name as department_name,
-             cm.voice_group, cm.choir_role, cm.experience_level, cm.instruments
+             cm.voice_group, cm.choir_role, cm.experience_level, cm.instruments,
+             cm.choir_activities, cm.main_role, cm.is_director AS is_choir_director
       FROM users u
       LEFT JOIN members m ON m.user_id = u.id
       LEFT JOIN departments d ON d.id = m.department_id
-      LEFT JOIN choir_members cm ON cm.member_id = m.id
+      LEFT JOIN choir_members cm ON cm.member_id = m.id AND cm.is_active = TRUE
       WHERE u.id = $1
     `, [req.user.id]);
     
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Profile not found' });
     }
+
+    const profile = rows[0];
+    // Normalise email: prefer member email over user email
+    profile.email = profile.member_email || profile.user_email;
     
-    res.json({ profile: rows[0] });
+    res.json({ profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

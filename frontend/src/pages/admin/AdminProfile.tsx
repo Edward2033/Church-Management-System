@@ -42,12 +42,15 @@ const AdminProfile: React.FC = () => {
 
   useEffect(() => {
     if (member) {
+      // date_of_birth may come as full ISO timestamp — slice to YYYY-MM-DD for date input
+      const dob = member.date_of_birth ? member.date_of_birth.slice(0, 10) : '';
+      const baptismDate = member.baptism_date ? member.baptism_date.slice(0, 10) : '';
       setProfileData({
         firstName: member.first_name || '',
         middleName: member.middle_name || '',
         lastName: member.last_name || '',
         gender: member.gender || '',
-        dateOfBirth: member.date_of_birth || '',
+        dateOfBirth: dob,
         phone: member.phone || '',
         whatsappNumber: member.whatsapp_number || '',
         address: member.address || '',
@@ -55,7 +58,7 @@ const AdminProfile: React.FC = () => {
         occupation: member.occupation || '',
         maritalStatus: member.marital_status || '',
         baptismStatus: member.baptism_status || false,
-        baptismDate: member.baptism_date || '',
+        baptismDate,
         emergencyName: member.emergency_name || '',
         emergencyPhone: member.emergency_phone || '',
         emergencyRelation: member.emergency_relation || '',
