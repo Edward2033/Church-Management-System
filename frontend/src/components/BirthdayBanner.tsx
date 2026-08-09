@@ -4,18 +4,31 @@ import { get } from '@/lib/api';
 import { Cake, PartyPopper, X } from 'lucide-react';
 
 const BirthdayBanner: React.FC = () => {
-  const [list, setList] = useState<{ first_name: string }[]>([]);
+  const [list, setList] = useState<{ first_name: string; last_name: string }[]>([]);
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    get<{ birthdays: { first_name: string }[] }>('/members/birthdays')
-      .then((r) => setList(r.birthdays || []))
+    // Fetch all birthdays this month, then filter to show ONLY today's birthdays
+    get<{ birthdays: { first_name: string; last_name: string; date_of_birth: string }[] }>('/members/birthdays')
+      .then((r) => {
+        const all = r.birthdays || [];
+        const today = new Date();
+        const todayMonth = today.getMonth() + 1;
+        const todayDay = today.getDate();
+        // Filter to show ONLY members with birthdays TODAY
+        const todayBirthdays = all.filter((b) => {
+          if (!b.date_of_birth) return false;
+          const [, month, day] = b.date_of_birth.slice(0, 10).split('-').map(Number);
+          return month === todayMonth && day === todayDay;
+        });
+        setList(todayBirthdays);
+      })
       .catch(() => {});
   }, []);
 
   if (!list.length || !visible) return null;
 
-  const names = list.map((b) => b.first_name).join(', ');
+  const names = list.map((b) => `${b.first_name} ${b.last_name}`).join(', ');
 
   return (
     <AnimatePresence>
