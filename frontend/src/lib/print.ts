@@ -9,22 +9,6 @@ function fmt(d?: string) {
 // ── MEMBER PROFILE PRINT ──────────────────────────────────────
 // Full profile sheet for records/archive
 export async function printMemberProfile(m: User) {
-  // Debug: Log what data we're receiving
-  console.log('printMemberProfile called with:', m);
-  console.log('Fields check:', {
-    hasFirstName: !!m.first_name,
-    hasLastName: !!m.last_name,
-    hasPhone: !!m.phone,
-    hasEmail: !!m.email,
-    hasAddress: !!m.address,
-    hasGender: !!m.gender,
-    hasOccupation: !!m.occupation,
-    hasMaritalStatus: !!m.marital_status,
-    hasDOB: !!m.date_of_birth,
-    hasEmergencyName: !!m.emergency_name,
-    hasMiddleName: !!m.middle_name,
-  });
-
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!w) { alert('Please allow popups for this site to print profiles.'); return; }
 

@@ -21,31 +21,8 @@ const MemberProfile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
-  // Debug: Log member data on mount and when it changes
-  useEffect(() => {
-    console.log('MemberProfile member data:', member);
-    console.log('Member fields check:', {
-      hasFirstName: !!member?.first_name,
-      hasMiddleName: !!member?.middle_name,
-      hasLastName: !!member?.last_name,
-      hasPhone: !!member?.phone,
-      hasEmail: !!member?.email,
-      hasAddress: !!member?.address,
-      hasGender: !!member?.gender,
-      hasOccupation: !!member?.occupation,
-      hasMaritalStatus: !!member?.marital_status,
-      hasDOB: !!member?.date_of_birth,
-      hasEmergencyName: !!member?.emergency_name,
-    });
-  }, [member]);
-
-  // Ensure we have full profile data on mount
-  useEffect(() => {
-    if (member && !member.middle_name && !member.occupation) {
-      console.log('Member data seems incomplete, refreshing from API...');
-      refresh();
-    }
-  }, []);
+  // Check if profile is incomplete
+  const isProfileIncomplete = !member?.phone || !member?.address || !member?.gender || !member?.date_of_birth;
 
   if (!member) return null;
   const upd = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -130,6 +107,22 @@ const MemberProfile: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Profile</h1>
+      
+      {/* Incomplete Profile Banner */}
+      {isProfileIncomplete && !editing && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+          <div className="text-amber-600 mt-0.5">⚠️</div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-amber-900 mb-1">Complete Your Profile</h3>
+            <p className="text-sm text-amber-700 mb-3">
+              Your profile is missing some important information. Please update your profile to ensure all your details are saved and will appear when you print your profile or ID card.
+            </p>
+            <button onClick={() => { setForm(member); setEditing(true); }} className="btn-primary py-1.5 px-4 text-sm">
+              <Pencil size={14} /> Complete Profile Now
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm mb-6">
