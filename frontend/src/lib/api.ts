@@ -10,7 +10,23 @@ export const API_BASE_URL      = import.meta.env.VITE_API_URL            || '/ap
 
 function getToken() { return localStorage.getItem('cms_token'); }
 
-async function tryRefresh(): Promise<string | null> {
+// Called when auth is definitively lost — clear storage and redirect to login
+function forceLogout() {
+  localStorage.removeItem('cms_token');
+  localStorage.removeItem('cms_refresh');
+  // Only redirect if not already on a public page
+  if (!window.location.pathname.startsWith('/login') &&
+      !window.location.pathname.startsWith('/register') &&
+      !window.location.pathname.startsWith('/setup-password') &&
+      !window.location.pathname.startsWith('/forgot-password') &&
+      !window.location.pathname.startsWith('/reset-password') &&
+      !window.location.pathname.startsWith('/verify')) {
+    window.location.href = '/login';
+  }
+}
+
+// Returns the new access token on success, null on auth failure, 'network' on network error
+async function tryRefresh(): Promise<string | null | 'network'> {
   const refreshToken = localStorage.getItem('cms_refresh');
   if (!refreshToken) return null;
   try {
@@ -19,55 +35,91 @@ async function tryRefresh(): Promise<string | null> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) return null;
+    // 401/403 = token genuinely expired/invalid
+    if (res.status === 401 || res.status === 403) return null;
+    // Any other non-ok (500, network timeout surfaced as non-ok) = treat as network issue
+    if (!res.ok) return 'network';
     const data = await res.json();
     localStorage.setItem('cms_token', data.accessToken);
     localStorage.setItem('cms_refresh', data.refreshToken);
     return data.accessToken;
-  } catch { return null; }
+  } catch {
+    // fetch() threw — pure network error (server sleeping, offline, etc.)
+    return 'network';
+  }
 }
 
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+  // Build headers: Authorization is always set from our token, never overwritten by caller
+  const buildHeaders = (token: string | null): Record<string, string> => {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    // Merge caller headers but never let them overwrite Authorization or Content-Type
+    const callerHeaders = (options.headers || {}) as Record<string, string>;
+    for (const [k, v] of Object.entries(callerHeaders)) {
+      const lower = k.toLowerCase();
+      if (lower !== 'authorization' && lower !== 'content-type') h[k] = v;
+    }
+    return h;
+  };
+
   const doRequest = (token: string | null) =>
-    fetch(`${BASE}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    });
+    fetch(`${BASE}${path}`, { ...options, headers: buildHeaders(token) });
 
   let res = await doRequest(getToken());
+
   if (res.status === 401) {
-    const newToken = await tryRefresh();
-    if (newToken) res = await doRequest(newToken);
+    const refreshResult = await tryRefresh();
+    if (typeof refreshResult === 'string' && refreshResult !== 'network') {
+      // Got a new token — retry
+      res = await doRequest(refreshResult);
+    } else if (refreshResult === null) {
+      // Refresh token is genuinely expired/invalid — force logout
+      forceLogout();
+      throw new Error('Session expired. Please log in again.');
+    }
+    // refreshResult === 'network': server is down/sleeping, don't logout, let the error bubble
   }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || `HTTP ${res.status}`);
   return data as T;
 }
 
-// For multipart/FormData requests (file uploads) with auto token refresh
+// For multipart/FormData requests (file uploads) — never set Content-Type (browser sets it with boundary)
 export async function apiFetch(path: string, options: RequestInit): Promise<Response> {
-  const doRequest = (token: string | null) => {
-    const headers = { ...(options.headers as Record<string, string> || {}) };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(`${BASE}${path}`, { ...options, headers });
+  const buildHeaders = (token: string | null): Record<string, string> => {
+    const h: Record<string, string> = {};
+    const callerHeaders = (options.headers || {}) as Record<string, string>;
+    for (const [k, v] of Object.entries(callerHeaders)) {
+      if (k.toLowerCase() !== 'content-type') h[k] = v;
+    }
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
   };
+
+  const doRequest = (token: string | null) =>
+    fetch(`${BASE}${path}`, { ...options, headers: buildHeaders(token) });
+
   let res = await doRequest(getToken());
+
   if (res.status === 401) {
-    const newToken = await tryRefresh();
-    if (newToken) res = await doRequest(newToken);
+    const refreshResult = await tryRefresh();
+    if (typeof refreshResult === 'string' && refreshResult !== 'network') {
+      res = await doRequest(refreshResult);
+    } else if (refreshResult === null) {
+      forceLogout();
+    }
   }
+
   return res;
 }
 
-export const get  = <T>(path: string)                   => api<T>(path);
-export const post = <T>(path: string, body: unknown)    => api<T>(path, { method: 'POST',   body: JSON.stringify(body) });
-export const put  = <T>(path: string, body: unknown)    => api<T>(path, { method: 'PUT',    body: JSON.stringify(body) });
-export const patch= <T>(path: string, body: unknown)    => api<T>(path, { method: 'PATCH',  body: JSON.stringify(body) });
-export const del  = <T>(path: string)                   => api<T>(path, { method: 'DELETE' });
+export const get   = <T>(path: string)                => api<T>(path);
+export const post  = <T>(path: string, body: unknown) => api<T>(path, { method: 'POST',   body: JSON.stringify(body) });
+export const put   = <T>(path: string, body: unknown) => api<T>(path, { method: 'PUT',    body: JSON.stringify(body) });
+export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: 'PATCH',  body: JSON.stringify(body) });
+export const del   = <T>(path: string)                => api<T>(path, { method: 'DELETE' });
 
 // ─────────────────────────────────────────────────────────────
 //  Core types (aligned with database/schema.sql)
@@ -123,6 +175,7 @@ export interface User {
   choir_activities?: string[];
   choir_active?: boolean;
   main_role?: string;
+  is_choir_director?: boolean;
   // legacy aliases
   status?: string;
   baptized?: boolean;
@@ -377,9 +430,9 @@ export interface Donation {
   payment_ref?: string;
   payment_status: string;
   transaction_date: string;
-  donated_at?: string; // alias — may come from backend AS donated_at
+  donated_at?: string;
   description?: string;
-  note?: string;      // alias for description
+  note?: string;
   receipt_number?: string;
   category_name?: string;
   created_at: string;

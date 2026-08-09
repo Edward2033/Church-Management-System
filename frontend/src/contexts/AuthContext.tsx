@@ -25,26 +25,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api<{ user: User }>('/auth/me');
       setUserState(res.user);
-    } catch {
-      // Access token expired — try silent refresh
-      const refreshToken = localStorage.getItem('cms_refresh');
-      if (refreshToken) {
-        try {
-          const refreshRes = await post<{ accessToken: string; refreshToken: string }>(
-            '/auth/refresh', { refreshToken }
-          );
-          localStorage.setItem('cms_token', refreshRes.accessToken);
-          localStorage.setItem('cms_refresh', refreshRes.refreshToken);
-          const meRes = await api<{ user: User }>('/auth/me');
-          setUserState(meRes.user);
-          setLoading(false);
-          return;
-        } catch {
-          // refresh token also expired — force re-login
-        }
-      }
-      localStorage.removeItem('cms_token');
-      localStorage.removeItem('cms_refresh');
+    } catch (err: any) {
+      // api() already attempted token refresh and called forceLogout if it failed.
+      // Just clear local state here.
       setUserState(null);
     } finally {
       setLoading(false);
@@ -54,18 +37,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { refresh(); }, [refresh]);
 
   const login = async (email: string, password: string): Promise<User> => {
+    // Step 1: authenticate and get tokens
     const res = await post<{ accessToken: string; refreshToken: string; user: User }>(
       '/auth/login', { email, password }
     );
     localStorage.setItem('cms_token', res.accessToken);
     localStorage.setItem('cms_refresh', res.refreshToken);
-    // Fetch full profile immediately after login so all fields are available
+
+    // Step 2: fetch full profile from /auth/me so every field is populated
+    // (login response only returns a subset of fields)
     try {
       const meRes = await api<{ user: User }>('/auth/me');
       setUserState(meRes.user);
       return meRes.user;
     } catch {
-      // Fallback to login response if /auth/me fails
+      // /auth/me failed for some reason — fall back to login payload
       setUserState(res.user);
       return res.user;
     }

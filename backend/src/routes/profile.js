@@ -55,6 +55,21 @@ router.put('/', authenticate, upload.single('profilePhoto'), async (req, res) =>
       baptismStatus, baptismDate, emergencyName, emergencyPhone, emergencyRelation, bio
     } = req.body;
     
+    // Validate age if date of birth is provided
+    if (dateOfBirth) {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      
+      if (actualAge < 12) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Members must be at least 12 years old' });
+      }
+    }
+    
     // Get current member data
     const { rows: [member] } = await client.query(
       'SELECT id, profile_photo_url FROM members WHERE user_id = $1',

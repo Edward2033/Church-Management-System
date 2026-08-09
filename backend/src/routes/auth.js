@@ -50,6 +50,19 @@ router.post('/register', async (req, res) => {
       if (!date_of_birth) {
         return res.status(400).json({ error: 'Date of birth is required' });
       }
+      
+      // AGE VALIDATION: Must be at least 12 years old
+      const birthDate = new Date(date_of_birth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      
+      if (actualAge < 12) {
+        return res.status(400).json({ error: 'You must be at least 12 years old to register' });
+      }
+      
       if (!address) {
         return res.status(400).json({ error: 'Address is required' });
       }

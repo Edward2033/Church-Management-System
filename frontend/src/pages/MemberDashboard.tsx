@@ -36,7 +36,24 @@ const MemberProfile: React.FC = () => {
   };
 
   const save = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    
+    // Validate age if date_of_birth is provided
+    if (form.date_of_birth) {
+      const birthDate = new Date(form.date_of_birth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      
+      if (actualAge < 12) {
+        toast.error('Members must be at least 12 years old to register.');
+        return;
+      }
+    }
+    
+    setSaving(true);
     try {
       // Build FormData so photo upload works
       const fd = new FormData();
@@ -227,7 +244,17 @@ const MemberProfile: React.FC = () => {
                     <option value="Other">Other</option>
                   </select>
                 </div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={(form.date_of_birth || '').slice(0, 10)} onChange={(e) => upd('date_of_birth', e.target.value)} className="input-base" /></div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input 
+                    type="date" 
+                    value={(form.date_of_birth || '').slice(0, 10)} 
+                    onChange={(e) => upd('date_of_birth', e.target.value)} 
+                    className="input-base"
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
+                    title="Must be at least 12 years old"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[['phone','Phone'],['whatsapp_number','WhatsApp']].map(([k,l]) => (
