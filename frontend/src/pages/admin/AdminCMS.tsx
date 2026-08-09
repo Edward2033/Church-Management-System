@@ -127,7 +127,7 @@ function AboutTab() {
   const save = async () => {
     setSaving(true);
     try {
-      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s, group: 'about' }) });
       toast.success('About page settings saved');
     } catch (err: any) {
       toast.error(err.message);
@@ -338,13 +338,27 @@ function FooterTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/cms/settings?group=footer`)
-      .then((r) => r.json())
-      .then((data) => {
-        const flat: Record<string, string> = {};
-        (data.raw || []).forEach((r: any) => { flat[r.key] = r.value ?? ''; });
-        setS(flat);
-      });
+    // Load both footer group and legacy church_* keys (no group filter — get all footer-related)
+    Promise.all([
+      fetch(`${API}/cms/settings?group=footer`).then((r) => r.json()),
+      fetch(`${API}/cms/settings?group=branding`).then((r) => r.json()),
+    ]).then(([footerData, brandingData]) => {
+      const flat: Record<string, string> = {};
+      // Load legacy church_* keys first as fallback values
+      (footerData.raw || []).forEach((r: any) => { flat[r.key] = r.value ?? ''; });
+      // Branding logo
+      (brandingData.raw || []).forEach((r: any) => { flat[r.key] = r.value ?? ''; });
+      // Populate footer_* fields from legacy church_* if footer_* not set
+      if (!flat.footer_church_name && flat.church_name) flat.footer_church_name = flat.church_name;
+      if (!flat.footer_tagline && flat.church_tagline) flat.footer_tagline = flat.church_tagline;
+      if (!flat.footer_address && flat.church_address) flat.footer_address = flat.church_address;
+      if (!flat.footer_phone && flat.church_phone) flat.footer_phone = flat.church_phone;
+      if (!flat.footer_email && flat.church_email) flat.footer_email = flat.church_email;
+      if (!flat.footer_sunday_service && flat.sunday_service_times) flat.footer_sunday_service = flat.sunday_service_times;
+      if (!flat.footer_wednesday_service && flat.midweek_service) flat.footer_wednesday_service = flat.midweek_service;
+      if (!flat.footer_friday_service && flat.prayer_meeting) flat.footer_friday_service = flat.prayer_meeting;
+      setS(flat);
+    });
   }, []);
 
   const set = (k: string, v: string) => setS((p) => ({ ...p, [k]: v }));
@@ -352,7 +366,7 @@ function FooterTab() {
   const save = async () => {
     setSaving(true);
     try {
-      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s, group: 'footer' }) });
       toast.success('Footer settings saved');
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
@@ -422,7 +436,7 @@ function SocialTab() {
   const save = async () => {
     setSaving(true);
     try {
-      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s, group: 'social' }) });
       toast.success('Social links saved');
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
@@ -595,7 +609,7 @@ function ContactTab() {
   const save = async () => {
     setSaving(true);
     try {
-      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s }) });
+      await api('/cms/settings', { method: 'PUT', body: JSON.stringify({ settings: s, group: 'contact' }) });
       toast.success('Contact page settings saved');
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }

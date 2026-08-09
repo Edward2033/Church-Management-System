@@ -37,20 +37,57 @@ router.get('/settings', async (req, res) => {
 });
 
 // PUT /api/cms/settings  — admin bulk upsert (JSON body)
+// Accepts optional `group` field to set/preserve group_name for all keys in this batch.
+// Also accepts `settingsWithGroups` array: [{key, value, group}] for per-key group control.
 router.put('/settings', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
   try {
-    const { settings } = req.body;
+    const { settings, group, settingsWithGroups } = req.body;
+
+    // Support per-key group via settingsWithGroups array
+    if (Array.isArray(settingsWithGroups) && settingsWithGroups.length) {
+      for (const { key, value, group: keyGroup } of settingsWithGroups) {
+        if (!key) continue;
+        await pool.query(
+          `INSERT INTO cms_settings (church_id, key, value, group_name, updated_by, updated_at)
+           VALUES ($1,$2,$3,$4,$5,NOW())
+           ON CONFLICT (church_id, key)
+           DO UPDATE SET value=EXCLUDED.value,
+             group_name=COALESCE(EXCLUDED.group_name, cms_settings.group_name),
+             updated_by=EXCLUDED.updated_by, updated_at=NOW()`,
+          [req.churchId, key, String(value ?? ''), keyGroup || null, req.user.id]
+        );
+      }
+      return res.json({ message: `${settingsWithGroups.length} setting(s) updated` });
+    }
+
     if (!settings || typeof settings !== 'object')
       return res.status(400).json({ error: 'settings object required' });
     const entries = Object.entries(settings);
     if (!entries.length) return res.status(400).json({ error: 'No settings provided' });
+
+    // Infer group from key prefix if not explicitly provided
+    const inferGroup = (key) => {
+      if (group) return group;
+      if (key.startsWith('contact_')) return 'contact';
+      if (key.startsWith('footer_'))  return 'footer';
+      if (key.startsWith('social_'))  return 'social';
+      if (key.startsWith('about_'))   return 'about';
+      if (key.startsWith('site_'))    return 'branding';
+      if (key.startsWith('church_'))  return 'footer';
+      if (key.startsWith('sunday_') || key.startsWith('midweek_') || key.startsWith('prayer_')) return 'footer';
+      return null;
+    };
+
     for (const [key, value] of entries) {
+      const groupName = inferGroup(key);
       await pool.query(
-        `INSERT INTO cms_settings (church_id, key, value, updated_by, updated_at)
-         VALUES ($1,$2,$3,$4,NOW())
+        `INSERT INTO cms_settings (church_id, key, value, group_name, updated_by, updated_at)
+         VALUES ($1,$2,$3,$4,$5,NOW())
          ON CONFLICT (church_id, key)
-         DO UPDATE SET value=EXCLUDED.value, updated_by=EXCLUDED.updated_by, updated_at=NOW()`,
-        [req.churchId, key, String(value), req.user.id]
+         DO UPDATE SET value=EXCLUDED.value,
+           group_name=COALESCE(EXCLUDED.group_name, cms_settings.group_name),
+           updated_by=EXCLUDED.updated_by, updated_at=NOW()`,
+        [req.churchId, key, String(value ?? ''), groupName, req.user.id]
       );
     }
     res.json({ message: `${entries.length} setting(s) updated` });

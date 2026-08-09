@@ -167,7 +167,22 @@ async function boot() {
     console.log('[SYSTEM] Testing database connection...');
     const result = await pool.query('SELECT NOW() as now');
     console.log('[SYSTEM] Database connection successful! Server time:', result.rows[0].now);
-    
+
+    // Auto-fix: ensure all cms_settings rows have correct group_name
+    // This repairs rows saved before the group_name bug was fixed
+    try {
+      await pool.query(`UPDATE cms_settings SET group_name = 'contact'  WHERE group_name IS NULL AND key LIKE 'contact_%'`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'footer'   WHERE group_name IS NULL AND key LIKE 'footer_%'`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'footer'   WHERE group_name IS NULL AND key LIKE 'church_%'`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'footer'   WHERE group_name IS NULL AND key IN ('sunday_service_times','midweek_service','prayer_meeting')`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'social'   WHERE group_name IS NULL AND key LIKE 'social_%'`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'about'    WHERE group_name IS NULL AND key LIKE 'about_%'`);
+      await pool.query(`UPDATE cms_settings SET group_name = 'branding' WHERE group_name IS NULL AND key LIKE 'site_%'`);
+      console.log('[SYSTEM] ✓ CMS group_name integrity check complete');
+    } catch (migErr) {
+      console.warn('[SYSTEM] CMS group_name fix skipped:', migErr.message);
+    }
+
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`[SYSTEM] ✓ LUS4G Church Platform running on port ${PORT}`);
