@@ -50,6 +50,27 @@ const RegisterPage: React.FC = () => {
   const [done, setDone] = useState(false);
   const navigate = useNavigate();
 
+  // Max date = today minus 12 years (minimum age)
+  const maxDob = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 12);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const validateAge = (dob: string): boolean => {
+    if (!dob) return true; // optional field — backend will catch if required
+    const birth = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    if (age < 12) {
+      toast.error('You must be at least 12 years old to register');
+      return false;
+    }
+    return true;
+  };
+
   const upd = (k: keyof FormData, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const toggleArr = (k: 'instruments' | 'choir_activities', val: string) => {
@@ -91,6 +112,7 @@ const RegisterPage: React.FC = () => {
     if (step === 1 && (!form.first_name.trim() || !form.last_name.trim() || !form.gender)) {
       toast.error('First name, last name and gender are required'); return false;
     }
+    if (step === 1 && form.date_of_birth && !validateAge(form.date_of_birth)) return false;
     if (step === 2 && (!form.email.trim() || !form.phone.trim())) {
       toast.error('Email and phone are required'); return false;
     }
@@ -242,7 +264,9 @@ const RegisterPage: React.FC = () => {
                     {['Male', 'Female', 'Other'].map((g) => <option key={g}>{g}</option>)}
                   </select>
                 </Field>
-                <Field label="Date of Birth"><input type="date" value={form.date_of_birth} onChange={(e) => upd('date_of_birth', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" /></Field>
+                <Field label="Date of Birth"><input type="date" value={form.date_of_birth} max={maxDob} onChange={(e) => upd('date_of_birth', e.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20" />
+                  <p className="text-xs text-slate-500 mt-1">Must be at least 12 years old</p>
+                </Field>
               </div>
               <Field label="Profile Photo">
                 <div className="flex items-center gap-4">

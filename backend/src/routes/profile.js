@@ -101,7 +101,8 @@ router.put('/', authenticate, upload.single('profilePhoto'), async (req, res) =>
       profilePhotoUrl = await uploadToCloudinary(req.file.buffer, 'profiles');
     }
     
-    // Update member record
+    // Update member record — convert empty strings to null so COALESCE keeps existing values
+    const toVal = (v) => (v === undefined || v === null || v === '') ? null : v;
     const { rows: [updatedMember] } = await client.query(`
       UPDATE members SET
         first_name = COALESCE($1, first_name),
@@ -126,20 +127,45 @@ router.put('/', authenticate, upload.single('profilePhoto'), async (req, res) =>
       WHERE id = $19
       RETURNING *
     `, [
-      firstName, middleName || null, lastName, gender, dateOfBirth || null,
-      phone, whatsappNumber || null, address || null, city || null,
-      occupation || null, maritalStatus || null,
-      baptismStatus !== undefined ? (baptismStatus === 'true' || baptismStatus === true) : null,
-      baptismDate || null, emergencyName || null, emergencyPhone || null,
-      emergencyRelation || null, bio || null, profilePhotoUrl, member.id
+      toVal(firstName), toVal(middleName), toVal(lastName), toVal(gender),
+      toVal(dateOfBirth),
+      toVal(phone), toVal(whatsappNumber), toVal(address), toVal(city),
+      toVal(occupation), toVal(maritalStatus),
+      baptismStatus !== undefined && baptismStatus !== '' ? (baptismStatus === 'true' || baptismStatus === true) : null,
+      toVal(baptismDate), toVal(emergencyName), toVal(emergencyPhone),
+      toVal(emergencyRelation), toVal(bio), profilePhotoUrl, member.id
     ]);
     
     await client.query('COMMIT');
-    
+
+    // Re-fetch full profile with all JOINs so the response matches /auth/me
+    const { rows: [fullProfile] } = await pool.query(`
+      SELECT u.id, u.email AS user_email, u.role, u.is_active, u.last_login, u.created_at,
+             m.id as member_id, m.member_code, m.first_name, m.middle_name, m.last_name,
+             m.gender, m.date_of_birth, m.profile_photo_url, m.phone, m.whatsapp_number,
+             m.email AS member_email,
+             m.address, m.city, m.occupation, m.marital_status, m.membership_status,
+             m.baptism_status, m.baptism_date, m.date_joined,
+             m.emergency_name, m.emergency_phone, m.emergency_relation, m.bio,
+             m.approval_status, m.approved_at,
+             d.id as department_id, d.name as department_name,
+             cm.voice_group, cm.choir_role, cm.experience_level, cm.instruments,
+             cm.choir_activities, cm.main_role, cm.is_director AS is_choir_director
+      FROM users u
+      LEFT JOIN members m ON m.user_id = u.id
+      LEFT JOIN departments d ON d.id = m.department_id
+      LEFT JOIN choir_members cm ON cm.member_id = m.id AND cm.is_active = TRUE
+      WHERE u.id = $1
+    `, [req.user.id]);
+
+    if (fullProfile) {
+      fullProfile.email = fullProfile.member_email || fullProfile.user_email;
+    }
+
     res.json({
       success: true,
       message: 'Profile updated successfully',
-      profile: updatedMember
+      profile: fullProfile || updatedMember
     });
   } catch (err) {
     await client.query('ROLLBACK');
