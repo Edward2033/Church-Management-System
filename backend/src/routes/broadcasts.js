@@ -4,11 +4,11 @@
  */
 const router = require('express').Router();
 const pool   = require('../lib/db');
-const { authenticate, requireAdmin, requireSameChurch } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireLeader, requireChoirDirector, requireSameChurch } = require('../middleware/auth');
 const { notifyBroadcast } = require('../services/notification');
 
-// GET /api/broadcasts — list all broadcasts
-router.get('/', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+// GET /api/broadcasts — list all broadcasts (pastor/leader/admin)
+router.get('/', authenticate, requireLeader, requireSameChurch, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT b.*, u.email AS sender_email,
@@ -24,11 +24,23 @@ router.get('/', authenticate, requireAdmin, requireSameChurch, async (req, res) 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/broadcasts — send a broadcast to all active choir members
-router.post('/', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+// POST /api/broadcasts — send a broadcast (pastor/leader/admin or choir director for choir broadcasts)
+router.post('/', authenticate, requireSameChurch, async (req, res) => {
   try {
     const { message, audience = 'choir' } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+
+    // Check permissions based on audience
+    const isLeader = req.user?.role && ['pastor', 'elder', 'deacon', 'leader', 'admin', 'superadmin'].includes(req.user.role);
+    const isChoirDirector = req.isChoirDirector === true || req.user?.role === 'choir_director';
+    
+    if (audience === 'choir' && !isChoirDirector && !isLeader) {
+      return res.status(403).json({ error: 'Choir broadcasts require choir director or leadership role' });
+    }
+    
+    if (audience !== 'choir' && !isLeader) {
+      return res.status(403).json({ error: 'General broadcasts require pastor or leadership role' });
+    }
 
     // Save broadcast record
     const { rows: [broadcast] } = await pool.query(
@@ -66,8 +78,8 @@ router.post('/', authenticate, requireAdmin, requireSameChurch, async (req, res)
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /api/broadcasts/:id
-router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+// DELETE /api/broadcasts/:id (pastor/leader/admin)
+router.delete('/:id', authenticate, requireLeader, async (req, res) => {
   try {
     await pool.query('DELETE FROM choir_broadcasts WHERE id = $1', [req.params.id]);
     res.json({ message: 'Deleted' });

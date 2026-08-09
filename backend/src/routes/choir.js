@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
-const { authenticate, requireAdmin, requireSameChurch } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireChoirDirector, requireSameChurch } = require('../middleware/auth');
 
 // GET /api/choir
 router.get('/', authenticate, requireSameChurch, async (req, res) => {
@@ -67,7 +67,7 @@ router.get('/rehearsals', authenticate, requireSameChurch, async (req, res) => {
 });
 
 // POST /api/choir/rehearsals
-router.post('/rehearsals', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/rehearsals', authenticate, requireChoirDirector, requireSameChurch, async (req, res) => {
   try {
     const { title, description, rehearsal_date, start_time, end_time, location, notes } = req.body;
     if (!title || !rehearsal_date)
@@ -84,7 +84,7 @@ router.post('/rehearsals', authenticate, requireAdmin, requireSameChurch, async 
 });
 
 // DELETE /api/choir/rehearsals/:id
-router.delete('/rehearsals/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/rehearsals/:id', authenticate, requireChoirDirector, async (req, res) => {
   try {
     await pool.query('DELETE FROM rehearsals WHERE id=$1', [req.params.id]);
     res.json({ message: 'Deleted' });
@@ -108,7 +108,7 @@ router.get('/music', authenticate, requireSameChurch, async (req, res) => {
 });
 
 // POST /api/choir/music
-router.post('/music', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/music', authenticate, requireChoirDirector, requireSameChurch, async (req, res) => {
   try {
     const { title, artist, genre, key_note, bpm, file_url, sheet_url,
       lyrics, duration_seconds, tags } = req.body;
@@ -125,7 +125,7 @@ router.post('/music', authenticate, requireAdmin, requireSameChurch, async (req,
 });
 
 // DELETE /api/choir/music/:id
-router.delete('/music/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/music/:id', authenticate, requireChoirDirector, async (req, res) => {
   try {
     await pool.query('DELETE FROM music_library WHERE id=$1', [req.params.id]);
     res.json({ message: 'Deleted' });
@@ -133,7 +133,7 @@ router.delete('/music/:id', authenticate, requireAdmin, async (req, res) => {
 });
 
 // GET /api/choir/dues
-router.get('/dues', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.get('/dues', authenticate, requireChoirDirector, requireSameChurch, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT cd.*, m.first_name, m.last_name, m.member_code
@@ -146,7 +146,7 @@ router.get('/dues', authenticate, requireAdmin, requireSameChurch, async (req, r
 });
 
 // POST /api/choir/dues
-router.post('/dues', authenticate, requireAdmin, requireSameChurch, async (req, res) => {
+router.post('/dues', authenticate, requireChoirDirector, requireSameChurch, async (req, res) => {
   try {
     const { choir_member_id, member_id, amount, currency='GHS', period, due_date, paid=false, payment_method='cash', payment_ref, notes } = req.body;
     if (!choir_member_id || !member_id || !amount || !period)
@@ -205,7 +205,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
 });
 
 // PATCH /api/choir/:id
-router.patch('/:id', authenticate, requireAdmin, async (req, res) => {
+router.patch('/:id', authenticate, requireChoirDirector, async (req, res) => {
   try {
     const allowed = ['voice_group','choir_role','experience_level',
                      'instruments','choir_activities','main_role','notes','is_active'];

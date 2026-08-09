@@ -2,7 +2,7 @@ const jwt  = require('jsonwebtoken');
 const pool = require('../lib/db');
 
 const ROLE_WEIGHTS = {
-  superadmin: 100, admin: 80, pastor: 70, elder: 60,
+  superadmin: 100, admin: 80, pastor: 70, choir_director: 65, elder: 60,
   deacon: 50, leader: 40, choir_member: 30, member: 20, visitor: 10,
 };
 
@@ -15,8 +15,11 @@ async function authenticate(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { rows } = await pool.query(
       `SELECT u.*, m.id AS member_id, m.member_code, m.first_name, m.last_name,
-              m.profile_photo_url, m.church_id AS member_church_id, m.approval_status
-       FROM users u LEFT JOIN members m ON m.user_id = u.id
+              m.profile_photo_url, m.church_id AS member_church_id, m.approval_status,
+              cm.is_director AS is_choir_director, cm.choir_role
+       FROM users u 
+       LEFT JOIN members m ON m.user_id = u.id
+       LEFT JOIN choir_members cm ON cm.member_id = m.id AND cm.is_active = TRUE
        WHERE u.id = $1 AND u.is_active = TRUE`,
       [decoded.id]
     );
@@ -24,6 +27,7 @@ async function authenticate(req, res, next) {
     req.user    = rows[0];
     req.member  = rows[0];
     req.churchId = rows[0].church_id || rows[0].member_church_id;
+    req.isChoirDirector = rows[0].is_choir_director === true || rows[0].choir_role === 'choir_director';
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -43,7 +47,16 @@ function requireRole(...allowedRoles) {
 
 const requireAdmin  = requireRole('admin', 'superadmin');
 const requireLeader = requireRole('leader', 'deacon', 'elder', 'pastor', 'admin', 'superadmin');
-const requireChoir  = requireRole('choir_member', 'leader', 'deacon', 'elder', 'pastor', 'admin', 'superadmin');
+const requireChoir  = requireRole('choir_member', 'leader', 'deacon', 'elder', 'pastor', 'choir_director', 'admin', 'superadmin');
+const requirePastor = requireRole('pastor', 'admin', 'superadmin');
+
+// Choir Director or Admin can manage choir
+function requireChoirDirector(req, res, next) {
+  const isAdmin = ROLE_WEIGHTS[req.user?.role] >= ROLE_WEIGHTS['admin'];
+  const isDirector = req.isChoirDirector === true || req.user?.role === 'choir_director';
+  if (isAdmin || isDirector) return next();
+  return res.status(403).json({ error: 'Choir director or admin access required' });
+}
 
 function requireSelfOrAdmin(req, res, next) {
   const isAdmin = ROLE_WEIGHTS[req.user?.role] >= ROLE_WEIGHTS['admin'];
@@ -61,5 +74,6 @@ function requireSameChurch(req, res, next) {
 
 module.exports = {
   authenticate, requireRole, requireAdmin, requireLeader,
-  requireChoir, requireSelfOrAdmin, requireSameChurch, ROLE_WEIGHTS,
+  requireChoir, requirePastor, requireChoirDirector,
+  requireSelfOrAdmin, requireSameChurch, ROLE_WEIGHTS,
 };

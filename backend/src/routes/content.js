@@ -77,7 +77,7 @@ router.get('/announcements', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/announcements', authenticate, requireAdmin, requireSameChurch, upload.single('image'), async (req, res) => {
+router.post('/announcements', authenticate, requireLeader, requireSameChurch, upload.single('image'), async (req, res) => {
   try {
     const { title, content, category='general', pinned=false, audience='all', expires_at } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content required' });
@@ -96,7 +96,7 @@ router.post('/announcements', authenticate, requireAdmin, requireSameChurch, upl
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/announcements/:id', authenticate, requireAdmin, upload.single('image'), async (req, res) => {
+router.put('/announcements/:id', authenticate, requireLeader, upload.single('image'), async (req, res) => {
   try {
     const { title, content, category, pinned, is_active, audience, expires_at } = req.body;
     
@@ -121,7 +121,7 @@ router.put('/announcements/:id', authenticate, requireAdmin, upload.single('imag
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/announcements/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/announcements/:id', authenticate, requireLeader, async (req, res) => {
   try {
     await pool.query('DELETE FROM announcements WHERE id=$1', [req.params.id]);
     res.json({ message: 'Deleted' });
