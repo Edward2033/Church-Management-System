@@ -335,7 +335,7 @@ const ProfileModal: React.FC<{
   onRoleChange: (id: string, role: string) => void;
 }> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onEdit, onDelete, onRoleChange }) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [selectedRole, setSelectedRole] = React.useState(m.role);
+  const [selectedRole, setSelectedRole] = React.useState<string>(m.role);
   const [changingRole, setChangingRole] = React.useState(false);
   
   const handlePrint = useReactToPrint({
