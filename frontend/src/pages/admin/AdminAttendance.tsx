@@ -21,6 +21,9 @@ interface AttendanceSession {
   response_count?: number;
   confirmed_count?: number;
   declined_count?: number;
+  creator_first_name?: string;
+  creator_last_name?: string;
+  creator_role?: string;
 }
 
 interface SessionDetails {
@@ -734,6 +737,16 @@ const AdminAttendance: React.FC = () => {
                       {session.start_time && <span>{session.start_time}</span>}
                       {session.venue && <span>📍 {session.venue}</span>}
                     </div>
+                    {/* Creator Information */}
+                    {session.creator_first_name && (
+                      <div className="mb-2">
+                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          👤 Created by {session.creator_first_name} {session.creator_last_name}
+                          {session.creator_role === 'choir_director' && ' (Choir Director)'}
+                          {session.creator_role === 'admin' && ' (Admin)'}
+                        </span>
+                      </div>
+                    )}
                     {session.invitation_sent && (
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span>Responses: {session.response_count || 0}</span>

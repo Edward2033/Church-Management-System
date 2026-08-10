@@ -1075,7 +1075,10 @@ const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
 ];
 
 const CHOIR_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [{ to: '/dashboard/choir', label: 'Choir Portal', icon: Music2 }];
-const DIRECTOR_NAV: { to: string; label: string; icon: any }[] = [{ to: '/dashboard/choir-director', label: 'Choir Management', icon: Music2 }];
+const DIRECTOR_NAV: { to: string; label: string; icon: any }[] = [
+  { to: '/dashboard/choir-director', label: 'Choir Management', icon: Music2 },
+  { to: '/dashboard/attendance', label: 'Attendance', icon: Calendar }
+];
 const LEADER_NAV: { to: string; label: string; icon: any }[] = [{ to: '/dashboard/leader', label: 'Leadership Tools', icon: Users }];
 
 const MemberDashboard: React.FC = () => {

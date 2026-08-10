@@ -127,7 +127,7 @@ export const del   = <T>(path: string)                => api<T>(path, { method: 
 
 export type UserRole =
   | 'superadmin' | 'admin' | 'pastor' | 'elder' | 'deacon'
-  | 'leader' | 'choir_member' | 'choir' | 'member' | 'visitor';
+  | 'leader' | 'choir_director' | 'choir_member' | 'choir' | 'member' | 'visitor';
 
 export interface User {
   id: string;

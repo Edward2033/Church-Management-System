@@ -50,6 +50,14 @@ const requireLeader = requireRole('leader', 'deacon', 'elder', 'pastor', 'admin'
 const requireChoir  = requireRole('choir_member', 'leader', 'deacon', 'elder', 'pastor', 'choir_director', 'admin', 'superadmin');
 const requirePastor = requireRole('pastor', 'admin', 'superadmin');
 
+// Admin or Choir Director can create/manage attendance
+function requireAdminOrDirector(req, res, next) {
+  const isAdmin = ROLE_WEIGHTS[req.user?.role] >= ROLE_WEIGHTS['admin'];
+  const isDirector = req.isChoirDirector === true || req.user?.role === 'choir_director';
+  if (isAdmin || isDirector) return next();
+  return res.status(403).json({ error: 'Admin or choir director access required' });
+}
+
 // Choir Director or Admin can manage choir
 function requireChoirDirector(req, res, next) {
   const isAdmin = ROLE_WEIGHTS[req.user?.role] >= ROLE_WEIGHTS['admin'];
@@ -75,5 +83,5 @@ function requireSameChurch(req, res, next) {
 module.exports = {
   authenticate, requireRole, requireAdmin, requireLeader,
   requireChoir, requirePastor, requireChoirDirector,
-  requireSelfOrAdmin, requireSameChurch, ROLE_WEIGHTS,
+  requireAdminOrDirector, requireSelfOrAdmin, requireSameChurch, ROLE_WEIGHTS,
 };

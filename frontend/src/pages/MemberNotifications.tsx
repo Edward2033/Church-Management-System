@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { get, put } from '@/lib/api';
-import { Bell, Check, Loader2, Calendar, Image as ImageIcon, Paperclip } from 'lucide-react';
+import { Bell, Check, Loader2, Calendar, Image as ImageIcon, Paperclip, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -24,6 +24,7 @@ const MemberNotifications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [viewingNotification, setViewingNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     loadNotifications();
@@ -50,6 +51,14 @@ const MemberNotifications: React.FC = () => {
       loadNotifications();
     } catch (err: any) {
       toast.error(err.message || 'Failed to mark as read');
+    }
+  };
+
+  const handleViewNotification = async (notification: Notification) => {
+    setViewingNotification(notification);
+    // Mark as read when viewing
+    if (!notification.read_at) {
+      await handleMarkAsRead(notification.id);
     }
   };
 
@@ -89,6 +98,106 @@ const MemberNotifications: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Notifications</h1>
         <p className="text-gray-600">Stay updated with church announcements and events</p>
       </div>
+
+      {/* Notification Details Modal */}
+      {viewingNotification && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{getPriorityIcon(viewingNotification.priority)}</span>
+                    <h2 className="text-xl font-bold text-gray-900">{viewingNotification.title}</h2>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Calendar size={12} />
+                      {new Date(viewingNotification.publish_date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <span className="capitalize px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                      {viewingNotification.type}
+                    </span>
+                    <span className={`capitalize px-2 py-0.5 rounded-full text-xs font-medium ${
+                      viewingNotification.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                      viewingNotification.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                      viewingNotification.priority === 'normal' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {viewingNotification.priority}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingNotification(null)}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                >
+                  <XCircle size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Image */}
+              {viewingNotification.image_url && (
+                <div className="mb-6">
+                  <img
+                    src={viewingNotification.image_url}
+                    alt="Notification"
+                    className="w-full rounded-lg"
+                  />
+                </div>
+              )}
+
+              {/* Message */}
+              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base">
+                {viewingNotification.message}
+              </div>
+
+              {/* Attachment */}
+              {viewingNotification.attachment_url && (
+                <div className="mt-6">
+                  <a
+                    href={viewingNotification.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    <Paperclip size={16} />
+                    View Attachment
+                  </a>
+                </div>
+              )}
+
+              {/* Sender Info */}
+              {(viewingNotification.sender_first_name || viewingNotification.sender_last_name) && (
+                <div className="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-600">
+                  Sent by: {viewingNotification.sender_first_name} {viewingNotification.sender_last_name}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setViewingNotification(null)}
+                className="w-full btn-primary"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Filter and Actions */}
       <div className="flex items-center justify-between mb-6">
@@ -144,7 +253,8 @@ const MemberNotifications: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`relative border-l-4 rounded-lg p-5 shadow-sm ${getPriorityColor(notification.priority)} ${
+              onClick={() => handleViewNotification(notification)}
+              className={`relative border-l-4 rounded-lg p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${getPriorityColor(notification.priority)} ${
                 !notification.read_at ? 'ring-2 ring-purple-200' : ''
               }`}
             >
@@ -200,8 +310,14 @@ const MemberNotifications: React.FC = () => {
 
               {/* Message */}
               <div className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-3">
-                {notification.message}
+                {notification.message.length > 200 ? `${notification.message.substring(0, 200)}...` : notification.message}
               </div>
+              
+              {notification.message.length > 200 && (
+                <div className="text-sm text-purple-600 font-medium mb-3">
+                  Click to read full message →
+                </div>
+              )}
 
               {/* Attachment */}
               {notification.attachment_url && (
@@ -220,7 +336,10 @@ const MemberNotifications: React.FC = () => {
               {!notification.read_at && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <button
-                    onClick={() => handleMarkAsRead(notification.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsRead(notification.id);
+                    }}
                     className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
                   >
                     <Check size={16} />

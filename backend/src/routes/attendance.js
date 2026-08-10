@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../lib/db');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireAdminOrDirector } = require('../middleware/auth');
 const { sendEmail } = require('../lib/email');
 
 // Encouragement messages by attendance type
@@ -87,6 +87,52 @@ router.get('/my-stats', authenticate, async (req, res) => {
     
     res.json({ stats: stats || { total_invitations: 0, attended_count: 0, declined_count: 0, pending_count: 0, attendance_percentage: 0 } });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/attendance/my-created-sessions - Get sessions created by current user (choir director)
+router.get('/my-created-sessions', authenticate, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = `
+      SELECT
+        ats.*,
+        (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id) AS response_count,
+        (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'attending') AS confirmed_count,
+        (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'not_attending') AS declined_count
+      FROM attendance_sessions ats
+      WHERE ats.created_by = $1 AND ats.church_id = $2
+    `;
+    
+    const params = [req.user.id, req.churchId];
+    
+    if (status) {
+      query += ` AND ats.status = $${params.length + 1}`;
+      params.push(status);
+    }
+    
+    query += ` ORDER BY ats.event_date DESC, ats.created_at DESC
+               LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(parseInt(limit), offset);
+    
+    const { rows } = await pool.query(query, params);
+    
+    const { rows: [count] } = await pool.query(
+      'SELECT COUNT(*) as total FROM attendance_sessions WHERE created_by = $1 AND church_id = $2',
+      [req.user.id, req.churchId]
+    );
+    
+    res.json({
+      sessions: rows,
+      total: parseInt(count.total),
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (err) {
+    console.error('[GET /attendance/my-created-sessions]', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -192,12 +238,15 @@ router.get('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
     let query = `
       SELECT
         ats.*,
-        (SELECT m.first_name FROM members m WHERE m.user_id = ats.created_by LIMIT 1) AS creator_first_name,
-        (SELECT m.last_name  FROM members m WHERE m.user_id = ats.created_by LIMIT 1) AS creator_last_name,
+        m.first_name AS creator_first_name,
+        m.last_name  AS creator_last_name,
+        u.role       AS creator_role,
         (SELECT COUNT(*)        FROM attendance_responses ar WHERE ar.session_id = ats.id)                                    AS response_count,
         (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'attending')            AS confirmed_count,
         (SELECT COUNT(*) FROM attendance_responses ar WHERE ar.session_id = ats.id AND ar.response = 'not_attending')        AS declined_count
       FROM attendance_sessions ats
+      LEFT JOIN members m ON m.user_id = ats.created_by
+      LEFT JOIN users u ON u.id = ats.created_by
       WHERE ats.church_id = $1
     `;
 
@@ -319,8 +368,8 @@ router.get('/admin/sessions/:id', authenticate, requireAdmin, async (req, res) =
   }
 });
 
-// POST /api/attendance/admin/sessions - Create session (admin)
-router.post('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
+// POST /api/attendance/admin/sessions - Create session (admin or choir director)
+router.post('/admin/sessions', authenticate, requireAdminOrDirector, async (req, res) => {
   try {
     const {
       title,
@@ -356,8 +405,8 @@ router.post('/admin/sessions', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/attendance/admin/sessions/:id - Update session (admin)
-router.put('/admin/sessions/:id', authenticate, requireAdmin, async (req, res) => {
+// PUT /api/attendance/admin/sessions/:id - Update session (admin or choir director)
+router.put('/admin/sessions/:id', authenticate, requireAdminOrDirector, async (req, res) => {
   try {
     const {
       title, attendance_type, event_date, start_time, end_time,
@@ -410,8 +459,8 @@ router.delete('/admin/sessions/:id', authenticate, requireAdmin, async (req, res
   }
 });
 
-// POST /api/attendance/admin/sessions/:id/send-invitation - Send invitation (admin)
-router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdmin, async (req, res) => {
+// POST /api/attendance/admin/sessions/:id/send-invitation - Send invitation (admin or choir director)
+router.post('/admin/sessions/:id/send-invitation', authenticate, requireAdminOrDirector, async (req, res) => {
   try {
     // Get session AND church logo from cms_settings
     const { rows: [session] } = await pool.query(

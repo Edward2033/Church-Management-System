@@ -138,9 +138,10 @@ CREATE TABLE IF NOT EXISTS choir_members (
   member_id         UUID NOT NULL UNIQUE REFERENCES members(id) ON DELETE CASCADE,
   church_id         UUID NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
   choir_role        VARCHAR(50) DEFAULT 'choir_member'
-                    CHECK (choir_role IN ('choir_director','assistant_director','music_director',
+                    CHECK (choir_role IN ('choir_director','director','assistant_director','music_director',
                                           'worship_leader','secretary','treasurer','organist',
                                           'pianist','drummer','choir_member')),
+  is_director       BOOLEAN DEFAULT FALSE,
   voice_group       VARCHAR(20) CHECK (voice_group IN ('Soprano','Alto','Tenor','Bass')),
   experience_level  VARCHAR(30) CHECK (experience_level IN ('Beginner','Intermediate','Advanced','Professional')),
   instruments       TEXT[] DEFAULT '{}',
