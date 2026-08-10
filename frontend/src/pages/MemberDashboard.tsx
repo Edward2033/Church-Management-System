@@ -700,9 +700,11 @@ const ChoirDirectorPortal: React.FC = () => {
   const [choir, setChoir] = useState<any[]>([]);
   const [music, setMusic] = useState<any[]>([]);
   const [rehearsals, setRehearsals] = useState<any[]>([]);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddSong, setShowAddSong] = useState(false);
   const [showAddRehearsal, setShowAddRehearsal] = useState(false);
+  const [viewLyrics, setViewLyrics] = useState<any>(null);
   const [songForm, setSongForm] = useState({ title: '', artist: '', genre: '', key_note: '', lyrics: '', bpm: '' });
   const [rehearsalForm, setRehearsalForm] = useState({ title: '', rehearsal_date: '', start_time: '', end_time: '', location: '', notes: '' });
   const [broadcastMsg, setBroadcastMsg] = useState('');
@@ -714,6 +716,7 @@ const ChoirDirectorPortal: React.FC = () => {
       get<any>('/choir?approval_status=approved').then(r => setChoir(r.choir || [])).catch(() => {}),
       get<any>('/choir/music').then(r => setMusic(r.music || [])).catch(() => {}),
       get<any>('/choir/rehearsals').then(r => setRehearsals(r.rehearsals || [])).catch(() => {}),
+      get<any>('/broadcasts?audience=choir').then(r => setBroadcasts(r.broadcasts || [])).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -766,6 +769,8 @@ const ChoirDirectorPortal: React.FC = () => {
       await post('/broadcasts', { message: broadcastMsg, audience: 'choir' });
       setBroadcastMsg('');
       toast.success('Broadcast sent to choir!');
+      // Reload broadcasts to show the new one
+      get<any>('/broadcasts?audience=choir').then(r => setBroadcasts(r.broadcasts || [])).catch(() => {});
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   };
@@ -851,7 +856,11 @@ const ChoirDirectorPortal: React.FC = () => {
                     <div className="flex gap-1 mt-2 flex-wrap">
                       {s.genre && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s.genre}</span>}
                       {s.key_note && <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">Key: {s.key_note}</span>}
-                      {s.lyrics && <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Lyrics</span>}
+                      {s.lyrics && (
+                        <button onClick={() => setViewLyrics(s)} className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full hover:bg-green-100 transition-colors">
+                          View Lyrics
+                        </button>
+                      )}
                     </div>
                   </div>
                   <button onClick={() => deleteSong(s.id)} className="p-1 text-red-400 hover:text-red-600 shrink-0"><X size={14} /></button>
@@ -912,6 +921,62 @@ const ChoirDirectorPortal: React.FC = () => {
               <textarea required rows={4} placeholder="Type your message to all choir members..." value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} className="input-base resize-none" />
               <button type="submit" disabled={saving} className="btn-primary">{saving && <Loader2 size={14} className="animate-spin" />} Send to Choir</button>
             </form>
+          </div>
+
+          {/* Sent Broadcasts History */}
+          <div className="card p-5">
+            <h3 className="font-bold text-gray-900 mb-3">Sent Broadcasts ({broadcasts.length})</h3>
+            {broadcasts.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8">No broadcasts sent yet</p>
+            ) : (
+              <div className="space-y-3">
+                {broadcasts.map((b, idx) => (
+                  <div key={b.id || idx} className="border-l-4 border-purple-500 bg-purple-50/50 p-4 rounded-r-lg">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{b.message}</p>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                          <span>Sent: {new Date(b.created_at).toLocaleString()}</span>
+                          {b.sender_name && <span>By: {b.sender_name}</span>}
+                          <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                            {b.audience || 'choir'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Lyrics Viewer Modal */}
+      {viewLyrics && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setViewLyrics(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gradient-to-r from-purple-700 to-indigo-700 px-6 py-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">{viewLyrics.title}</h3>
+                {viewLyrics.artist && <p className="text-sm text-purple-200">{viewLyrics.artist}</p>}
+              </div>
+              <button onClick={() => setViewLyrics(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              {viewLyrics.key_note && (
+                <div className="mb-4 flex gap-2">
+                  <span className="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-medium">Key: {viewLyrics.key_note}</span>
+                  {viewLyrics.bpm && <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">BPM: {viewLyrics.bpm}</span>}
+                  {viewLyrics.genre && <span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{viewLyrics.genre}</span>}
+                </div>
+              )}
+              <div className="prose max-w-none">
+                <pre className="whitespace-pre-wrap font-sans text-base text-gray-800 leading-relaxed">{viewLyrics.lyrics || 'No lyrics available'}</pre>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1048,7 +1113,7 @@ const MemberDashboard: React.FC = () => {
 
   const role = member?.role || 'member';
   const isChoir = role === 'choir_member' || role === 'choir';
-  const isDirector = (member as any)?.is_choir_director === true || (member as any)?.choir_role === 'choir_director';
+  const isDirector = role === 'choir_director' || (member as any)?.is_choir_director === true || (member as any)?.choir_role === 'director';
   const isLeader = ['pastor', 'elder', 'deacon', 'leader'].includes(role);
 
   const navItems: { to: string; label: string; icon: any; end?: boolean }[] = [
