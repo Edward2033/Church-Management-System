@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_set    BOOLEAN DEFAULT FALSE,
   role            VARCHAR(30) NOT NULL DEFAULT 'member'
                   CHECK (role IN ('superadmin','admin','pastor','elder','deacon','leader',
-                                  'choir_member','member','visitor')),
+                                  'choir_director','choir_member','member','visitor')),
   is_active       BOOLEAN DEFAULT TRUE,
   last_login      TIMESTAMPTZ,
   refresh_token   TEXT,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS members (
   city              VARCHAR(100),
   membership_status VARCHAR(30) DEFAULT 'visitor'
                     CHECK (membership_status IN ('visitor','new_convert','member','choir_member',
-                                                  'leader','pastor','elder','deacon','admin')),
+                                                  'choir_director','leader','pastor','elder','deacon','admin')),
   baptism_status    BOOLEAN DEFAULT FALSE,
   baptism_date      DATE,
   date_joined       DATE DEFAULT CURRENT_DATE,

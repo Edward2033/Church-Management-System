@@ -469,8 +469,8 @@ router.patch('/change-role/:memberId', authenticate, requireAdmin, async (req, r
     const { memberId } = req.params;
     const { role } = req.body;
     
-    // Validate role
-    const validRoles = ['member', 'choir_member', 'choir_director', 'leader', 'pastor', 'elder', 'deacon', 'admin'];
+    // Validate role - must match database constraint (updated to include choir_director)
+    const validRoles = ['member', 'choir_member', 'choir_director', 'leader', 'pastor', 'elder', 'deacon', 'admin', 'superadmin', 'visitor'];
     if (!role || !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
     }
@@ -490,25 +490,23 @@ router.patch('/change-role/:memberId', authenticate, requireAdmin, async (req, r
     
     // Update membership_status to match role
     let membershipStatus = role;
-    if (role === 'member') membershipStatus = 'member';
-    else if (role === 'choir_member') membershipStatus = 'choir_member';
-    else if (role === 'choir_director') membershipStatus = 'choir_director';
-    else if (['pastor', 'elder', 'deacon', 'leader'].includes(role)) membershipStatus = role;
+    if (role === 'superadmin') membershipStatus = 'admin'; // superadmin → admin in members table
+    if (role === 'visitor') membershipStatus = 'visitor';
     
     await client.query(
       `UPDATE members SET membership_status=$1 WHERE id=$2`,
       [membershipStatus, memberId]
     );
     
-    // If changing to/from choir roles, update choir_members table
-    if (['choir_member', 'choir_director'].includes(role)) {
+    // If choir roles (choir_member or choir_director), update choir_members table
+    if (role === 'choir_member' || role === 'choir_director') {
       // Check if choir_members record exists
       const { rows: [choirRecord] } = await client.query(
         `SELECT id FROM choir_members WHERE member_id=$1`,
         [memberId]
       );
       
-      const choirRole = role === 'choir_director' ? 'choir_director' : 'choir_member';
+      const choirRole = role === 'choir_director' ? 'director' : 'choir_member';
       const isDirector = role === 'choir_director';
       
       if (choirRecord) {
