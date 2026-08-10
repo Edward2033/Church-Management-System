@@ -3,7 +3,7 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, del, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printIDCard, printMemberProfile } from '@/lib/print';
-import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar } from 'lucide-react';
+import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardHome from './DashboardHome';
 import MemberNotifications from './MemberNotifications';
@@ -32,8 +32,12 @@ const MemberProfile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'email'>('profile');
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  
+  // Email update states
+  const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' });
+  const [updatingEmail, setUpdatingEmail] = useState(false);
 
   // Check if profile is incomplete
   const isProfileIncomplete = !member?.phone || !member?.address || !member?.gender || !member?.date_of_birth;
@@ -133,6 +137,31 @@ const MemberProfile: React.FC = () => {
     }
   };
 
+  const updateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailForm.newEmail || !emailForm.password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    setUpdatingEmail(true);
+    try {
+      const res = await api<{ email: string }>('/auth/update-email', {
+        method: 'PUT',
+        body: JSON.stringify(emailForm)
+      });
+      
+      // Update member context with new email
+      setMember({ ...member, email: res.email });
+      toast.success('Email updated successfully!');
+      setEmailForm({ newEmail: '', password: '' });
+      setActiveTab('profile');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUpdatingEmail(false);
+    }
+  };
+
   const m = editing ? { ...member, ...form } : member;
 
   return (
@@ -177,6 +206,16 @@ const MemberProfile: React.FC = () => {
             }`}
           >
             <Lock size={18} /> Change Password
+          </button>
+          <button
+            onClick={() => setActiveTab('email')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium ${
+              activeTab === 'email'
+                ? 'border-b-2 border-purple-600 text-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Mail size={18} /> Update Email
           </button>
         </div>
       </div>
@@ -358,6 +397,45 @@ const MemberProfile: React.FC = () => {
             <button type="submit" disabled={saving} className="btn-primary justify-center w-full">
               {saving && <Loader2 size={18} className="animate-spin" />}
               <Lock size={18} /> Change Password
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Email Tab */}
+      {activeTab === 'email' && (
+        <div className="card p-6">
+          <h3 className="font-bold text-gray-800 mb-4">Update Email Address</h3>
+          <p className="text-sm text-gray-600 mb-6">
+            Your current email: <strong className="text-gray-900">{member.email}</strong>
+          </p>
+          <form onSubmit={updateEmail} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Email Address *</label>
+              <input
+                type="email"
+                required
+                value={emailForm.newEmail}
+                onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
+                className="input-base"
+                placeholder="Enter new email address"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+              <input
+                type="password"
+                required
+                value={emailForm.password}
+                onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                className="input-base"
+                placeholder="Enter your password to confirm"
+              />
+              <p className="text-xs text-gray-500 mt-1">You need to verify your password to change your email</p>
+            </div>
+            <button type="submit" disabled={updatingEmail} className="btn-primary justify-center w-full">
+              {updatingEmail && <Loader2 size={18} className="animate-spin" />}
+              <Mail size={18} /> Update Email
             </button>
           </form>
         </div>

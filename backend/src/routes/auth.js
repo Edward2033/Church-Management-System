@@ -85,6 +85,24 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Voice group is required for choir members' });
       }
 
+      // Map main_role to actual system role
+      let userRole = 'member'; // default
+      const mainRole = req.body.main_role?.toLowerCase() || '';
+      
+      if (membership_type === 'choir') {
+        if (mainRole.includes('director')) {
+          userRole = 'choir_director';
+        } else if (mainRole.includes('worship leader') || mainRole.includes('leader')) {
+          userRole = 'leader';
+        } else {
+          userRole = 'choir_member';
+        }
+      }
+      
+      // If user explicitly selected a role that maps to pastor/elder, use it
+      if (mainRole.includes('pastor')) userRole = 'pastor';
+      if (mainRole.includes('elder')) userRole = 'elder';
+
       const exists = await client.query('SELECT id FROM users WHERE email = $1', [email]);
       if (exists.rows[0]) {
         return res.status(409).json({ error: 'Email already registered' });
@@ -95,7 +113,7 @@ router.post('/register', async (req, res) => {
       // Upload profile photo to Cloudinary
       const profilePhotoUrl = await uploadToCloudinary(req.file.buffer, 'profiles');
 
-      const userRole = membership_type === 'choir' ? 'choir_member' : 'member';
+      // Use the mapped userRole (not hardcoded)
       const { rows: [user] } = await client.query(
         `INSERT INTO users (church_id, email, role) VALUES ($1,$2,$3) RETURNING id, role`,
         [church_id, email, userRole]
@@ -113,15 +131,17 @@ router.post('/register', async (req, res) => {
          date_of_birth, phone, whatsapp_number, email, address, city,
          occupation, marital_status, resolvedBaptism,
          resolvedEmergName, resolvedEmergPhone, emergency_relation, bio,
-         membership_type === 'choir' ? 'choir_member' : 'visitor', profilePhotoUrl]
+         userRole === 'choir_director' ? 'choir_director' : userRole === 'leader' ? 'leader' : membership_type === 'choir' ? 'choir_member' : 'visitor', 
+         profilePhotoUrl]
       );
 
-      // If choir registration, also create choir_members record
+      // If choir registration, create choir_members record
       if (membership_type === 'choir' && resolvedVoiceGroup) {
+        const choirRole = userRole === 'choir_director' ? 'choir_director' : 'choir_member';
         await client.query(
-          `INSERT INTO choir_members (member_id, church_id, voice_group, choir_role)
-           VALUES ($1,$2,$3,'choir_member')`,
-          [member.id, church_id, resolvedVoiceGroup]
+          `INSERT INTO choir_members (member_id, church_id, voice_group, choir_role, main_role)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [member.id, church_id, resolvedVoiceGroup, choirRole, req.body.main_role || 'Choir Member']
         );
       }
 
@@ -416,7 +436,12 @@ router.post('/grant-account/:memberId', authenticate, requireAdmin, async (req, 
     );
 
     const link = `${process.env.FRONTEND_URL}/setup-password?token=${tok}`;
-    await sendEmail(approvalEmail({ ...m, email: m.user_email || m.email, member_code: m.member_code }, link));
+    await sendEmail(approvalEmail({ 
+      ...m, 
+      email: m.user_email || m.email, 
+      member_code: m.member_code,
+      role: m.user_role // Use the actual user role from users table
+    }, link));
     
     res.json({ message: 'Account setup email sent successfully' });
   } catch (err) {
@@ -435,6 +460,144 @@ router.post('/reject/:memberId', authenticate, requireAdmin, async (req, res) =>
     );
     res.json({ message: 'Member rejected' });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH /api/auth/change-role/:memberId - Admin can change user role
+router.patch('/change-role/:memberId', authenticate, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { memberId } = req.params;
+    const { role } = req.body;
+    
+    // Validate role
+    const validRoles = ['member', 'choir_member', 'choir_director', 'leader', 'pastor', 'elder', 'deacon', 'admin'];
+    if (!role || !validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
+    }
+    
+    // Get member and user info
+    const { rows: [member] } = await client.query(
+      `SELECT m.*, u.id AS user_id FROM members m JOIN users u ON u.id=m.user_id WHERE m.id=$1`,
+      [memberId]
+    );
+    
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    
+    await client.query('BEGIN');
+    
+    // Update user role
+    await client.query(`UPDATE users SET role=$1 WHERE id=$2`, [role, member.user_id]);
+    
+    // Update membership_status to match role
+    let membershipStatus = role;
+    if (role === 'member') membershipStatus = 'member';
+    else if (role === 'choir_member') membershipStatus = 'choir_member';
+    else if (role === 'choir_director') membershipStatus = 'choir_director';
+    else if (['pastor', 'elder', 'deacon', 'leader'].includes(role)) membershipStatus = role;
+    
+    await client.query(
+      `UPDATE members SET membership_status=$1 WHERE id=$2`,
+      [membershipStatus, memberId]
+    );
+    
+    // If changing to/from choir roles, update choir_members table
+    if (['choir_member', 'choir_director'].includes(role)) {
+      // Check if choir_members record exists
+      const { rows: [choirRecord] } = await client.query(
+        `SELECT id FROM choir_members WHERE member_id=$1`,
+        [memberId]
+      );
+      
+      const choirRole = role === 'choir_director' ? 'choir_director' : 'choir_member';
+      const isDirector = role === 'choir_director';
+      
+      if (choirRecord) {
+        // Update existing record
+        await client.query(
+          `UPDATE choir_members SET choir_role=$1, is_director=$2, is_active=TRUE WHERE member_id=$3`,
+          [choirRole, isDirector, memberId]
+        );
+      } else {
+        // Create new choir_members record
+        await client.query(
+          `INSERT INTO choir_members (member_id, church_id, choir_role, is_director, voice_group) 
+           VALUES ($1, $2, $3, $4, 'Soprano')`,
+          [memberId, member.church_id, choirRole, isDirector]
+        );
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      message: 'Role updated successfully', 
+      newRole: role 
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Change role error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/auth/update-email - User can update their own email
+router.put('/update-email', authenticate, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { newEmail, password } = req.body;
+
+    if (!newEmail || !password) {
+      return res.status(400).json({ error: 'New email and password are required' });
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Verify password
+    const { rows: [user] } = await client.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+    if (!passwordValid) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Check if email already exists
+    const { rows: existing } = await client.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [newEmail, req.user.id]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Email already in use' });
+    }
+
+    await client.query('BEGIN');
+
+    // Update users.email
+    await client.query('UPDATE users SET email = $1 WHERE id = $2', [newEmail, req.user.id]);
+
+    // Update members.email
+    await client.query('UPDATE members SET email = $1 WHERE user_id = $2', [newEmail, req.user.id]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Email updated successfully', email: newEmail });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Update email error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 

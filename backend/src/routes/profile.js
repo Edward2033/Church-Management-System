@@ -213,4 +213,73 @@ router.put('/password', authenticate, async (req, res) => {
   }
 });
 
+// PUT /api/profile/email - Update email address
+router.put('/email', authenticate, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { newEmail, password } = req.body;
+    
+    if (!newEmail || !password) {
+      return res.status(400).json({ error: 'New email and current password are required' });
+    }
+    
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Verify current password
+    const { rows: [user] } = await client.query(
+      `SELECT password_hash FROM users WHERE id=$1`,
+      [req.user.id]
+    );
+    
+    if (!user || !user.password_hash) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Password not set' });
+    }
+    
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatch) {
+      await client.query('ROLLBACK');
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+    
+    // Check if new email is already taken
+    const { rows: existingUsers } = await client.query(
+      `SELECT id FROM users WHERE email=$1 AND id != $2`,
+      [newEmail, req.user.id]
+    );
+    
+    if (existingUsers.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Email already in use' });
+    }
+    
+    // Update email in users table
+    await client.query(
+      `UPDATE users SET email=$1 WHERE id=$2`,
+      [newEmail, req.user.id]
+    );
+    
+    // Update email in members table
+    await client.query(
+      `UPDATE members SET email=$1 WHERE user_id=$2`,
+      [newEmail, req.user.id]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ message: 'Email updated successfully', newEmail });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Email update error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

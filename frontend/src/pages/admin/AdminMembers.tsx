@@ -332,12 +332,24 @@ const ProfileModal: React.FC<{
   onDisable: (id: string) => void;
   onEdit: (m: User) => void;
   onDelete: (id: string) => void;
-}> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onEdit, onDelete }) => {
+  onRoleChange: (id: string, role: string) => void;
+}> = ({ member: m, onClose, onApprove, onReject, onGrantAccount, onDisable, onEdit, onDelete, onRoleChange }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [selectedRole, setSelectedRole] = React.useState(m.role);
+  const [changingRole, setChangingRole] = React.useState(false);
+  
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Registration_${m.member_code}_${m.first_name}_${m.last_name}`,
   });
+
+  const handleRoleChange = async () => {
+    if (selectedRole === m.role) return;
+    if (!confirm(`Change ${m.first_name} ${m.last_name}'s role to ${selectedRole}?`)) return;
+    setChangingRole(true);
+    await onRoleChange(m.id, selectedRole);
+    setChangingRole(false);
+  };
 
   const verificationUrl = `${window.location.origin}/verify/${m.member_code}`;
 
@@ -369,6 +381,35 @@ const ProfileModal: React.FC<{
             </div>
           </div>
           <div className="px-6 py-4 space-y-0">
+            {/* Role Management Section */}
+            <div className="mb-4 pb-4 border-b-2 border-purple-100 bg-purple-50/50 -mx-6 px-6 py-4">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Change Member Role</label>
+              <div className="flex gap-2">
+                <select 
+                  value={selectedRole} 
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                >
+                  <option value="member">Member</option>
+                  <option value="choir_member">Choir Member</option>
+                  <option value="choir_director">Choir Director</option>
+                  <option value="leader">Leader</option>
+                  <option value="pastor">Pastor</option>
+                  <option value="elder">Elder</option>
+                  <option value="deacon">Deacon</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button 
+                  onClick={handleRoleChange}
+                  disabled={changingRole || selectedRole === m.role}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1 whitespace-nowrap"
+                >
+                  {changingRole ? <><Loader2 size={14} className="animate-spin" /> Updating...</> : 'Update Role'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Current role: <span className="font-semibold text-purple-700">{m.role}</span></p>
+            </div>
+
             {[
               ['Email', m.email],
               ['Phone', m.phone],
@@ -536,6 +577,26 @@ const AdminMembers: React.FC = () => {
     catch (err: any) { toast.error(err.message); }
   };
 
+  const changeRole = async (memberId: string, role: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/change-role/${memberId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('cms_token')}`
+        },
+        body: JSON.stringify({ role })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Role updated successfully');
+      setSelected(null);
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update role');
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -629,7 +690,7 @@ const AdminMembers: React.FC = () => {
         </div>
       )}
 
-      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onGrantAccount={grantAccount} onDisable={disable} onEdit={(m) => { setSelected(null); setEditing(m); }} onDelete={remove} />}
+      {selected && <ProfileModal member={selected} onClose={() => setSelected(null)} onApprove={approve} onReject={reject} onGrantAccount={grantAccount} onDisable={disable} onEdit={(m) => { setSelected(null); setEditing(m); }} onDelete={remove} onRoleChange={changeRole} />}
       {editing && <EditMemberModal member={editing} onClose={() => setEditing(null)} onSuccess={load} />}
       {showCreateModal && <CreateUserModal onClose={() => setShowCreateModal(false)} onSuccess={load} />}
     </div>
