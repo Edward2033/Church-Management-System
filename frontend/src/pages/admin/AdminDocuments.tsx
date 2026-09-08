@@ -1,124 +1,87 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { get, post, del, API_BASE_URL, CHURCH_NAME } from '@/lib/api';
-import { FileText, Plus, Loader2, X, Eye, Trash2, Printer, Download, Search, RefreshCw, AlertCircle, CheckCircle, Globe } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { get, post, del, put, apiFetch } from '@/lib/api';
+import {
+  FileText, Plus, Loader2, X, Eye, Trash2, Printer, Save,
+  Upload, CheckCircle, AlertCircle, Globe, BookOpen,
+  ChevronDown, ChevronUp, GraduationCap, Award,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
-// ── Types ─────────────────────────────────────────────────────
+const uid = () => Math.random().toString(36).slice(2);
+
+// ─────────────────────────────────────────────────────────────
+// RECOMMENDATION LETTERS
+// ─────────────────────────────────────────────────────────────
 interface RecLetter {
-  id: string;
-  applicant_name: string;
-  applicant_status?: string;
-  date_joined?: string;
-  additional_info?: string;
-  org_name?: string;
-  org_website?: string;
-  org_type?: string;
-  org_description?: string;
-  purpose?: string;
-  extra_info?: string;
-  letter_type: 'church' | 'choir';
-  letter_content: string;
-  signatory_name?: string;
-  signatory_title?: string;
-  generated_by_first?: string;
-  generated_by_last?: string;
-  generated_at: string;
-  status: string;
+  id: string; applicant_name: string; applicant_status?: string;
+  date_joined?: string; additional_info?: string; org_name?: string;
+  org_website?: string; org_type?: string; org_description?: string;
+  purpose?: string; extra_info?: string; letter_type: 'church' | 'choir';
+  letter_content: string; signatory_name?: string; signatory_title?: string;
+  generated_by_first?: string; generated_by_last?: string;
+  generated_at: string; status: string;
 }
+interface LetterMeta { church_name: string; logo_url: string; church_contact: string; }
 
-interface LetterMeta {
-  church_name: string;
-  logo_url: string;
-  church_contact: string;
-}
-
-// ── Print / Download helper ───────────────────────────────────
 function printLetter(letter: RecLetter, meta: LetterMeta) {
   const w = window.open('', '_blank', 'width=900,height=1100');
   if (!w) { alert('Please allow popups to print.'); return; }
-
   const logoHtml = meta.logo_url
     ? `<img src="${meta.logo_url}" style="height:70px;width:auto;object-fit:contain;margin-bottom:8px" alt="logo" />`
     : '';
   const entity = letter.letter_type === 'choir' ? `${meta.church_name} Choir` : meta.church_name;
-
-  // Convert plain text letter to HTML paragraphs
-  const bodyHtml = letter.letter_content
-    .split('\n\n')
-    .map((para) => {
-      const trimmed = para.trim();
-      if (!trimmed) return '';
-      // Signature block
-      if (trimmed.startsWith('____')) return `<div class="sig-line"></div>`;
-      return `<p>${trimmed.replace(/\n/g, '<br/>')}</p>`;
-    })
-    .join('');
-
+  const bodyHtml = letter.letter_content.split('\n\n').map((para) => {
+    const t = para.trim(); if (!t) return '';
+    if (t.startsWith('____')) return '<div class="sig-line"></div>';
+    return `<p>${t.replace(/\n/g, '<br/>')}</p>`;
+  }).join('');
   w.document.write(`<!doctype html><html><head><meta charset="UTF-8">
-<title>Recommendation Letter – ${letter.applicant_name}</title>
+<title>Recommendation Letter</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; color: #1a1a1a; background: #fff; }
-  .page { max-width: 750px; margin: 0 auto; padding: 60px 70px; min-height: 100vh; }
-  .letterhead { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #5b21b6; padding-bottom: 20px; margin-bottom: 30px; }
-  .letterhead-left { display: flex; align-items: center; gap: 16px; }
-  .church-name { font-size: 20pt; font-weight: bold; color: #5b21b6; line-height: 1.2; }
-  .church-entity { font-size: 11pt; color: #6b7280; margin-top: 2px; }
-  .church-contact { font-size: 9pt; color: #6b7280; text-align: right; line-height: 1.8; }
-  .letter-body p { margin-bottom: 14px; line-height: 1.8; text-align: justify; }
-  .letter-body p:first-child { margin-bottom: 20px; }
-  .sig-line { border-bottom: 2px solid #1a1a1a; width: 260px; margin: 40px 0 8px 0; }
-  .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 12px; text-align: center; font-size: 9pt; color: #9ca3af; }
-  @media print {
-    body { font-size: 11pt; }
-    .page { padding: 40px 50px; }
-    .no-print { display: none; }
-  }
-</style>
-</head><body>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#1a1a1a;background:#fff}
+  .page{max-width:750px;margin:0 auto;padding:60px 70px;min-height:100vh}
+  .letterhead{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #5b21b6;padding-bottom:20px;margin-bottom:30px}
+  .lh-left{display:flex;align-items:center;gap:16px}
+  .cn{font-size:20pt;font-weight:bold;color:#5b21b6;line-height:1.2}
+  .ce{font-size:11pt;color:#6b7280;margin-top:2px}
+  .cc{font-size:9pt;color:#6b7280;text-align:right;line-height:1.8}
+  .letter-body p{margin-bottom:14px;line-height:1.8;text-align:justify}
+  .sig-line{border-bottom:2px solid #1a1a1a;width:260px;margin:40px 0 8px 0}
+  .footer{margin-top:40px;border-top:1px solid #e5e7eb;padding-top:12px;text-align:center;font-size:9pt;color:#9ca3af}
+  @media print{body{font-size:11pt}.page{padding:40px 50px}}
+</style></head><body>
 <div class="page">
   <div class="letterhead">
-    <div class="letterhead-left">
-      ${logoHtml}
-      <div>
-        <div class="church-name">${meta.church_name}</div>
-        <div class="church-entity">${entity}</div>
-      </div>
-    </div>
-    <div class="church-contact">${meta.church_contact.replace(/ \| /g, '<br/>')}</div>
+    <div class="lh-left">${logoHtml}<div><div class="cn">${meta.church_name}</div><div class="ce">${entity}</div></div></div>
+    <div class="cc">${meta.church_contact.replace(/ \| /g, '<br/>')}</div>
   </div>
   <div class="letter-body">${bodyHtml}</div>
-  <div class="footer">
-    This letter was generated by ${meta.church_name} Management System on ${new Date(letter.generated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-  </div>
+  <div class="footer">Generated by ${meta.church_name} Management System on ${new Date(letter.generated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
 </div>
-<script>window.onload = () => setTimeout(() => window.print(), 600);</script>
+<script>window.onload=()=>setTimeout(()=>window.print(),600)</script>
 </body></html>`);
   w.document.close();
 }
 
-// ── Form Component ────────────────────────────────────────────
-const LetterForm: React.FC<{ onClose: () => void; onSuccess: (letter: RecLetter, meta: LetterMeta) => void }> = ({ onClose, onSuccess }) => {
+const LetterForm: React.FC<{ onClose: () => void; onSuccess: (l: RecLetter, m: LetterMeta) => void }> = ({ onClose, onSuccess }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [saving, setSaving] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
-  const [orgLookupResult, setOrgLookupResult] = useState<{ success: boolean; error?: string; org?: any } | null>(null);
-
+  const [orgResult, setOrgResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [form, setForm] = useState({
     applicant_name: '', applicant_status: '', date_joined: '', additional_info: '',
-    org_name: '', org_website: '', org_type: '', org_description: '', purpose: '', extra_info: '',
-    letter_type: 'church' as 'church' | 'choir',
+    org_name: '', org_website: '', org_type: '', org_description: '',
+    purpose: '', extra_info: '', letter_type: 'church' as 'church' | 'choir',
   });
-
-  const upd = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const upd = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const lookupOrg = async () => {
     if (!form.org_website) return;
-    setLookingUp(true);
-    setOrgLookupResult(null);
+    setLookingUp(true); setOrgResult(null);
     try {
       const res = await post<any>('/rec-letters/lookup-org', { url: form.org_website });
-      setOrgLookupResult(res);
+      setOrgResult(res);
       if (res.success && res.org) {
         if (res.org.name && !form.org_name) upd('org_name', res.org.name);
         if (res.org.description && !form.org_description) upd('org_description', res.org.description);
@@ -127,11 +90,9 @@ const LetterForm: React.FC<{ onClose: () => void; onSuccess: (letter: RecLetter,
         toast.warning(res.error || 'Could not retrieve org info — please enter manually');
       }
     } catch {
-      setOrgLookupResult({ success: false, error: 'Lookup failed' });
+      setOrgResult({ success: false, error: 'Lookup failed' });
       toast.error('Could not reach that URL. Please enter organization info manually.');
-    } finally {
-      setLookingUp(false);
-    }
+    } finally { setLookingUp(false); }
   };
 
   const submit = async () => {
@@ -141,159 +102,102 @@ const LetterForm: React.FC<{ onClose: () => void; onSuccess: (letter: RecLetter,
       const res = await post<any>('/rec-letters', form);
       toast.success('Recommendation letter generated!');
       onSuccess(res.letter, { church_name: res.church_name, logo_url: res.logo_url, church_contact: res.church_contact });
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="bg-gradient-to-br from-purple-700 to-indigo-800 px-6 py-4 text-white sticky top-0 z-10">
           <button onClick={onClose} className="absolute right-4 top-4 p-1 rounded-full hover:bg-white/20"><X size={20} /></button>
           <h3 className="text-xl font-bold flex items-center gap-2"><FileText size={22} /> New Recommendation Letter</h3>
           <div className="flex gap-2 mt-3">
-            {[1,2,3].map((s) => (
+            {[1, 2, 3].map(s => (
               <div key={s} className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${step === s ? 'bg-white text-purple-700' : step > s ? 'bg-white/30 text-white' : 'bg-white/10 text-white/60'}`}>
-                {step > s ? <CheckCircle size={12} /> : s}
-                {s === 1 ? ' Applicant' : s === 2 ? ' Organization' : ' Generate'}
+                {step > s ? <CheckCircle size={12} /> : s}{s === 1 ? ' Applicant' : s === 2 ? ' Organization' : ' Generate'}
               </div>
             ))}
           </div>
         </div>
-
         <div className="p-6 space-y-4">
-          {/* Step 1: Applicant */}
-          {step === 1 && (
-            <>
-              <h4 className="font-semibold text-gray-800">Applicant Information</h4>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input value={form.applicant_name} onChange={(e) => upd('applicant_name', e.target.value)} className="input-base" placeholder="e.g. John Kwame Mensah" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Relationship / Status with Church or Choir</label>
-                <input value={form.applicant_status} onChange={(e) => upd('applicant_status', e.target.value)} className="input-base" placeholder="e.g. Active Choir Member, Faithful Church Member" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date / Month / Year They Joined</label>
-                <input value={form.date_joined} onChange={(e) => upd('date_joined', e.target.value)} className="input-base" placeholder="e.g. January 2020, or 3 years ago" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Relevant Information</label>
-                <textarea rows={3} value={form.additional_info} onChange={(e) => upd('additional_info', e.target.value)} className="input-base resize-none" placeholder="Any specific achievements, roles, or qualities to highlight..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Letter Type *</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(['church','choir'] as const).map((t) => (
-                    <button key={t} type="button" onClick={() => upd('letter_type', t)}
-                      className={`rounded-xl border-2 py-3 text-sm font-semibold capitalize transition-all ${form.letter_type === t ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-                      {t === 'church' ? '⛪ Church Recommendation' : '🎵 Choir Recommendation'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end pt-2">
-                <button onClick={() => { if (!form.applicant_name.trim()) { toast.error('Applicant name required'); return; } setStep(2); }} className="btn-primary">Next: Organization →</button>
-              </div>
-            </>
-          )}
-
-          {/* Step 2: Organization */}
-          {step === 2 && (
-            <>
-              <h4 className="font-semibold text-gray-800">Letter Destination</h4>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Website URL</label>
-                <div className="flex gap-2">
-                  <input value={form.org_website} onChange={(e) => upd('org_website', e.target.value)} className="input-base flex-1" placeholder="https://www.university.edu" />
-                  <button onClick={lookupOrg} disabled={lookingUp || !form.org_website} className="btn-outline px-3 py-2 text-sm whitespace-nowrap">
-                    {lookingUp ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
-                    {lookingUp ? 'Looking up…' : 'Lookup'}
+          {step === 1 && (<>
+            <h4 className="font-semibold text-gray-800">Applicant Information</h4>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label><input value={form.applicant_name} onChange={e => upd('applicant_name', e.target.value)} className="input-base" placeholder="e.g. John Kwame Mensah" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Relationship / Status</label><input value={form.applicant_status} onChange={e => upd('applicant_status', e.target.value)} className="input-base" placeholder="e.g. Active Choir Member, Faithful Church Member" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date / Year They Joined</label><input value={form.date_joined} onChange={e => upd('date_joined', e.target.value)} className="input-base" placeholder="e.g. January 2020" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Additional Information</label><textarea rows={3} value={form.additional_info} onChange={e => upd('additional_info', e.target.value)} className="input-base resize-none" placeholder="Achievements, roles, or qualities to highlight..." /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Letter Type *</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(['church', 'choir'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => upd('letter_type', t)}
+                    className={`rounded-xl border-2 py-3 text-sm font-semibold capitalize transition-all ${form.letter_type === t ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                    {t === 'church' ? '⛪ Church Recommendation' : '🎵 Choir Recommendation'}
                   </button>
-                </div>
-                {orgLookupResult && (
-                  <div className={`mt-2 p-3 rounded-lg text-sm flex items-start gap-2 ${orgLookupResult.success ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {orgLookupResult.success ? <CheckCircle size={16} className="shrink-0 mt-0.5" /> : <AlertCircle size={16} className="shrink-0 mt-0.5" />}
-                    {orgLookupResult.success ? 'Organization info retrieved. Review and edit below.' : `${orgLookupResult.error} — Please enter organization details manually.`}
-                  </div>
-                )}
+                ))}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label>
-                <input value={form.org_name} onChange={(e) => upd('org_name', e.target.value)} className="input-base" placeholder="e.g. University of Ghana, Accra Technical University" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Type</label>
-                <input value={form.org_type} onChange={(e) => upd('org_type', e.target.value)} className="input-base" placeholder="e.g. University, Company, NGO, Government Agency" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization Description (optional)</label>
-                <textarea rows={2} value={form.org_description} onChange={(e) => upd('org_description', e.target.value)} className="input-base resize-none" placeholder="Brief description of the organization..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purpose of Recommendation *</label>
-                <input value={form.purpose} onChange={(e) => upd('purpose', e.target.value)} className="input-base" placeholder="e.g. admission to the Music Department, employment as a worship coordinator" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Information to Include</label>
-                <textarea rows={2} value={form.extra_info} onChange={(e) => upd('extra_info', e.target.value)} className="input-base resize-none" placeholder="Any other specific information the applicant wants included..." />
-              </div>
-              <div className="flex justify-between pt-2">
-                <button onClick={() => setStep(1)} className="btn-outline">← Back</button>
-                <button onClick={() => { if (!form.org_name.trim()) { toast.error('Organization name required'); return; } setStep(3); }} className="btn-primary">Next: Generate →</button>
-              </div>
-            </>
-          )}
-
-          {/* Step 3: Review & Generate */}
-          {step === 3 && (
-            <>
-              <h4 className="font-semibold text-gray-800">Review & Generate</h4>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    ['Applicant', form.applicant_name],
-                    ['Status', form.applicant_status || '—'],
-                    ['Joined', form.date_joined || '—'],
-                    ['Letter Type', form.letter_type === 'church' ? '⛪ Church' : '🎵 Choir'],
-                    ['Organization', form.org_name || '—'],
-                    ['Purpose', form.purpose || '—'],
-                  ].map(([k, v]) => (
-                    <div key={k}>
-                      <span className="text-gray-500 text-xs uppercase font-semibold">{k}</span>
-                      <div className="font-medium text-gray-800">{v}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-                <strong>Note:</strong> The signatory (Pastor or Choir Director) will be automatically fetched from your Leadership CMS. The letter will be generated with all the information above.
-              </div>
-              <div className="flex justify-between pt-2">
-                <button onClick={() => setStep(2)} className="btn-outline">← Back</button>
-                <button onClick={submit} disabled={saving} className="btn-primary">
-                  {saving ? <><Loader2 size={16} className="animate-spin" /> Generating…</> : <><FileText size={16} /> Generate Letter</>}
+            </div>
+            <div className="flex justify-end pt-2">
+              <button onClick={() => { if (!form.applicant_name.trim()) { toast.error('Applicant name required'); return; } setStep(2); }} className="btn-primary">Next: Organization →</button>
+            </div>
+          </>)}
+          {step === 2 && (<>
+            <h4 className="font-semibold text-gray-800">Letter Destination</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Website URL</label>
+              <div className="flex gap-2">
+                <input value={form.org_website} onChange={e => upd('org_website', e.target.value)} className="input-base flex-1" placeholder="https://www.university.edu" />
+                <button onClick={lookupOrg} disabled={lookingUp || !form.org_website} className="btn-outline px-3 py-2 text-sm whitespace-nowrap">
+                  {lookingUp ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}{lookingUp ? ' Looking up…' : ' Lookup'}
                 </button>
               </div>
-            </>
-          )}
+              {orgResult && (
+                <div className={`mt-2 p-3 rounded-lg text-sm flex items-start gap-2 ${orgResult.success ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {orgResult.success ? <CheckCircle size={16} className="shrink-0 mt-0.5" /> : <AlertCircle size={16} className="shrink-0 mt-0.5" />}
+                  {orgResult.success ? 'Organization info retrieved. Review and edit below.' : `${orgResult.error} — Please enter organization details manually.`}
+                </div>
+              )}
+            </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label><input value={form.org_name} onChange={e => upd('org_name', e.target.value)} className="input-base" placeholder="e.g. University of Ghana" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Organization Type</label><input value={form.org_type} onChange={e => upd('org_type', e.target.value)} className="input-base" placeholder="e.g. University, Company, NGO" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Organization Description (optional)</label><textarea rows={2} value={form.org_description} onChange={e => upd('org_description', e.target.value)} className="input-base resize-none" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Purpose of Recommendation *</label><input value={form.purpose} onChange={e => upd('purpose', e.target.value)} className="input-base" placeholder="e.g. admission to the Music Department" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Additional Information to Include</label><textarea rows={2} value={form.extra_info} onChange={e => upd('extra_info', e.target.value)} className="input-base resize-none" /></div>
+            <div className="flex justify-between pt-2">
+              <button onClick={() => setStep(1)} className="btn-outline">← Back</button>
+              <button onClick={() => { if (!form.org_name.trim()) { toast.error('Organization name required'); return; } setStep(3); }} className="btn-primary">Next: Generate →</button>
+            </div>
+          </>)}
+          {step === 3 && (<>
+            <h4 className="font-semibold text-gray-800">Review & Generate</h4>
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                {[['Applicant', form.applicant_name], ['Status', form.applicant_status || '—'], ['Joined', form.date_joined || '—'], ['Letter Type', form.letter_type === 'church' ? '⛪ Church' : '🎵 Choir'], ['Organization', form.org_name || '—'], ['Purpose', form.purpose || '—']].map(([k, v]) => (
+                  <div key={k}><span className="text-gray-500 text-xs uppercase font-semibold">{k}</span><div className="font-medium text-gray-800">{v}</div></div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+              <strong>Note:</strong> The signatory (Pastor or Choir Director) will be automatically fetched from your Leadership CMS.
+            </div>
+            <div className="flex justify-between pt-2">
+              <button onClick={() => setStep(2)} className="btn-outline">← Back</button>
+              <button onClick={submit} disabled={saving} className="btn-primary">
+                {saving ? <><Loader2 size={16} className="animate-spin" /> Generating…</> : <><FileText size={16} /> Generate Letter</>}
+              </button>
+            </div>
+          </>)}
         </div>
       </div>
     </div>
   );
 };
 
-// ── Preview Modal ─────────────────────────────────────────────
-const PreviewModal: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: () => void }> = ({ letter, meta, onClose }) => {
+const LetterPreview: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: () => void }> = ({ letter, meta, onClose }) => {
   const entity = letter.letter_type === 'choir' ? `${meta.church_name} Choir` : meta.church_name;
-
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
           <h3 className="font-bold text-gray-900">Letter Preview — {letter.applicant_name}</h3>
           <div className="flex gap-2">
@@ -302,24 +206,16 @@ const PreviewModal: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: () 
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-8">
-          {/* Letterhead */}
           <div className="flex items-start justify-between border-b-4 border-purple-700 pb-5 mb-6">
             <div className="flex items-center gap-4">
               {meta.logo_url && <img src={meta.logo_url} alt="logo" className="h-16 w-auto object-contain" />}
-              <div>
-                <div className="text-xl font-bold text-purple-900">{meta.church_name}</div>
-                <div className="text-sm text-gray-500">{entity}</div>
-              </div>
+              <div><div className="text-xl font-bold text-purple-900">{meta.church_name}</div><div className="text-sm text-gray-500">{entity}</div></div>
             </div>
-            <div className="text-right text-xs text-gray-500 leading-relaxed">
-              {meta.church_contact.split(' | ').map((c, i) => <div key={i}>{c}</div>)}
-            </div>
+            <div className="text-right text-xs text-gray-500 leading-relaxed">{meta.church_contact.split(' | ').map((c, i) => <div key={i}>{c}</div>)}</div>
           </div>
-          {/* Letter body */}
           <div className="font-serif text-sm leading-relaxed space-y-4 text-gray-800">
             {letter.letter_content.split('\n\n').map((para, i) => {
-              const t = para.trim();
-              if (!t) return null;
+              const t = para.trim(); if (!t) return null;
               if (t.startsWith('____')) return <div key={i} className="border-b-2 border-gray-800 w-64 my-6" />;
               return <p key={i} className="text-justify">{t.split('\n').map((line, j) => <React.Fragment key={j}>{line}{j < t.split('\n').length - 1 && <br />}</React.Fragment>)}</p>;
             })}
@@ -333,8 +229,116 @@ const PreviewModal: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: () 
   );
 };
 
-// ── Main Page ─────────────────────────────────────────────────
-const AdminDocuments: React.FC = () => {
+// ─────────────────────────────────────────────────────────────
+// CV / RESUME BUILDER
+// ─────────────────────────────────────────────────────────────
+interface WorkExp { id: string; job_title: string; company: string; location: string; start_date: string; end_date: string; current: boolean; responsibilities: string; achievements: string; }
+interface EduEntry { id: string; institution: string; degree: string; field: string; start_date: string; end_date: string; achievements: string; }
+interface CertEntry { id: string; name: string; institution: string; date: string; }
+interface ProjEntry { id: string; name: string; description: string; technologies: string; link: string; }
+interface RefEntry { id: string; name: string; position: string; organization: string; contact: string; }
+interface CVData {
+  id?: string; title: string; full_name: string; professional_title: string;
+  email: string; phone: string; location: string; website: string; linkedin: string;
+  photo_url: string; summary: string;
+  work_experience: WorkExp[]; education: EduEntry[]; skills: { technical: string[]; soft: string[]; languages: string[] };
+  certifications: CertEntry[]; projects: ProjEntry[]; references: RefEntry[];
+  template: string;
+}
+const CV_EMPTY: CVData = {
+  title: '', full_name: '', professional_title: '', email: '', phone: '',
+  location: '', website: '', linkedin: '', photo_url: '', summary: '',
+  work_experience: [], education: [], skills: { technical: [], soft: [], languages: [] },
+  certifications: [], projects: [], references: [], template: 'classic',
+};
+
+function printCV(cv: CVData) {
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to print.'); return; }
+  const sec = (title: string, content: string) => content?.trim()
+    ? `<div style="margin-bottom:22px"><h2 style="font-size:11pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #5b21b6;padding-bottom:4px;margin-bottom:10px;color:#5b21b6">${title}</h2>${content}</div>` : '';
+  const workHtml = cv.work_experience.map(w =>
+    `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between"><strong>${w.job_title}</strong><span style="color:#6b7280;font-size:10pt">${w.start_date}${w.current ? ' – Present' : w.end_date ? ` – ${w.end_date}` : ''}</span></div>
+      <div style="color:#4b5563;font-size:10.5pt">${w.company}${w.location ? ` · ${w.location}` : ''}</div>
+      ${w.responsibilities ? `<p style="margin-top:6px;font-size:10.5pt;line-height:1.6;white-space:pre-line">${w.responsibilities}</p>` : ''}
+      ${w.achievements ? `<p style="margin-top:4px;font-size:10.5pt;color:#374151;white-space:pre-line"><em>Achievements: ${w.achievements}</em></p>` : ''}
+    </div>`).join('');
+  const eduHtml = cv.education.map(e =>
+    `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between"><strong>${e.degree}${e.field ? ` in ${e.field}` : ''}</strong><span style="color:#6b7280;font-size:10pt">${e.start_date}${e.end_date ? ` – ${e.end_date}` : ''}</span></div>
+      <div style="color:#4b5563;font-size:10.5pt">${e.institution}</div>
+      ${e.achievements ? `<p style="margin-top:4px;font-size:10.5pt;color:#374151">${e.achievements}</p>` : ''}
+    </div>`).join('');
+  const skillsHtml = [
+    cv.skills.technical.length ? `<div><strong>Technical:</strong> ${cv.skills.technical.join(', ')}</div>` : '',
+    cv.skills.soft.length ? `<div><strong>Soft Skills:</strong> ${cv.skills.soft.join(', ')}</div>` : '',
+    cv.skills.languages.length ? `<div><strong>Languages:</strong> ${cv.skills.languages.join(', ')}</div>` : '',
+  ].filter(Boolean).join('');
+  const certHtml = cv.certifications.map(c => `<div style="margin-bottom:6px"><strong>${c.name}</strong>${c.institution ? ` · ${c.institution}` : ''}${c.date ? ` · ${c.date}` : ''}</div>`).join('');
+  const projHtml = cv.projects.map(p =>
+    `<div style="margin-bottom:12px"><strong>${p.name}</strong>${p.technologies ? ` <span style="color:#6b7280;font-size:10pt">[${p.technologies}]</span>` : ''}
+    ${p.description ? `<p style="font-size:10.5pt;margin-top:4px;line-height:1.6">${p.description}</p>` : ''}
+    ${p.link ? `<a href="${p.link}" style="font-size:10pt;color:#5b21b6">${p.link}</a>` : ''}</div>`).join('');
+  const refHtml = cv.references.map(r =>
+    `<div style="margin-bottom:10px"><strong>${r.name}</strong>${r.position ? ` · ${r.position}` : ''}${r.organization ? `, ${r.organization}` : ''}${r.contact ? `<br/><span style="color:#6b7280;font-size:10pt">${r.contact}</span>` : ''}</div>`).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>${cv.full_name || 'CV'}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1f2937;background:#fff}.page{max-width:750px;margin:0 auto;padding:50px 60px}@media print{.page{padding:30px 40px}}</style>
+</head><body><div class="page">
+  <div style="border-bottom:3px solid #5b21b6;padding-bottom:20px;margin-bottom:24px;display:flex;align-items:center;gap:20px">
+    ${cv.photo_url ? `<img src="${cv.photo_url}" style="width:80px;height:80px;border-radius:8px;object-fit:cover;border:2px solid #e5e7eb" alt="photo"/>` : ''}
+    <div>
+      <h1 style="font-size:22pt;font-weight:700;color:#1f2937">${cv.full_name || ''}</h1>
+      ${cv.professional_title ? `<div style="font-size:13pt;color:#5b21b6;margin-top:2px">${cv.professional_title}</div>` : ''}
+      <div style="font-size:10pt;color:#6b7280;margin-top:6px;display:flex;gap:16px;flex-wrap:wrap">
+        ${cv.email ? `<span>${cv.email}</span>` : ''}${cv.phone ? `<span>${cv.phone}</span>` : ''}${cv.location ? `<span>${cv.location}</span>` : ''}${cv.website ? `<span>${cv.website}</span>` : ''}${cv.linkedin ? `<span>${cv.linkedin}</span>` : ''}
+      </div>
+    </div>
+  </div>
+  ${cv.summary ? sec('Professional Summary', `<p style="font-size:11pt;line-height:1.7;text-align:justify">${cv.summary}</p>`) : ''}
+  ${cv.work_experience.length ? sec('Work Experience', workHtml) : ''}
+  ${cv.education.length ? sec('Education', eduHtml) : ''}
+  ${skillsHtml ? sec('Skills', `<div style="font-size:10.5pt;line-height:2">${skillsHtml}</div>`) : ''}
+  ${cv.certifications.length ? sec('Certifications', certHtml) : ''}
+  ${cv.projects.length ? sec('Projects', projHtml) : ''}
+  ${cv.references.length ? sec('References', refHtml) : ''}
+</div>
+<script>window.onload=()=>setTimeout(()=>window.print(),600)</script>
+</body></html>`);
+  w.document.close();
+}
+
+const SecBlock: React.FC<{ title: string; children: React.ReactNode; open?: boolean }> = ({ title, children, open: d = true }) => {
+  const [open, setOpen] = React.useState(d);
+  return (
+    <div className="card mb-4">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-5 py-4 text-left">
+        <span className="font-semibold text-gray-800">{title}</span>
+        {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+      </button>
+      {open && <div className="px-5 pb-5 border-t border-gray-100 pt-4">{children}</div>}
+    </div>
+  );
+};
+
+const TagInput: React.FC<{ label: string; tags: string[]; onChange: (t: string[]) => void }> = ({ label, tags, onChange }) => {
+  const [val, setVal] = React.useState('');
+  const add = () => { const v = val.trim(); if (v && !tags.includes(v)) onChange([...tags, v]); setVal(''); };
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex gap-2 mb-2">
+        <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} className="input-base flex-1 text-sm" placeholder="Type and press Enter" />
+        <button type="button" onClick={add} className="btn-outline px-3 py-2 text-sm">Add</button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {tags.map(t => <span key={t} className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 rounded-full px-2.5 py-0.5 text-xs font-medium">{t}<button type="button" onClick={() => onChange(tags.filter(x => x !== t))} className="hover:text-red-500"><X size={10} /></button></span>)}
+      </div>
+    </div>
+  );
+};
+
+const RecLettersTab: React.FC = () => {
   const [letters, setLetters] = useState<RecLetter[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -342,12 +346,9 @@ const AdminDocuments: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    try {
-      const { letters: data } = await get<{ letters: RecLetter[] }>('/rec-letters');
-      setLetters(data || []);
-    } catch { } finally { setLoading(false); }
+    try { const { letters: d } = await get<{ letters: RecLetter[] }>('/rec-letters'); setLetters(d || []); }
+    catch { } finally { setLoading(false); }
   };
-
   useEffect(() => { load(); }, []);
 
   const viewLetter = async (id: string) => {
@@ -364,70 +365,506 @@ const AdminDocuments: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recommendation Letters</h1>
+          <h2 className="text-xl font-bold text-gray-900">Recommendation Letters</h2>
           <p className="text-sm text-gray-500">Generate official church and choir recommendation letters</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary"><Plus size={16} /> New Letter</button>
       </div>
-
-      {loading ? (
-        <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>
-      ) : letters.length === 0 ? (
-        <div className="card p-16 text-center text-gray-400">
-          <FileText size={48} className="mx-auto mb-4 opacity-30" />
-          <p className="font-medium">No recommendation letters yet</p>
-          <p className="text-sm mt-1">Click "New Letter" to generate your first one</p>
-        </div>
-      ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>{['Applicant','Letter Type','Organization','Purpose','Generated By','Date','Actions'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {letters.map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{l.applicant_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${l.letter_type === 'choir' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'}`}>
-                      {l.letter_type === 'choir' ? '🎵 Choir' : '⛪ Church'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{l.org_name || '—'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs max-w-[160px] truncate">{l.purpose || '—'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{l.generated_by_first ? `${l.generated_by_first} ${l.generated_by_last}` : '—'}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{new Date(l.generated_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">
+      {loading
+        ? <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>
+        : letters.length === 0
+          ? <div className="card p-16 text-center text-gray-400"><FileText size={48} className="mx-auto mb-4 opacity-30" /><p className="font-medium">No recommendation letters yet</p><p className="text-sm mt-1">Click "New Letter" to generate your first one</p></div>
+          : <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{['Applicant', 'Type', 'Organization', 'Purpose', 'Generated By', 'Date', 'Actions'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-gray-50">
+                {letters.map(l => (
+                  <tr key={l.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{l.applicant_name}</td>
+                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${l.letter_type === 'choir' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'}`}>{l.letter_type === 'choir' ? '🎵 Choir' : '⛪ Church'}</span></td>
+                    <td className="px-4 py-3 text-gray-600">{l.org_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[140px] truncate">{l.purpose || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{l.generated_by_first ? `${l.generated_by_first} ${l.generated_by_last}` : '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{new Date(l.generated_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3"><div className="flex gap-1">
                       <button onClick={() => viewLetter(l.id)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50" title="View"><Eye size={15} /></button>
-                      <button onClick={() => viewLetter(l.id).then(() => {})} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" title="Print"><Printer size={15} /></button>
                       <button onClick={() => remove(l.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="Delete"><Trash2 size={15} /></button>
-                    </div>
-                  </td>
+                    </div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+      }
+      {showForm && <LetterForm onClose={() => setShowForm(false)} onSuccess={(letter, meta) => { setShowForm(false); load(); setPreview({ letter, meta }); }} />}
+      {preview && <LetterPreview letter={preview.letter} meta={preview.meta} onClose={() => setPreview(null)} />}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+const CVBuilderTab: React.FC = () => {
+  const [cvList, setCvList] = React.useState<CVData[]>([]);
+  const [cv, setCv] = React.useState<CVData>(CV_EMPTY);
+  const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [uploading, setUploading] = React.useState(false);
+  const [view, setView] = React.useState<'list' | 'edit'>('list');
+  const upd = (k: keyof CVData, v: any) => setCv(c => ({ ...c, [k]: v }));
+
+  React.useEffect(() => {
+    get<{ cvs: CVData[] }>('/cv').then(r => setCvList(r.cvs || [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const loadCV = async (id: string) => {
+    try { const { cv: d } = await get<{ cv: CVData }>(`/cv/${id}`); setCv(d); setView('edit'); }
+    catch (err: any) { toast.error(err.message); }
+  };
+
+  const save = async () => {
+    if (!cv.full_name?.trim()) { toast.error('Full name is required'); return; }
+    setSaving(true);
+    try {
+      if (cv.id) {
+        const { cv: u } = await put<{ cv: CVData }>(`/cv/${cv.id}`, cv); setCv(u);
+      } else {
+        const { cv: c } = await post<{ cv: CVData }>('/cv', cv); setCv(c); setCvList(l => [c, ...l]);
+      }
+      toast.success('CV saved!');
+    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Delete this CV?')) return;
+    try { await del(`/cv/${id}`); setCvList(l => l.filter(c => c.id !== id)); toast.success('Deleted'); }
+    catch (err: any) { toast.error(err.message); }
+  };
+
+  const uploadPhoto = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('photo', file);
+      const res = await apiFetch('/cv/upload-photo', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      upd('photo_url', data.url); toast.success('Photo uploaded');
+    } catch (err: any) { toast.error(err.message); } finally { setUploading(false); }
+  };
+
+  const addWork = () => upd('work_experience', [...cv.work_experience, { id: uid(), job_title: '', company: '', location: '', start_date: '', end_date: '', current: false, responsibilities: '', achievements: '' }]);
+  const updWork = (id: string, k: string, v: any) => upd('work_experience', cv.work_experience.map(w => w.id === id ? { ...w, [k]: v } : w));
+  const delWork = (id: string) => upd('work_experience', cv.work_experience.filter(w => w.id !== id));
+  const addEdu = () => upd('education', [...cv.education, { id: uid(), institution: '', degree: '', field: '', start_date: '', end_date: '', achievements: '' }]);
+  const updEdu = (id: string, k: string, v: any) => upd('education', cv.education.map(e => e.id === id ? { ...e, [k]: v } : e));
+  const delEdu = (id: string) => upd('education', cv.education.filter(e => e.id !== id));
+  const addCert = () => upd('certifications', [...cv.certifications, { id: uid(), name: '', institution: '', date: '' }]);
+  const updCert = (id: string, k: string, v: any) => upd('certifications', cv.certifications.map(c => c.id === id ? { ...c, [k]: v } : c));
+  const delCert = (id: string) => upd('certifications', cv.certifications.filter(c => c.id !== id));
+  const addProj = () => upd('projects', [...cv.projects, { id: uid(), name: '', description: '', technologies: '', link: '' }]);
+  const updProj = (id: string, k: string, v: any) => upd('projects', cv.projects.map(p => p.id === id ? { ...p, [k]: v } : p));
+  const delProj = (id: string) => upd('projects', cv.projects.filter(p => p.id !== id));
+  const addRef = () => upd('references', [...cv.references, { id: uid(), name: '', position: '', organization: '', contact: '' }]);
+  const updRef = (id: string, k: string, v: any) => upd('references', cv.references.map(r => r.id === id ? { ...r, [k]: v } : r));
+  const delRef = (id: string) => upd('references', cv.references.filter(r => r.id !== id));
+
+  if (loading) return <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>;
+
+  if (view === 'list') return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div><h2 className="text-xl font-bold text-gray-900">CV / Resume Builder</h2><p className="text-sm text-gray-500">Create and manage professional CVs</p></div>
+        <button onClick={() => { setCv(CV_EMPTY); setView('edit'); }} className="btn-primary"><Plus size={16} /> New CV</button>
+      </div>
+      {cvList.length === 0
+        ? <div className="card p-16 text-center text-gray-400"><BookOpen size={48} className="mx-auto mb-4 opacity-30" /><p className="font-medium">No CVs yet</p><p className="text-sm mt-1">Click "New CV" to build the first one</p></div>
+        : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cvList.map(c => (
+            <div key={c.id} className="card p-5">
+              <div className="font-semibold text-gray-900 mb-1">{c.title || 'Untitled CV'}</div>
+              <div className="text-sm text-gray-500 mb-1">{c.full_name || '—'}</div>
+              <div className="text-xs text-gray-400 mb-4">{c.professional_title || ''}</div>
+              <div className="flex gap-2">
+                <button onClick={() => loadCV(c.id!)} className="btn-primary py-1.5 text-xs flex-1 justify-center">Edit</button>
+                <button onClick={() => printCV(c)} className="btn-outline py-1.5 text-xs px-3"><Printer size={14} /></button>
+                <button onClick={() => remove(c.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button onClick={() => setView('list')} className="text-sm text-purple-600 hover:underline mb-1">← Back to CVs</button>
+          <h2 className="text-xl font-bold text-gray-900">{cv.id ? 'Edit CV' : 'New CV'}</h2>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => printCV(cv)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print / Download</button>
+          <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
+            {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save CV</>}
+          </button>
+        </div>
+      </div>
+      <div className="card p-5 mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">CV Title (internal label)</label>
+        <input value={cv.title} onChange={e => upd('title', e.target.value)} className="input-base" placeholder="e.g. Software Engineer CV 2024" />
+      </div>
+      <SecBlock title="Personal Information">
+        <div className="grid grid-cols-2 gap-4">
+          {cv.photo_url && <div className="col-span-2"><img src={cv.photo_url} alt="CV photo" className="h-24 w-20 object-cover rounded-lg border-2 border-purple-100" /></div>}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+            <label className="cursor-pointer btn-outline py-2 text-sm inline-flex items-center gap-2">
+              <Upload size={14} /> {uploading ? 'Uploading…' : 'Upload Photo'}
+              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); }} />
+            </label>
+          </div>
+          {([['full_name', 'Full Name *'], ['professional_title', 'Professional Title'], ['email', 'Email'], ['phone', 'Phone'], ['location', 'Location / City'], ['website', 'Website / Portfolio'], ['linkedin', 'LinkedIn / Social Link']] as [string, string][]).map(([k, l]) => (
+            <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input value={(cv as any)[k] || ''} onChange={e => upd(k as any, e.target.value)} className="input-base" /></div>
+          ))}
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Professional Summary</label>
+            <textarea rows={4} value={cv.summary} onChange={e => upd('summary', e.target.value)} className="input-base resize-none" placeholder="A brief professional summary..." />
+          </div>
+        </div>
+      </SecBlock>
+      <SecBlock title={`Work Experience (${cv.work_experience.length})`}>
+        {cv.work_experience.map((w, i) => (
+          <div key={w.id} className="border border-gray-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3"><span className="text-sm font-semibold text-gray-700">Position {i + 1}</span><button onClick={() => delWork(w.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
+            <div className="grid grid-cols-2 gap-3">
+              {([['job_title', 'Job Title *'], ['company', 'Company *'], ['location', 'Location'], ['start_date', 'Start Date'], ['end_date', 'End Date']] as [string, string][]).map(([k, l]) => (
+                <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input value={(w as any)[k] || ''} onChange={e => updWork(w.id, k, e.target.value)} className="input-base text-sm" /></div>
+              ))}
+              <label className="flex items-center gap-2 text-sm text-gray-600 col-span-2"><input type="checkbox" checked={w.current} onChange={e => updWork(w.id, 'current', e.target.checked)} /> Currently working here</label>
+              <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Responsibilities</label><textarea rows={3} value={w.responsibilities} onChange={e => updWork(w.id, 'responsibilities', e.target.value)} className="input-base text-sm resize-none" /></div>
+              <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Achievements</label><textarea rows={2} value={w.achievements} onChange={e => updWork(w.id, 'achievements', e.target.value)} className="input-base text-sm resize-none" /></div>
+            </div>
+          </div>
+        ))}
+        <button onClick={addWork} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Work Experience</button>
+      </SecBlock>
+      <SecBlock title={`Education (${cv.education.length})`}>
+        {cv.education.map((e, i) => (
+          <div key={e.id} className="border border-gray-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3"><span className="text-sm font-semibold text-gray-700">Education {i + 1}</span><button onClick={() => delEdu(e.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
+            <div className="grid grid-cols-2 gap-3">
+              {([['institution', 'Institution *'], ['degree', 'Degree / Qualification *'], ['field', 'Field of Study'], ['start_date', 'Start Date'], ['end_date', 'End Date']] as [string, string][]).map(([k, l]) => (
+                <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input value={(e as any)[k] || ''} onChange={ev => updEdu(e.id, k, ev.target.value)} className="input-base text-sm" /></div>
+              ))}
+              <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Achievements / Honors</label><textarea rows={2} value={e.achievements} onChange={ev => updEdu(e.id, 'achievements', ev.target.value)} className="input-base text-sm resize-none" /></div>
+            </div>
+          </div>
+        ))}
+        <button onClick={addEdu} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Education</button>
+      </SecBlock>
+      <SecBlock title="Skills">
+        <div className="space-y-4">
+          <TagInput label="Technical Skills" tags={cv.skills.technical} onChange={t => upd('skills', { ...cv.skills, technical: t })} />
+          <TagInput label="Soft Skills" tags={cv.skills.soft} onChange={t => upd('skills', { ...cv.skills, soft: t })} />
+          <TagInput label="Languages" tags={cv.skills.languages} onChange={t => upd('skills', { ...cv.skills, languages: t })} />
+        </div>
+      </SecBlock>
+      <SecBlock title={`Certifications (${cv.certifications.length})`} open={false}>
+        {cv.certifications.map((c, i) => (
+          <div key={c.id} className="border border-gray-200 rounded-xl p-4 mb-3">
+            <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold text-gray-700">Certification {i + 1}</span><button onClick={() => delCert(c.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
+            <div className="grid grid-cols-3 gap-3">
+              {([['name', 'Certification Name *'], ['institution', 'Issuing Institution'], ['date', 'Date']] as [string, string][]).map(([k, l]) => (
+                <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input value={(c as any)[k] || ''} onChange={e => updCert(c.id, k, e.target.value)} className="input-base text-sm" /></div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button onClick={addCert} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Certification</button>
+      </SecBlock>
+      <SecBlock title={`Projects (${cv.projects.length})`} open={false}>
+        {cv.projects.map((p, i) => (
+          <div key={p.id} className="border border-gray-200 rounded-xl p-4 mb-3">
+            <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold text-gray-700">Project {i + 1}</span><button onClick={() => delProj(p.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
+            <div className="grid grid-cols-2 gap-3">
+              {([['name', 'Project Name *'], ['technologies', 'Technologies / Skills'], ['link', 'Project Link']] as [string, string][]).map(([k, l]) => (
+                <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input value={(p as any)[k] || ''} onChange={e => updProj(p.id, k, e.target.value)} className="input-base text-sm" /></div>
+              ))}
+              <div className="col-span-2"><label className="block text-xs font-medium text-gray-600 mb-1">Description</label><textarea rows={2} value={p.description} onChange={e => updProj(p.id, 'description', e.target.value)} className="input-base text-sm resize-none" /></div>
+            </div>
+          </div>
+        ))}
+        <button onClick={addProj} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Project</button>
+      </SecBlock>
+      <SecBlock title={`References (${cv.references.length})`} open={false}>
+        {cv.references.map((r, i) => (
+          <div key={r.id} className="border border-gray-200 rounded-xl p-4 mb-3">
+            <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold text-gray-700">Reference {i + 1}</span><button onClick={() => delRef(r.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
+            <div className="grid grid-cols-2 gap-3">
+              {([['name', 'Full Name *'], ['position', 'Position / Title'], ['organization', 'Organization'], ['contact', 'Contact (Email / Phone)']] as [string, string][]).map(([k, l]) => (
+                <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input value={(r as any)[k] || ''} onChange={e => updRef(r.id, k, e.target.value)} className="input-base text-sm" /></div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button onClick={addRef} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Reference</button>
+      </SecBlock>
+      <div className="flex gap-3 mt-4">
+        <button onClick={() => printCV(cv)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Print / Download PDF</button>
+        <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
+          {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save CV</>}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// ACADEMIC WRITING
+// ─────────────────────────────────────────────────────────────
+interface Section { id: string; heading: string; content: string; }
+interface AcademicDoc {
+  id?: string; doc_type: string; title: string; author: string;
+  institution: string; department: string; course: string; instructor: string;
+  doc_date: string; abstract: string; introduction: string;
+  sections: Section[]; methodology: string; results: string;
+  discussion: string; conclusion: string; references_list: string;
+  created_at?: string; updated_at?: string;
+}
+const ACADEMIC_EMPTY: AcademicDoc = {
+  doc_type: 'essay', title: '', author: '', institution: '', department: '', course: '',
+  instructor: '', doc_date: '', abstract: '', introduction: '', sections: [],
+  methodology: '', results: '', discussion: '', conclusion: '', references_list: '',
+};
+
+function printAcademic(doc: AcademicDoc) {
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to print.'); return; }
+  const sec = (title: string, content: string) => content?.trim()
+    ? `<div style="margin-bottom:20px"><h2 style="font-size:12pt;font-weight:700;text-transform:uppercase;margin-bottom:10px;color:#1f2937">${title}</h2><p style="font-size:11pt;line-height:1.8;text-align:justify;white-space:pre-line">${content}</p></div>` : '';
+  const sectionsHtml = doc.sections.map((s, i) => 
+    s.heading?.trim() || s.content?.trim()
+      ? `<div style="margin-bottom:20px"><h2 style="font-size:12pt;font-weight:700;margin-bottom:10px;color:#1f2937">${i + 1}. ${s.heading || 'Section'}</h2><p style="font-size:11pt;line-height:1.8;text-align:justify;white-space:pre-line">${s.content}</p></div>` : ''
+  ).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>${doc.title || 'Academic Document'}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#1f2937;background:#fff}.page{max-width:750px;margin:0 auto;padding:60px 70px}@media print{.page{padding:40px 50px}}</style>
+</head><body><div class="page">
+  <div style="text-align:center;margin-bottom:30px">
+    <h1 style="font-size:16pt;font-weight:700;margin-bottom:12px;text-transform:uppercase">${doc.title || ''}</h1>
+    ${doc.author ? `<div style="font-size:13pt;margin-bottom:4px">${doc.author}</div>` : ''}
+    ${doc.institution ? `<div style="font-size:11pt;margin-bottom:2px">${doc.institution}</div>` : ''}
+    ${doc.department ? `<div style="font-size:11pt;margin-bottom:2px">${doc.department}</div>` : ''}
+    ${doc.course ? `<div style="font-size:11pt;margin-bottom:2px">${doc.course}</div>` : ''}
+    ${doc.instructor ? `<div style="font-size:11pt;margin-bottom:2px">Instructor: ${doc.instructor}</div>` : ''}
+    ${doc.doc_date ? `<div style="font-size:11pt;margin-top:6px">${doc.doc_date}</div>` : ''}
+  </div>
+  <div style="border-top:2px solid #e5e7eb;padding-top:24px">
+    ${sec('Abstract', doc.abstract)}
+    ${sec('Introduction', doc.introduction)}
+    ${sectionsHtml}
+    ${sec('Methodology', doc.methodology)}
+    ${sec('Results', doc.results)}
+    ${sec('Discussion', doc.discussion)}
+    ${sec('Conclusion', doc.conclusion)}
+    ${doc.references_list?.trim() ? `<div style="margin-top:30px;border-top:1px solid #e5e7eb;padding-top:20px"><h2 style="font-size:12pt;font-weight:700;text-transform:uppercase;margin-bottom:12px;color:#1f2937">References</h2><div style="font-size:10.5pt;line-height:1.8;white-space:pre-line">${doc.references_list}</div></div>` : ''}
+  </div>
+</div>
+<script>window.onload=()=>setTimeout(()=>window.print(),600)</script>
+</body></html>`);
+  w.document.close();
+}
+
+const AcademicWritingTab: React.FC = () => {
+  const [docList, setDocList] = React.useState<AcademicDoc[]>([]);
+  const [doc, setDoc] = React.useState<AcademicDoc>(ACADEMIC_EMPTY);
+  const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [view, setView] = React.useState<'list' | 'edit'>('list');
+  const upd = (k: keyof AcademicDoc, v: any) => setDoc(d => ({ ...d, [k]: v }));
+
+  React.useEffect(() => {
+    get<{ documents: AcademicDoc[] }>('/academic').then(r => setDocList(r.documents || [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const loadDoc = async (id: string) => {
+    try { const { document: d } = await get<{ document: AcademicDoc }>(`/academic/${id}`); setDoc(d); setView('edit'); }
+    catch (err: any) { toast.error(err.message); }
+  };
+
+  const save = async () => {
+    if (!doc.title?.trim()) { toast.error('Document title is required'); return; }
+    setSaving(true);
+    try {
+      if (doc.id) {
+        const { document: u } = await put<{ document: AcademicDoc }>(`/academic/${doc.id}`, doc); setDoc(u);
+      } else {
+        const { document: d } = await post<{ document: AcademicDoc }>('/academic', doc); setDoc(d); setDocList(l => [d, ...l]);
+      }
+      toast.success('Document saved!');
+    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Delete this document?')) return;
+    try { await del(`/academic/${id}`); setDocList(l => l.filter(d => d.id !== id)); toast.success('Deleted'); }
+    catch (err: any) { toast.error(err.message); }
+  };
+
+  const addSection = () => upd('sections', [...doc.sections, { id: uid(), heading: '', content: '' }]);
+  const updSection = (id: string, k: string, v: string) => upd('sections', doc.sections.map(s => s.id === id ? { ...s, [k]: v } : s));
+  const delSection = (id: string) => upd('sections', doc.sections.filter(s => s.id !== id));
+
+  if (loading) return <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>;
+
+  if (view === 'list') return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div><h2 className="text-xl font-bold text-gray-900">Academic Writing</h2><p className="text-sm text-gray-500">Create research papers, essays, reports, and academic documents</p></div>
+        <button onClick={() => { setDoc(ACADEMIC_EMPTY); setView('edit'); }} className="btn-primary"><Plus size={16} /> New Document</button>
+      </div>
+      {docList.length === 0
+        ? <div className="card p-16 text-center text-gray-400"><GraduationCap size={48} className="mx-auto mb-4 opacity-30" /><p className="font-medium">No academic documents yet</p><p className="text-sm mt-1">Click "New Document" to start writing</p></div>
+        : <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b"><tr>{['Title', 'Type', 'Author', 'Institution', 'Date', 'Actions'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-gray-50">
+              {docList.map(d => (
+                <tr key={d.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{d.title || 'Untitled'}</td>
+                  <td className="px-4 py-3"><span className="rounded-full px-2.5 py-0.5 text-xs font-semibold bg-purple-100 text-purple-700 capitalize">{d.doc_type.replace(/_/g, ' ')}</span></td>
+                  <td className="px-4 py-3 text-gray-600">{d.author || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs max-w-[140px] truncate">{d.institution || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{d.doc_date || '—'}</td>
+                  <td className="px-4 py-3"><div className="flex gap-1">
+                    <button onClick={() => loadDoc(d.id!)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50" title="Edit"><FileText size={15} /></button>
+                    <button onClick={() => printAcademic(d)} className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100" title="Print"><Printer size={15} /></button>
+                    <button onClick={() => remove(d.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="Delete"><Trash2 size={15} /></button>
+                  </div></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      }
+    </div>
+  );
 
-      {showForm && (
-        <LetterForm
-          onClose={() => setShowForm(false)}
-          onSuccess={(letter, meta) => {
-            setShowForm(false);
-            load();
-            setPreview({ letter, meta });
-          }}
-        />
-      )}
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <button onClick={() => setView('list')} className="text-sm text-purple-600 hover:underline mb-1">← Back to Documents</button>
+          <h2 className="text-xl font-bold text-gray-900">{doc.id ? 'Edit Document' : 'New Academic Document'}</h2>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => printAcademic(doc)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print / Download</button>
+          <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
+            {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Document</>}
+          </button>
+        </div>
+      </div>
+      <SecBlock title="Document Type & Metadata">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['essay', 'research_paper', 'report', 'assignment', 'project_paper', 'other'] as const).map(t => (
+                <button key={t} type="button" onClick={() => upd('doc_type', t)}
+                  className={`rounded-lg border-2 py-2 text-sm font-medium capitalize transition-all ${doc.doc_type === t ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                  {t.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Document Title *</label><input value={doc.title} onChange={e => upd('title', e.target.value)} className="input-base" placeholder="e.g. The Impact of Climate Change on Agriculture" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            {([['author', 'Author Name'], ['institution', 'Institution'], ['department', 'Department'], ['course', 'Course Name / Code'], ['instructor', 'Instructor Name'], ['doc_date', 'Date']] as [string, string][]).map(([k, l]) => (
+              <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input value={(doc as any)[k] || ''} onChange={e => upd(k as any, e.target.value)} className="input-base" /></div>
+            ))}
+          </div>
+        </div>
+      </SecBlock>
+      <SecBlock title="Abstract">
+        <textarea rows={5} value={doc.abstract} onChange={e => upd('abstract', e.target.value)} className="input-base resize-none" placeholder="A brief summary of the research or essay (150-250 words)..." />
+      </SecBlock>
+      <SecBlock title="Introduction">
+        <textarea rows={6} value={doc.introduction} onChange={e => upd('introduction', e.target.value)} className="input-base resize-none" placeholder="Introduce the topic, provide background, and state the thesis or research question..." />
+      </SecBlock>
+      <SecBlock title={`Body Sections (${doc.sections.length})`}>
+        <p className="text-sm text-gray-500 mb-3">Add custom sections for the main body of your document (e.g. Literature Review, Analysis, Case Study, etc.)</p>
+        {doc.sections.map((s, i) => (
+          <div key={s.id} className="border border-gray-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-gray-700">Section {i + 1}</span>
+              <button onClick={() => delSection(s.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+            </div>
+            <div className="space-y-3">
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Section Heading</label><input value={s.heading} onChange={e => updSection(s.id, 'heading', e.target.value)} className="input-base text-sm" placeholder="e.g. Literature Review, Methodology, Analysis" /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Section Content</label><textarea rows={5} value={s.content} onChange={e => updSection(s.id, 'content', e.target.value)} className="input-base text-sm resize-none" /></div>
+            </div>
+          </div>
+        ))}
+        <button onClick={addSection} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Section</button>
+      </SecBlock>
+      <SecBlock title="Methodology" open={false}>
+        <p className="text-xs text-gray-500 mb-2">Describe your research methods, data collection, and analysis techniques</p>
+        <textarea rows={6} value={doc.methodology} onChange={e => upd('methodology', e.target.value)} className="input-base resize-none" />
+      </SecBlock>
+      <SecBlock title="Results" open={false}>
+        <p className="text-xs text-gray-500 mb-2">Present your findings, data, and observations</p>
+        <textarea rows={6} value={doc.results} onChange={e => upd('results', e.target.value)} className="input-base resize-none" />
+      </SecBlock>
+      <SecBlock title="Discussion" open={false}>
+        <p className="text-xs text-gray-500 mb-2">Interpret your results, discuss implications, and address limitations</p>
+        <textarea rows={6} value={doc.discussion} onChange={e => upd('discussion', e.target.value)} className="input-base resize-none" />
+      </SecBlock>
+      <SecBlock title="Conclusion">
+        <textarea rows={5} value={doc.conclusion} onChange={e => upd('conclusion', e.target.value)} className="input-base resize-none" placeholder="Summarize key points, restate the thesis, and suggest future research or implications..." />
+      </SecBlock>
+      <SecBlock title="References">
+        <p className="text-xs text-gray-500 mb-2">List all sources cited in the document (APA, MLA, Chicago, etc.)</p>
+        <textarea rows={8} value={doc.references_list} onChange={e => upd('references_list', e.target.value)} className="input-base resize-none font-mono text-xs" placeholder="Author, A. A. (Year). Title of work. Publisher.&#10;Author, B. B. (Year). Title of article. Journal Name, Volume(Issue), pages." />
+      </SecBlock>
+      <div className="flex gap-3 mt-4">
+        <button onClick={() => printAcademic(doc)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Print / Download PDF</button>
+        <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
+          {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save Document</>}
+        </button>
+      </div>
+    </div>
+  );
+};
 
-      {preview && <PreviewModal letter={preview.letter} meta={preview.meta} onClose={() => setPreview(null)} />}
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────
+const AdminDocuments: React.FC = () => {
+  const [tab, setTab] = React.useState<'rec-letters' | 'cv' | 'academic'>('rec-letters');
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">📄 Document Center</h1>
+        <p className="text-sm text-gray-500">Admin-only tools for generating recommendation letters, CVs, and academic documents</p>
+      </div>
+      <div className="flex gap-2 border-b border-gray-200 mb-6">
+        {[
+          { id: 'rec-letters' as const, label: '📋 Recommendation Letters', icon: FileText },
+          { id: 'cv' as const, label: '📄 CV Builder', icon: BookOpen },
+          { id: 'academic' as const, label: '🎓 Academic Writing', icon: GraduationCap },
+        ].map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${tab === id ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+            <Icon size={16} /> {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'rec-letters' && <RecLettersTab />}
+      {tab === 'cv' && <CVBuilderTab />}
+      {tab === 'academic' && <AcademicWritingTab />}
     </div>
   );
 };
