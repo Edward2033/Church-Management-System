@@ -3,11 +3,13 @@ import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext';
 import { get, patch, post, del, api, apiFetch, User, Notification, CHURCH_NAME } from '@/lib/api';
 import { printIDCard, printMemberProfile } from '@/lib/print';
-import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar, Mail } from 'lucide-react';
+import { Church, UserIcon, Users, Bell, DollarSign, LogOut, Menu, X, Printer, Pencil, Upload, Loader2, Music2, Cake, Mic, BookOpen, Lock, Home, Calendar, Mail, FileText, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardHome from './DashboardHome';
 import MemberNotifications from './MemberNotifications';
 import MemberAttendance from './MemberAttendance';
+import CVBuilder from './CVBuilder';
+import AcademicWriter from './AcademicWriter';
 
 // ── Safe date formatter: prevents UTC-to-local timezone shift ──
 // PostgreSQL DATE columns come as '2001-12-25T00:00:00.000Z' (UTC midnight).
@@ -1072,6 +1074,8 @@ const MEMBER_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { to: '/dashboard/attendance', label: 'Attendance', icon: Calendar },
   { to: '/dashboard/donate', label: 'Give', icon: DollarSign },
+  { to: '/dashboard/cv', label: 'CV Builder', icon: FileText },
+  { to: '/dashboard/academic', label: 'Academic Writing', icon: GraduationCap },
 ];
 
 const CHOIR_NAV: { to: string; label: string; icon: any; end?: boolean }[] = [{ to: '/dashboard/choir', label: 'Choir Portal', icon: Music2 }];
@@ -1206,6 +1210,8 @@ const MemberDashboard: React.FC = () => {
             <Route path="choir" element={<ChoirPortal />} />
             {/* Choir director management portal */}
             <Route path="choir-director" element={<ChoirDirectorPortal />} />
+            <Route path="cv" element={<CVBuilder />} />
+            <Route path="academic" element={<AcademicWriter />} />
             {/* Leader portal */}
             <Route path="leader" element={<LeaderPortal />} />
           </Routes>

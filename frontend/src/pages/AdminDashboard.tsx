@@ -25,6 +25,7 @@ import AdminHomePage      from './admin/AdminHomePage';
 import AdminVerses        from './admin/AdminVerses';
 import AdminAttendance    from './admin/AdminAttendance';
 import AdminRecognition   from './admin/AdminRecognition';
+import AdminDocuments     from './admin/AdminDocuments';
 
 const NAV = [
   { to: '/admin',               label: 'Overview',         icon: LayoutDashboard, end: true },
@@ -34,6 +35,7 @@ const NAV = [
   { to: '/admin/activities',    label: 'Activities',       icon: Activity },
   { to: '/admin/attendance',    label: 'Attendance',       icon: Calendar },
   { to: '/admin/recognition',   label: 'Recognition',      icon: Award },
+  { to: '/admin/documents',     label: 'Rec. Letters',     icon: FileText },
   { to: '/admin/gallery',       label: 'Gallery',          icon: Images },
   { to: '/admin/leadership',    label: 'Leadership',       icon: Shield },
   { to: '/admin/verses',        label: 'Daily Verses',     icon: BookOpen },
@@ -176,6 +178,7 @@ const AdminDashboard: React.FC = () => {
             <Route path="activities" element={<AdminActivities />} />
             <Route path="attendance" element={<AdminAttendance />} />
             <Route path="recognition" element={<AdminRecognition />} />
+            <Route path="documents" element={<AdminDocuments />} />
             <Route path="gallery" element={<AdminGallery />} />
             <Route path="leadership" element={<AdminLeadership />} />
             <Route path="verses" element={<AdminVerses />} />

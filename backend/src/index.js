@@ -28,6 +28,9 @@ const versesRouter     = require('./routes/verses');
 const notificationsRouter = require('./routes/notifications');
 const attendanceRouter = require('./routes/attendance');
 const recognitionRouter = require('./routes/recognition');
+const recLettersRouter  = require('./routes/rec-letters');
+const cvRouter          = require('./routes/cv');
+const academicRouter    = require('./routes/academic');
 
 const app = express();
 
@@ -97,8 +100,11 @@ app.use('/api/verify',      verifyRouter);
 app.use('/api/verses',      versesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/attendance',  attendanceRouter);
-app.use('/api/recognition', recognitionRouter);
-app.use('/api',             contentRouter);  // catch-all content routes last
+app.use('/api/recognition',  recognitionRouter);
+app.use('/api/rec-letters',  recLettersRouter);
+app.use('/api/cv',           cvRouter);
+app.use('/api/academic',     academicRouter);
+app.use('/api',              contentRouter);  // catch-all content routes last
 
 // Health check
 app.get('/health', (_, res) => res.json({
