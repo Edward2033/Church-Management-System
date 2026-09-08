@@ -1,25 +1,26 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 
-// GET /api/academic — list user's documents
-router.get('/', authenticate, async (req, res) => {
+// ALL routes require admin — Academic Writing is admin-only
+
+// GET /api/academic — list all documents (admin sees all)
+router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, doc_type, title, author, institution, doc_date, created_at, updated_at
-       FROM academic_documents WHERE user_id = $1 ORDER BY updated_at DESC`,
-      [req.user.id]
+       FROM academic_documents ORDER BY updated_at DESC`
     );
     res.json({ documents: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // GET /api/academic/:id
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { rows: [doc] } = await pool.query(
-      `SELECT * FROM academic_documents WHERE id = $1 AND user_id = $2`,
-      [req.params.id, req.user.id]
+      `SELECT * FROM academic_documents WHERE id = $1`,
+      [req.params.id]
     );
     if (!doc) return res.status(404).json({ error: 'Document not found' });
     res.json({ document: doc });
@@ -27,7 +28,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/academic — create
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const {
       doc_type, title, author, institution, department, course, instructor,
@@ -57,11 +58,11 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PUT /api/academic/:id — update
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { rows: [existing] } = await pool.query(
-      `SELECT id FROM academic_documents WHERE id = $1 AND user_id = $2`,
-      [req.params.id, req.user.id]
+      `SELECT id FROM academic_documents WHERE id = $1`,
+      [req.params.id]
     );
     if (!existing) return res.status(404).json({ error: 'Document not found' });
 
@@ -90,14 +91,14 @@ router.put('/:id', authenticate, async (req, res) => {
         conclusion = COALESCE($15, conclusion),
         references_list = COALESCE($16, references_list),
         updated_at = NOW()
-       WHERE id = $17 AND user_id = $18
+       WHERE id = $17
        RETURNING *`,
       [
         doc_type, title, author, institution, department, course, instructor,
         doc_date, abstract, introduction,
         sections ? JSON.stringify(sections) : null,
         methodology, results, discussion, conclusion, references_list,
-        req.params.id, req.user.id,
+        req.params.id,
       ]
     );
     res.json({ document: doc });
@@ -105,9 +106,9 @@ router.put('/:id', authenticate, async (req, res) => {
 });
 
 // DELETE /api/academic/:id
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    await pool.query(`DELETE FROM academic_documents WHERE id = $1 AND user_id = $2`, [req.params.id, req.user.id]);
+    await pool.query(`DELETE FROM academic_documents WHERE id = $1`, [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

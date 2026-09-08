@@ -1,28 +1,37 @@
 const router = require('express').Router();
 const pool   = require('../lib/db');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 const multer = require('multer');
 const { uploadToCloudinary } = require('../lib/cloudinary');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// GET /api/cv — get current user's CV (or list if admin)
-router.get('/', authenticate, async (req, res) => {
+// ALL routes require admin — CV Builder is admin-only
+// POST /api/cv/upload-photo must come BEFORE /:id to avoid route conflict
+router.post('/upload-photo', authenticate, requireAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const url = await uploadToCloudinary(req.file.buffer, 'cv-photos');
+    res.json({ url });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/cv — list all CVs (admin sees all)
+router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM cv_documents WHERE user_id = $1 ORDER BY updated_at DESC`,
-      [req.user.id]
+      `SELECT * FROM cv_documents ORDER BY updated_at DESC`
     );
     res.json({ cvs: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // GET /api/cv/:id
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { rows: [cv] } = await pool.query(
-      `SELECT * FROM cv_documents WHERE id = $1 AND user_id = $2`,
-      [req.params.id, req.user.id]
+      `SELECT * FROM cv_documents WHERE id = $1`,
+      [req.params.id]
     );
     if (!cv) return res.status(404).json({ error: 'CV not found' });
     res.json({ cv });
@@ -30,7 +39,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/cv — create new CV
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const {
       title, full_name, professional_title, email, phone, location,
@@ -64,12 +73,11 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PUT /api/cv/:id — update CV
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    // Verify ownership
     const { rows: [existing] } = await pool.query(
-      `SELECT id FROM cv_documents WHERE id = $1 AND user_id = $2`,
-      [req.params.id, req.user.id]
+      `SELECT id FROM cv_documents WHERE id = $1`,
+      [req.params.id]
     );
     if (!existing) return res.status(404).json({ error: 'CV not found' });
 
@@ -99,7 +107,7 @@ router.put('/:id', authenticate, async (req, res) => {
         references = COALESCE($16, references),
         template = COALESCE($17, template),
         updated_at = NOW()
-       WHERE id = $18 AND user_id = $19
+       WHERE id = $18
        RETURNING *`,
       [
         title, full_name, professional_title, email, phone, location,
@@ -111,26 +119,17 @@ router.put('/:id', authenticate, async (req, res) => {
         projects ? JSON.stringify(projects) : null,
         references ? JSON.stringify(references) : null,
         template,
-        req.params.id, req.user.id,
+        req.params.id,
       ]
     );
     res.json({ cv });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/cv/upload-photo — upload CV profile photo
-router.post('/upload-photo', authenticate, upload.single('photo'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const url = await uploadToCloudinary(req.file.buffer, 'cv-photos');
-    res.json({ url });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // DELETE /api/cv/:id
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    await pool.query(`DELETE FROM cv_documents WHERE id = $1 AND user_id = $2`, [req.params.id, req.user.id]);
+    await pool.query(`DELETE FROM cv_documents WHERE id = $1`, [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
