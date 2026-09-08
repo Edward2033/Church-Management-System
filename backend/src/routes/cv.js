@@ -44,14 +44,14 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
     const {
       title, full_name, professional_title, email, phone, location,
       website, linkedin, photo_url, summary,
-      work_experience, education, skills, certifications, projects, references, template,
+      work_experience, education, skills, certifications, projects, cv_references, template,
     } = req.body;
 
     const { rows: [cv] } = await pool.query(
       `INSERT INTO cv_documents
         (user_id, title, full_name, professional_title, email, phone, location,
          website, linkedin, photo_url, summary,
-         work_experience, education, skills, certifications, projects, references, template)
+         work_experience, education, skills, certifications, projects, cv_references, template)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [
@@ -64,7 +64,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
         JSON.stringify(skills || { technical: [], soft: [], languages: [] }),
         JSON.stringify(certifications || []),
         JSON.stringify(projects || []),
-        JSON.stringify(references || []),
+        JSON.stringify(cv_references || []),
         template || 'classic',
       ]
     );
@@ -84,7 +84,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
     const {
       title, full_name, professional_title, email, phone, location,
       website, linkedin, photo_url, summary,
-      work_experience, education, skills, certifications, projects, references, template,
+      work_experience, education, skills, certifications, projects, cv_references, template,
     } = req.body;
 
     const { rows: [cv] } = await pool.query(
@@ -104,7 +104,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
         skills = COALESCE($13, skills),
         certifications = COALESCE($14, certifications),
         projects = COALESCE($15, projects),
-        references = COALESCE($16, references),
+        cv_references = COALESCE($16, cv_references),
         template = COALESCE($17, template),
         updated_at = NOW()
        WHERE id = $18
@@ -117,7 +117,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
         skills ? JSON.stringify(skills) : null,
         certifications ? JSON.stringify(certifications) : null,
         projects ? JSON.stringify(projects) : null,
-        references ? JSON.stringify(references) : null,
+        cv_references ? JSON.stringify(cv_references) : null,
         template,
         req.params.id,
       ]

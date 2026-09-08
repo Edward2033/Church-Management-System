@@ -242,14 +242,14 @@ interface CVData {
   email: string; phone: string; location: string; website: string; linkedin: string;
   photo_url: string; summary: string;
   work_experience: WorkExp[]; education: EduEntry[]; skills: { technical: string[]; soft: string[]; languages: string[] };
-  certifications: CertEntry[]; projects: ProjEntry[]; references: RefEntry[];
+  certifications: CertEntry[]; projects: ProjEntry[]; cv_references: RefEntry[];
   template: string;
 }
 const CV_EMPTY: CVData = {
   title: '', full_name: '', professional_title: '', email: '', phone: '',
   location: '', website: '', linkedin: '', photo_url: '', summary: '',
   work_experience: [], education: [], skills: { technical: [], soft: [], languages: [] },
-  certifications: [], projects: [], references: [], template: 'classic',
+  certifications: [], projects: [], cv_references: [], template: 'classic',
 };
 
 function printCV(cv: CVData) {
@@ -280,7 +280,7 @@ function printCV(cv: CVData) {
     `<div style="margin-bottom:12px"><strong>${p.name}</strong>${p.technologies ? ` <span style="color:#6b7280;font-size:10pt">[${p.technologies}]</span>` : ''}
     ${p.description ? `<p style="font-size:10.5pt;margin-top:4px;line-height:1.6">${p.description}</p>` : ''}
     ${p.link ? `<a href="${p.link}" style="font-size:10pt;color:#5b21b6">${p.link}</a>` : ''}</div>`).join('');
-  const refHtml = cv.references.map(r =>
+  const refHtml = cv.cv_references.map(r =>
     `<div style="margin-bottom:10px"><strong>${r.name}</strong>${r.position ? ` · ${r.position}` : ''}${r.organization ? `, ${r.organization}` : ''}${r.contact ? `<br/><span style="color:#6b7280;font-size:10pt">${r.contact}</span>` : ''}</div>`).join('');
   w.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>${cv.full_name || 'CV'}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1f2937;background:#fff}.page{max-width:750px;margin:0 auto;padding:50px 60px}@media print{.page{padding:30px 40px}}</style>
@@ -301,7 +301,7 @@ function printCV(cv: CVData) {
   ${skillsHtml ? sec('Skills', `<div style="font-size:10.5pt;line-height:2">${skillsHtml}</div>`) : ''}
   ${cv.certifications.length ? sec('Certifications', certHtml) : ''}
   ${cv.projects.length ? sec('Projects', projHtml) : ''}
-  ${cv.references.length ? sec('References', refHtml) : ''}
+  ${cv.cv_references.length ? sec('References', refHtml) : ''}
 </div>
 <script>window.onload=()=>setTimeout(()=>window.print(),600)</script>
 </body></html>`);
@@ -466,9 +466,9 @@ const CVBuilderTab: React.FC = () => {
   const addProj = () => upd('projects', [...cv.projects, { id: uid(), name: '', description: '', technologies: '', link: '' }]);
   const updProj = (id: string, k: string, v: any) => upd('projects', cv.projects.map(p => p.id === id ? { ...p, [k]: v } : p));
   const delProj = (id: string) => upd('projects', cv.projects.filter(p => p.id !== id));
-  const addRef = () => upd('references', [...cv.references, { id: uid(), name: '', position: '', organization: '', contact: '' }]);
-  const updRef = (id: string, k: string, v: any) => upd('references', cv.references.map(r => r.id === id ? { ...r, [k]: v } : r));
-  const delRef = (id: string) => upd('references', cv.references.filter(r => r.id !== id));
+  const addRef = () => upd('cv_references', [...cv.cv_references, { id: uid(), name: '', position: '', organization: '', contact: '' }]);
+  const updRef = (id: string, k: string, v: any) => upd('cv_references', cv.cv_references.map(r => r.id === id ? { ...r, [k]: v } : r));
+  const delRef = (id: string) => upd('cv_references', cv.cv_references.filter(r => r.id !== id));
 
   if (loading) return <div className="flex justify-center p-16"><Loader2 size={32} className="animate-spin text-purple-700" /></div>;
 
@@ -599,8 +599,8 @@ const CVBuilderTab: React.FC = () => {
         ))}
         <button onClick={addProj} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Project</button>
       </SecBlock>
-      <SecBlock title={`References (${cv.references.length})`} open={false}>
-        {cv.references.map((r, i) => (
+      <SecBlock title={`References (${cv.cv_references.length})`} open={false}>
+        {cv.cv_references.map((r, i) => (
           <div key={r.id} className="border border-gray-200 rounded-xl p-4 mb-3">
             <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold text-gray-700">Reference {i + 1}</span><button onClick={() => delRef(r.id)} className="p-1 text-red-400 hover:bg-red-50 rounded"><Trash2 size={14} /></button></div>
             <div className="grid grid-cols-2 gap-3">
