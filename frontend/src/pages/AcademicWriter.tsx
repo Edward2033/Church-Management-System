@@ -180,7 +180,7 @@ const AcademicWriter: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{doc.id ? 'Edit Document' : 'New Document'}</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => printAcademic(doc)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print / Download</button>
+          <button onClick={() => printAcademic(doc)} className="btn-outline py-2 text-sm"><Printer size={15} /> Download PDF</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save</>}
           </button>
@@ -260,7 +260,7 @@ const AcademicWriter: React.FC = () => {
       </Sec>
 
       <div className="flex gap-3 mt-4">
-        <button onClick={() => printAcademic(doc)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Print / Download PDF</button>
+        <button onClick={() => printAcademic(doc)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Download PDF</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save Document</>}
         </button>

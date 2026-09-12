@@ -71,14 +71,10 @@ function printLetter(letter: RecLetter, meta: LetterMeta) {
 }
 
 function downloadLetter(letter: RecLetter, meta: LetterMeta) {
-  const html = buildLetterHtml(letter, meta);
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Recommendation_Letter_${letter.applicant_name.replace(/\s+/g, '_')}.html`;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to download as PDF.'); return; }
+  w.document.write(buildLetterHtml(letter, meta) + '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>');
+  w.document.close();
 }
 
 const LetterForm: React.FC<{ onClose: () => void; onSuccess: (l: RecLetter, m: LetterMeta) => void }> = ({ onClose, onSuccess }) => {
@@ -217,7 +213,7 @@ const LetterPreview: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: ()
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
           <h3 className="font-bold text-gray-900">Letter Preview — {letter.applicant_name}</h3>
           <div className="flex gap-2">
-            <button onClick={() => downloadLetter(letter, meta)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download</button>
+            <button onClick={() => downloadLetter(letter, meta)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download PDF</button>
             <button onClick={() => printLetter(letter, meta)} className="btn-primary py-2 text-sm"><Printer size={15} /> Print</button>
             <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100"><X size={20} /></button>
           </div>
@@ -333,13 +329,11 @@ function printCV(cv: CVData) {
 }
 
 function downloadCV(cv: CVData) {
-  const blob = new Blob([buildCVHtml(cv)], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `CV_${(cv.full_name || 'document').replace(/\s+/g, '_')}.html`;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+  const html = buildCVHtml(cv);
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to download as PDF.'); return; }
+  w.document.write(html.replace('</body>', '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body>'));
+  w.document.close();
 }
 
 const SecBlock: React.FC<{ title: string; children: React.ReactNode; open?: boolean }> = ({ title, children, open: d = true }) => {
@@ -524,7 +518,7 @@ const CVBuilderTab: React.FC = () => {
               <div className="text-xs text-gray-400 mb-4">{c.professional_title || ''}</div>
               <div className="flex gap-2">
                 <button onClick={() => loadCV(c.id!)} className="btn-primary py-1.5 text-xs flex-1 justify-center">Edit</button>
-                <button onClick={() => downloadCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Download"><FileText size={14} /></button>
+                <button onClick={() => downloadCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Download PDF"><FileText size={14} /></button>
                 <button onClick={() => printCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Print"><Printer size={14} /></button>
                 <button onClick={() => remove(c.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={14} /></button>
               </div>
@@ -543,7 +537,7 @@ const CVBuilderTab: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900">{cv.id ? 'Edit CV' : 'New CV'}</h2>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => downloadCV(cv)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download</button>
+          <button onClick={() => downloadCV(cv)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download PDF</button>
           <button onClick={() => printCV(cv)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save CV</>}
@@ -651,7 +645,7 @@ const CVBuilderTab: React.FC = () => {
         <button onClick={addRef} className="btn-outline py-2 text-sm w-full"><Plus size={15} /> Add Reference</button>
       </SecBlock>
       <div className="flex gap-3 mt-4">
-        <button onClick={() => downloadCV(cv)} className="btn-outline flex-1 justify-center"><FileText size={16} /> Download</button>
+        <button onClick={() => downloadCV(cv)} className="btn-outline flex-1 justify-center"><FileText size={16} /> Download PDF</button>
         <button onClick={() => printCV(cv)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Print</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save CV</>}
@@ -720,13 +714,11 @@ function printAcademic(doc: AcademicDoc) {
 }
 
 function downloadAcademic(doc: AcademicDoc) {
-  const blob = new Blob([buildAcademicHtml(doc)], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(doc.title || 'Academic_Document').replace(/\s+/g, '_')}.html`;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+  const html = buildAcademicHtml(doc);
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to download as PDF.'); return; }
+  w.document.write(html.replace('</body>', '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body>'));
+  w.document.close();
 }
 
 const AcademicWritingTab: React.FC = () => {
@@ -792,7 +784,7 @@ const AcademicWritingTab: React.FC = () => {
                   <td className="px-4 py-3 text-gray-500 text-xs">{d.doc_date || '—'}</td>
                   <td className="px-4 py-3"><div className="flex gap-1">
                     <button onClick={() => loadDoc(d.id!)} className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50" title="Edit"><FileText size={15} /></button>
-                    <button onClick={() => downloadAcademic(d)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50" title="Download"><FileText size={15} /></button>
+                    <button onClick={() => downloadAcademic(d)} className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50" title="Download PDF"><FileText size={15} /></button>
                     <button onClick={() => printAcademic(d)} className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100" title="Print"><Printer size={15} /></button>
                     <button onClick={() => remove(d.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50" title="Delete"><Trash2 size={15} /></button>
                   </div></td>
@@ -813,7 +805,7 @@ const AcademicWritingTab: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900">{doc.id ? 'Edit Document' : 'New Academic Document'}</h2>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => downloadAcademic(doc)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download</button>
+          <button onClick={() => downloadAcademic(doc)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download PDF</button>
           <button onClick={() => printAcademic(doc)} className="btn-outline py-2 text-sm"><Printer size={15} /> Print</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Document</>}
@@ -883,7 +875,7 @@ const AcademicWritingTab: React.FC = () => {
         <textarea rows={8} value={doc.references_list} onChange={e => upd('references_list', e.target.value)} className="input-base resize-none font-mono text-xs" placeholder="Author, A. A. (Year). Title of work. Publisher.&#10;Author, B. B. (Year). Title of article. Journal Name, Volume(Issue), pages." />
       </SecBlock>
       <div className="flex gap-3 mt-4">
-        <button onClick={() => downloadAcademic(doc)} className="btn-outline flex-1 justify-center"><FileText size={16} /> Download</button>
+        <button onClick={() => downloadAcademic(doc)} className="btn-outline flex-1 justify-center"><FileText size={16} /> Download PDF</button>
         <button onClick={() => printAcademic(doc)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Print</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save Document</>}

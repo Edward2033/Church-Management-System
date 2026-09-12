@@ -108,7 +108,7 @@ const CVBuilder: React.FC = () => {
               <div className="text-xs text-gray-400 mb-4">{c.professional_title||''}</div>
               <div className="flex gap-2">
                 <button onClick={() => loadCV(c.id!)} className="btn-primary py-1.5 text-xs flex-1 justify-center">Edit</button>
-                <button onClick={() => printCV(c)} className="btn-outline py-1.5 text-xs px-3"><Printer size={14}/></button>
+                <button onClick={() => printCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Download PDF"><Printer size={14}/></button>
                 <button onClick={() => remove(c.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
               </div>
             </div>
@@ -127,7 +127,7 @@ const CVBuilder: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{cv.id ? 'Edit CV' : 'New CV'}</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => printCV(cv)} className="btn-outline py-2 text-sm"><Printer size={15}/> Print / Download</button>
+          <button onClick={() => printCV(cv)} className="btn-outline py-2 text-sm"><Printer size={15}/> Download PDF</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin"/> Saving…</> : <><Save size={15}/> Save CV</>}
           </button>
@@ -302,7 +302,7 @@ const CVBuilder: React.FC = () => {
       </Sec>
 
       <div className="flex gap-3 mt-4">
-        <button onClick={() => printCV(cv)} className="btn-outline flex-1 justify-center"><Printer size={16}/> Print / Download PDF</button>
+        <button onClick={() => printCV(cv)} className="btn-outline flex-1 justify-center"><Printer size={16}/> Download PDF</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin"/> Saving…</> : <><Save size={16}/> Save CV</>}
         </button>
