@@ -28,15 +28,8 @@ const EMPTY: CVData = {
   certifications: [], projects: [], references: [], template: 'classic',
 };
 
-// ── Download as PDF ───────────────────────────────────────────
-function downloadCV(cv: CVData) {
-  downloadAsPdf(buildCVHtml(cv), `CV_${(cv.full_name || 'document').replace(/\s+/g, '_')}`);
-}
-
-// ── Print ─────────────────────────────────────────────────────
-function printCV(cv: CVData) {
-  const w = window.open('', '_blank', 'width=900,height=1100');
-  if (!w) { alert('Please allow popups to print.'); return; }
+// ── Build CV HTML ─────────────────────────────────────────────
+function buildCVHtml(cv: CVData): string {
   const photo = cv.photo_url ? `<img src="${cv.photo_url}" style="width:110px;height:130px;object-fit:cover;border-radius:8px;border:3px solid #e9d5ff;float:right;margin-left:20px" alt="photo"/>` : '';
   const sec = (title: string, html: string) => html.trim() ? `<div style="margin-bottom:22px"><div style="font-size:11pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#5b21b6;border-bottom:2px solid #e9d5ff;padding-bottom:4px;margin-bottom:12px">${title}</div>${html}</div>` : '';
   const workHtml = cv.work_experience.map((j) => `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><strong>${j.job_title}</strong><span style="color:#6b7280;font-size:10pt">${j.start_date}${j.end_date||j.current?' – '+(j.current?'Present':j.end_date):''}</span></div><div style="color:#7c3aed;font-size:11pt">${j.company}${j.location?' · '+j.location:''}</div>${j.responsibilities?`<p style="font-size:10.5pt;margin:4px 0;white-space:pre-line">${j.responsibilities}</p>`:''} ${j.achievements?`<p style="font-size:10.5pt;margin:4px 0;font-style:italic">Achievements: ${j.achievements}</p>`:''}</div>`).join('');
@@ -45,14 +38,26 @@ function printCV(cv: CVData) {
   const certHtml = cv.certifications.map((c) => `<div style="margin-bottom:8px"><strong>${c.name}</strong>${c.institution?' — '+c.institution:''}${c.date?' ('+c.date+')':''}</div>`).join('');
   const projHtml = cv.projects.map((p) => `<div style="margin-bottom:12px"><strong>${p.name}</strong>${p.technologies?`<span style="color:#7c3aed"> · ${p.technologies}</span>`:''} ${p.description?`<p style="font-size:10.5pt;margin:4px 0">${p.description}</p>`:''} ${p.link?`<a href="${p.link}" style="color:#7c3aed;font-size:10pt">${p.link}</a>`:''}</div>`).join('');
   const refHtml = cv.references.map((r) => `<div style="margin-bottom:10px"><strong>${r.name}</strong>${r.position?', '+r.position:''}${r.organization?' — '+r.organization:''} ${r.contact?`<div style="font-size:10pt;color:#6b7280">${r.contact}</div>`:''}</div>`).join('');
-  w.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>CV – ${cv.full_name||'Resume'}</title>
+  return `<!doctype html><html><head><meta charset="UTF-8"><title>CV – ${cv.full_name||'Resume'}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Calibri',Arial,sans-serif;font-size:11pt;color:#1f2937;background:#fff}.page{max-width:780px;margin:0 auto;padding:50px 60px}@media print{.page{padding:30px 40px}}</style>
 </head><body><div class="page">
 <div style="margin-bottom:28px;overflow:hidden">${photo}<h1 style="font-size:22pt;font-weight:700;line-height:1.2">${cv.full_name||'Full Name'}</h1>${cv.professional_title?`<div style="font-size:13pt;color:#7c3aed;margin:4px 0">${cv.professional_title}</div>`:''}<div style="font-size:10pt;color:#6b7280;margin-top:6px">${[cv.email?'✉ '+cv.email:'',cv.phone?'📞 '+cv.phone:'',cv.location?'📍 '+cv.location:'',cv.website?'🌐 '+cv.website:'',cv.linkedin?'🔗 '+cv.linkedin:''].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div></div>
 ${sec('Professional Summary',cv.summary?`<p style="line-height:1.7">${cv.summary}</p>`:'')}
 ${sec('Work Experience',workHtml)}${sec('Education',eduHtml)}${sec('Skills',skillsHtml)}${sec('Certifications',certHtml)}${sec('Projects',projHtml)}${sec('References',refHtml)}
-</div><script>window.onload=()=>setTimeout(()=>window.print(),600)</script></body></html>`);
+</div></body></html>`;
+}
+
+// ── Print ─────────────────────────────────────────────────────
+function printCV(cv: CVData) {
+  const w = window.open('', '_blank', 'width=900,height=1100');
+  if (!w) { alert('Please allow popups to print.'); return; }
+  w.document.write(buildCVHtml(cv).replace('</body>', '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body>'));
   w.document.close();
+}
+
+// ── Download as PDF ───────────────────────────────────────────
+function downloadCV(cv: CVData) {
+  downloadAsPdf(buildCVHtml(cv), `CV_${(cv.full_name || 'document').replace(/\s+/g, '_')}`);
 }
 
 // ── Collapsible section ───────────────────────────────────────
