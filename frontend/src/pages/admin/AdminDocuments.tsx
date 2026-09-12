@@ -529,13 +529,27 @@ const CVBuilderTab: React.FC = () => {
       </div>
       <SecBlock title="Personal Information">
         <div className="grid grid-cols-2 gap-4">
-          {cv.photo_url && <div className="col-span-2"><img src={cv.photo_url} alt="CV photo" className="h-24 w-20 object-cover rounded-lg border-2 border-purple-100" /></div>}
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
-            <label className="cursor-pointer btn-outline py-2 text-sm inline-flex items-center gap-2">
-              <Upload size={14} /> {uploading ? 'Uploading…' : 'Upload Photo'}
-              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); }} />
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+            <div className="flex items-center gap-3">
+              {cv.photo_url && (
+                <div className="relative">
+                  <img src={cv.photo_url} alt="CV photo" className="h-20 w-16 object-cover rounded-lg border-2 border-purple-100" />
+                  <button
+                    type="button"
+                    onClick={() => upd('photo_url', '')}
+                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                    title="Remove photo"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              )}
+              <label className="cursor-pointer btn-outline py-2 text-sm inline-flex items-center gap-2">
+                <Upload size={14} /> {uploading ? 'Uploading…' : cv.photo_url ? 'Change Photo' : 'Upload Photo'}
+                <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); }} />
+              </label>
+            </div>
           </div>
           {([['full_name', 'Full Name *'], ['professional_title', 'Professional Title'], ['email', 'Email'], ['phone', 'Phone'], ['location', 'Location / City'], ['website', 'Website / Portfolio'], ['linkedin', 'LinkedIn / Social Link']] as [string, string][]).map(([k, l]) => (
             <div key={k}><label className="block text-sm font-medium text-gray-700 mb-1">{l}</label><input value={(cv as any)[k] || ''} onChange={e => upd(k as any, e.target.value)} className="input-base" /></div>
