@@ -50,10 +50,45 @@ function parseOrgInfo(html, url) {
 function buildLetter({ letterType, applicantName, applicantStatus, dateJoined, additionalInfo,
   orgName, purpose, extraInfo, signatoryName, signatoryTitle, churchName, churchContact, logoUrl }) {
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const entity = letterType === 'choir' ? `${churchName} Choir` : churchName;
+  // Choir letters: header and body reference only the choir, not the church name
+  const choirName = `${churchName} Choir`;
+  const entity = letterType === 'choir' ? choirName : churchName;
   const relationship = letterType === 'choir'
-    ? `a valued member of the ${churchName} Choir`
+    ? `a valued member of the ${choirName}`
     : `a faithful member of ${churchName}`;
+
+  return `${today}
+
+The Admissions/Selection Committee
+${orgName || '[Organization Name]'}
+
+Dear Sir/Madam,
+
+RE: LETTER OF RECOMMENDATION FOR ${applicantName.toUpperCase()}
+
+It is with great pleasure and without reservation that I write this letter of recommendation on behalf of ${applicantName}, who has been ${relationship}${dateJoined ? ` since ${dateJoined}` : ''}.
+
+${applicantName} has demonstrated exceptional character, dedication, and commitment throughout their time with us. ${applicantStatus ? `As ${applicantStatus}, they have consistently shown leadership, reliability, and a genuine desire to serve and contribute to our community.` : 'They have consistently shown leadership, reliability, and a genuine desire to serve and contribute to our community.'}
+
+${additionalInfo ? additionalInfo + '\n\n' : ''}${letterType === 'choir'
+  ? `Within our choir ministry, ${applicantName} has shown remarkable musical ability, discipline, and a collaborative spirit. Their dedication to rehearsals, performances, and the overall mission of our music ministry speaks volumes about their character and work ethic.`
+  : `Within our church community, ${applicantName} has been an active and positive presence. Their integrity, faithfulness, and willingness to serve have made a meaningful impact on our congregation.`}
+
+${purpose ? `I understand that ${applicantName} is applying to ${orgName || 'your organization'} for ${purpose}. I am confident that they will bring the same level of dedication, professionalism, and excellence that they have demonstrated here.` : `I am confident that ${applicantName} will bring the same level of dedication, professionalism, and excellence that they have demonstrated here.`}
+
+${extraInfo ? extraInfo + '\n\n' : ''}I wholeheartedly recommend ${applicantName} for any opportunity your organization may offer. Please do not hesitate to contact us should you require any further information.
+
+Yours sincerely,
+
+
+____________________________
+Signature
+
+${signatoryName || '[Signatory Name]'}
+${signatoryTitle || '[Title]'}
+${entity}
+${churchContact || ''}`;
+}
 
   return `${today}
 
