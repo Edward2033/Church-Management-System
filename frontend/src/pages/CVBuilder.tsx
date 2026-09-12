@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, put, del, apiFetch } from '@/lib/api';
-import { Plus, Trash2, Loader2, Save, Printer, FileText, Upload } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, Printer, FileText, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { EMPTY, uid, printCV, Sec, TagInput } from './CVBuilderUtils';
+import { EMPTY, uid, printCV, downloadCV, Sec, TagInput } from './CVBuilderUtils';
 import type { CVData, WorkExp, Education, Certification, Project, CVRef } from './CVBuilderUtils';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _unused = WorkExp | Education | Certification | Project | CVRef;
@@ -108,7 +108,7 @@ const CVBuilder: React.FC = () => {
               <div className="text-xs text-gray-400 mb-4">{c.professional_title||''}</div>
               <div className="flex gap-2">
                 <button onClick={() => loadCV(c.id!)} className="btn-primary py-1.5 text-xs flex-1 justify-center">Edit</button>
-                <button onClick={() => printCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Download PDF"><Printer size={14}/></button>
+                <button onClick={() => downloadCV(c)} className="btn-outline py-1.5 text-xs px-3" title="Download PDF"><Download size={14}/></button>
                 <button onClick={() => remove(c.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
               </div>
             </div>
@@ -127,7 +127,7 @@ const CVBuilder: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{cv.id ? 'Edit CV' : 'New CV'}</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => printCV(cv)} className="btn-outline py-2 text-sm"><Printer size={15}/> Download PDF</button>
+          <button onClick={() => downloadCV(cv)} className="btn-outline py-2 text-sm"><Download size={15}/> Download PDF</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin"/> Saving…</> : <><Save size={15}/> Save CV</>}
           </button>
@@ -302,7 +302,7 @@ const CVBuilder: React.FC = () => {
       </Sec>
 
       <div className="flex gap-3 mt-4">
-        <button onClick={() => printCV(cv)} className="btn-outline flex-1 justify-center"><Printer size={16}/> Download PDF</button>
+        <button onClick={() => downloadCV(cv)} className="btn-outline flex-1 justify-center"><Download size={16}/> Download PDF</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin"/> Saving…</> : <><Save size={16}/> Save CV</>}
         </button>

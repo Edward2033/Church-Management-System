@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, put, del, apiFetch } from '@/lib/api';
-import { Plus, Trash2, Loader2, Save, Printer, FileText, ChevronDown, ChevronUp, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, FileText, ChevronDown, ChevronUp, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadAsPdf } from '@/lib/pdfDownload';
 
 // ── Types ─────────────────────────────────────────────────────
 interface WorkExp { id: string; job_title: string; company: string; location: string; start_date: string; end_date: string; current: boolean; responsibilities: string; achievements: string; }
@@ -26,6 +27,11 @@ const EMPTY: CVData = {
   skills: { technical: [], soft: [], languages: [] },
   certifications: [], projects: [], references: [], template: 'classic',
 };
+
+// ── Download as PDF ───────────────────────────────────────────
+function downloadCV(cv: CVData) {
+  downloadAsPdf(buildCVHtml(cv), `CV_${(cv.full_name || 'document').replace(/\s+/g, '_')}`);
+}
 
 // ── Print ─────────────────────────────────────────────────────
 function printCV(cv: CVData) {
@@ -85,5 +91,5 @@ const TagInput: React.FC<{ label: string; tags: string[]; onChange: (t: string[]
   );
 };
 
-export { EMPTY, uid, printCV, Sec, TagInput };
+export { EMPTY, uid, printCV, downloadCV, Sec, TagInput };
 export type { CVData, WorkExp, Education, Certification, Project, CVRef };

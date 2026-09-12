@@ -3,8 +3,9 @@ import { get, post, del, put, apiFetch } from '@/lib/api';
 import {
   FileText, Plus, Loader2, X, Eye, Trash2, Printer, Save,
   Upload, CheckCircle, AlertCircle, Globe, BookOpen,
-  ChevronDown, ChevronUp, GraduationCap, Award,
+  ChevronDown, ChevronUp, GraduationCap, Award, Download,
 } from 'lucide-react';
+import { downloadAsPdf } from '@/lib/pdfDownload';
 import { toast } from 'sonner';
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -71,10 +72,7 @@ function printLetter(letter: RecLetter, meta: LetterMeta) {
 }
 
 function downloadLetter(letter: RecLetter, meta: LetterMeta) {
-  const w = window.open('', '_blank', 'width=900,height=1100');
-  if (!w) { alert('Please allow popups to download as PDF.'); return; }
-  w.document.write(buildLetterHtml(letter, meta) + '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>');
-  w.document.close();
+  downloadAsPdf(buildLetterHtml(letter, meta), `Recommendation_Letter_${letter.applicant_name.replace(/\s+/g, '_')}`);
 }
 
 const LetterForm: React.FC<{ onClose: () => void; onSuccess: (l: RecLetter, m: LetterMeta) => void }> = ({ onClose, onSuccess }) => {
@@ -213,7 +211,7 @@ const LetterPreview: React.FC<{ letter: RecLetter; meta: LetterMeta; onClose: ()
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
           <h3 className="font-bold text-gray-900">Letter Preview — {letter.applicant_name}</h3>
           <div className="flex gap-2">
-            <button onClick={() => downloadLetter(letter, meta)} className="btn-outline py-2 text-sm"><FileText size={15} /> Download PDF</button>
+            <button onClick={() => downloadLetter(letter, meta)} className="btn-outline py-2 text-sm"><Download size={15} /> Download PDF</button>
             <button onClick={() => printLetter(letter, meta)} className="btn-primary py-2 text-sm"><Printer size={15} /> Print</button>
             <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100"><X size={20} /></button>
           </div>
@@ -329,11 +327,7 @@ function printCV(cv: CVData) {
 }
 
 function downloadCV(cv: CVData) {
-  const html = buildCVHtml(cv);
-  const w = window.open('', '_blank', 'width=900,height=1100');
-  if (!w) { alert('Please allow popups to download as PDF.'); return; }
-  w.document.write(html.replace('</body>', '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body>'));
-  w.document.close();
+  downloadAsPdf(buildCVHtml(cv), `CV_${(cv.full_name || 'document').replace(/\s+/g, '_')}`);
 }
 
 const SecBlock: React.FC<{ title: string; children: React.ReactNode; open?: boolean }> = ({ title, children, open: d = true }) => {
@@ -714,11 +708,7 @@ function printAcademic(doc: AcademicDoc) {
 }
 
 function downloadAcademic(doc: AcademicDoc) {
-  const html = buildAcademicHtml(doc);
-  const w = window.open('', '_blank', 'width=900,height=1100');
-  if (!w) { alert('Please allow popups to download as PDF.'); return; }
-  w.document.write(html.replace('</body>', '<script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body>'));
-  w.document.close();
+  downloadAsPdf(buildAcademicHtml(doc), `${(doc.title || 'Academic_Document').replace(/\s+/g, '_')}`);
 }
 
 const AcademicWritingTab: React.FC = () => {

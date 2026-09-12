@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { get, post, put, del } from '@/lib/api';
-import { Plus, Trash2, Loader2, Save, Printer, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, FileText, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadAsPdf } from '@/lib/pdfDownload';
 
 interface AcademicSection { id: string; heading: string; content: string; }
 interface AcademicDoc {
@@ -26,9 +27,7 @@ const DOC_TYPES = [
   { value: 'project_paper', label: 'Project Paper' }, { value: 'other', label: 'Other' },
 ];
 
-function printAcademic(doc: AcademicDoc) {
-  const w = window.open('', '_blank', 'width=900,height=1100');
-  if (!w) { alert('Please allow popups to print.'); return; }
+function downloadAcademic(doc: AcademicDoc) {
   const sec = (title: string, content: string) => content?.trim()
     ? `<div style="margin-bottom:24px">
         <h2 style="font-size:13pt;font-weight:700;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">${title}</h2>
@@ -36,7 +35,7 @@ function printAcademic(doc: AcademicDoc) {
        </div>` : '';
   const isResearch = ['research_paper','report','project_paper'].includes(doc.doc_type);
   const extraSecs = doc.sections.map((s) => sec(s.heading || 'Section', s.content)).join('');
-  w.document.write(`<!doctype html><html><head><meta charset="UTF-8">
+  const html = `<!doctype html><html><head><meta charset="UTF-8">
 <title>${doc.title || 'Academic Document'}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -64,10 +63,8 @@ function printAcademic(doc: AcademicDoc) {
   ${isResearch ? sec('Discussion', doc.discussion) : ''}
   ${sec('Conclusion', doc.conclusion)}
   ${doc.references_list?.trim() ? `<div style="margin-top:30px"><h2 style="font-size:13pt;font-weight:700;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">References</h2><div style="font-size:10.5pt;line-height:1.8;white-space:pre-line">${doc.references_list}</div></div>` : ''}
-</div>
-<script>window.onload=()=>setTimeout(()=>window.print(),600)</script>
-</body></html>`);
-  w.document.close();
+</div></body></html>`;
+  downloadAsPdf(html, `${(doc.title || 'Academic_Document').replace(/\s+/g, '_')}`);
 }
 
 const Sec: React.FC<{ title: string; children: React.ReactNode; open?: boolean }> = ({ title, children, open: defaultOpen = true }) => {
@@ -162,7 +159,7 @@ const AcademicWriter: React.FC = () => {
               <div className="text-xs text-gray-400 mb-4">{d.institution || ''}</div>
               <div className="flex gap-2">
                 <button onClick={() => loadDoc(d.id!)} className="btn-primary py-1.5 text-xs flex-1 justify-center">Edit</button>
-                <button onClick={() => printAcademic(d)} className="btn-outline py-1.5 text-xs px-3"><Printer size={14} /></button>
+                <button onClick={() => downloadAcademic(d)} className="btn-outline py-1.5 text-xs px-3" title="Download PDF"><Download size={14} /></button>
                 <button onClick={() => remove(d.id!)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50"><Trash2 size={14} /></button>
               </div>
             </div>
@@ -180,7 +177,7 @@ const AcademicWriter: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{doc.id ? 'Edit Document' : 'New Document'}</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => printAcademic(doc)} className="btn-outline py-2 text-sm"><Printer size={15} /> Download PDF</button>
+          <button onClick={() => downloadAcademic(doc)} className="btn-outline py-2 text-sm"><Download size={15} /> Download PDF</button>
           <button onClick={save} disabled={saving} className="btn-primary py-2 text-sm">
             {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save</>}
           </button>
@@ -260,7 +257,7 @@ const AcademicWriter: React.FC = () => {
       </Sec>
 
       <div className="flex gap-3 mt-4">
-        <button onClick={() => printAcademic(doc)} className="btn-outline flex-1 justify-center"><Printer size={16} /> Download PDF</button>
+        <button onClick={() => downloadAcademic(doc)} className="btn-outline flex-1 justify-center"><Download size={16} /> Download PDF</button>
         <button onClick={save} disabled={saving} className="btn-primary flex-1 justify-center">
           {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Save size={16} /> Save Document</>}
         </button>
